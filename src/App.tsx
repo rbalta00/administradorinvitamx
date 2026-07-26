@@ -506,11 +506,12 @@ declare global {
 }
 export default function App() {
   // Cargar estado inicial desde la URL si existe o desde localStorage, o el editor precargado
-  const getInitialState = (): { initialDatos: InvitacionDatos; initialTemaId: string; isView: boolean; isCatalog: boolean; initialCatalogTemaId: string | null } => {
+  const getInitialState = (): { initialDatos: InvitacionDatos; initialTemaId: string; isView: boolean; isCatalog: boolean; initialCatalogTemaId: string | null; isEmbed: boolean } => {
     try {
       const params = new URLSearchParams(window.location.search);
       const isView = params.get("v") === "1" || params.get("view") === "true";
       const isCatalog = params.get("catalog") === "true" || params.get("catalogo") === "true";
+      const isEmbed = params.get("embed") === "true";
       const initialCatalogTemaId = params.get("tema") || null;
       let targetTema = params.get("tema") || "mariposas";
 
@@ -540,7 +541,8 @@ export default function App() {
             initialTemaId: decoded.tema || targetTema,
             isView,
             isCatalog,
-            initialCatalogTemaId
+            initialCatalogTemaId,
+            isEmbed
           };
         }
       }
@@ -562,7 +564,8 @@ export default function App() {
               initialTemaId: parsed.tema || targetTema,
               isView,
               isCatalog,
-              initialCatalogTemaId
+              initialCatalogTemaId,
+              isEmbed
             };
           }
         }
@@ -580,7 +583,8 @@ export default function App() {
         initialTemaId: targetTema,
         isView,
         isCatalog,
-        initialCatalogTemaId
+        initialCatalogTemaId,
+        isEmbed
       };
     } catch (e) {
       let customBgs = {};
@@ -598,12 +602,13 @@ export default function App() {
         initialTemaId: "mariposas",
         isView: false,
         isCatalog: false,
-        initialCatalogTemaId: null
+        initialCatalogTemaId: null,
+        isEmbed: false
       };
     }
   };
 
-  const { initialDatos, initialTemaId, isView: isViewMode, isCatalog: isCatalogInitial, initialCatalogTemaId } = getInitialState();
+  const { initialDatos, initialTemaId, isView: isViewMode, isCatalog: isCatalogInitial, initialCatalogTemaId, isEmbed: isEmbedMode } = getInitialState();
 
   // Detectar parámetro ?catalog=true para mostrar el catálogo
   const queryParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
@@ -1503,6 +1508,26 @@ export default function App() {
         <p className="text-xs text-slate-500 font-medium font-sans">Abriendo tu invitación digital de 15 años...</p>
       </div>
     );
+  }
+
+  // Modo embed (?embed=true&tema=<id>): reemplaza el DOM con la misma vista previa en vivo
+  // (generarHTMLFinal + getDatosVisualizacionCatalog) que usan las tarjetas del catálogo interno,
+  // para que invitacionmx-landing e invitacionmx-catalogo puedan incrustarla en un iframe y
+  // garantizar que siempre coincida con lo que se ve aquí.
+  useEffect(() => {
+    if (isEmbedMode) {
+      const embedTema = temas.find(t => t.id === initialCatalogTemaId) || temas[0];
+      const datosEmbed = getDatosVisualizacionCatalog(embedTema, datos);
+      const htmlContent = generarHTMLFinal({ ...datosEmbed, seccionesExcluidas: [...(datosEmbed.seccionesExcluidas || []), "apertura"] }, embedTema);
+
+      document.open();
+      document.write(htmlContent);
+      document.close();
+    }
+  }, [isEmbedMode, initialCatalogTemaId, datos]);
+
+  if (isEmbedMode) {
+    return <div className="w-screen h-screen fixed inset-0 bg-white" />;
   }
 
   if (isCatalogMode) {
