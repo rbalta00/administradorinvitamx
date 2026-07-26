@@ -4,5 +4,16 @@
       "source": "/(.*)",
       "destination": "/index.html"
     }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "frame-ancestors 'self' https://invitacionmx-catalogo.vercel.app https://invitacionmx-landing.vercel.app https://www.invitamx.online https://invitamx.online http://localhost:3000 http://localhost:3001 http://localhost:3002"
+        }
+      ]
+    }
   ]
 }
