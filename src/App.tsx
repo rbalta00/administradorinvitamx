@@ -1177,33 +1177,21 @@ export default function App() {
       .catch(err => mostrarToast("Error al copiar datos JSON: " + err, "error"));
   };
 
-  // Generar URL del catálogo de demos
+  // Generar URL del catálogo de demos. Siempre apunta al despliegue público sin
+  // protección SSO (invitacionmx-demo.vercel.app) para que el link funcione para
+  // cualquier cliente, sin importar desde dónde se genere (editor privado, localhost, etc.).
   const getCatalogUrl = () => {
-    let appUrl = window.location.origin + window.location.pathname;
-    if (
-      window.location.origin.includes("run.app") || 
-      window.location.origin.includes("localhost") || 
-      window.location.origin.includes("127.0.0.1") ||
-      window.location.origin.includes("google")
-    ) {
-      appUrl = "https://generadorpruebaxv1.vercel.app/";
-    }
+    const appUrl = "https://invitacionmx-demo.vercel.app/";
     const stateStr = encodeState(datos);
     return `${appUrl}?catalog=true${stateStr ? `&d=${stateStr}` : ''}`;
   };
 
-  // Generar URL de compartir con todos los datos y el invitado seleccionado
+  // Generar URL de compartir con todos los datos y el invitado seleccionado. Siempre apunta
+  // al despliegue público sin protección SSO (invitacionmx-demo.vercel.app) para que los
+  // invitados reales puedan abrir su invitación sin toparse con el login de Vercel.
   const getShareUrl = (invitadoIndex = selectedInvitadoIndex) => {
-    let appUrl = window.location.origin + window.location.pathname;
-    if (
-      window.location.origin.includes("run.app") || 
-      window.location.origin.includes("localhost") || 
-      window.location.origin.includes("127.0.0.1") ||
-      window.location.origin.includes("google")
-    ) {
-      appUrl = "https://generadorpruebaxv1.vercel.app/";
-    }
-    
+    const appUrl = "https://invitacionmx-demo.vercel.app/";
+
     // Sincronizar el tema activo de forma explícita en los datos decodificables antes de codificar la URL
     const datosListos = {
       ...datos,
@@ -1783,9 +1771,22 @@ export default function App() {
     );
   }
 
+  // Modo de despliegue "solo demo pública" (VITE_PUBLIC_DEMO_ONLY=true): usado en el
+  // proyecto de Vercel público (sin protección SSO) que sirve el catálogo a clientes.
+  // Bloquea el editor privado (con acceso de escritura a Supabase) para que ese despliegue
+  // público solo pueda mostrar los modos de solo lectura (catálogo, vista, embed).
+  if (import.meta.env.VITE_PUBLIC_DEMO_ONLY === 'true') {
+    return (
+      <div className="w-screen h-screen fixed inset-0 flex flex-col items-center justify-center bg-slate-50 gap-3 text-center px-6">
+        <p className="text-sm text-slate-500 font-medium font-sans">Este link no está disponible.</p>
+        <a href="https://w.app/invitamx" className="text-xs text-indigo-600 font-semibold underline">Contáctanos por WhatsApp</a>
+      </div>
+    );
+  }
+
   return (
     <div className="lg:h-screen lg:overflow-hidden min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
-      
+
       {/* HEADER PRINCIPAL DE LA HERRAMIENTA PRIVADA */}
       <header className="bg-white border-b border-slate-200 px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4 shrink-0 shadow-sm">
         <div className="flex items-center gap-3">
