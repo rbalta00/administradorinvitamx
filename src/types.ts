@@ -72,4 +72,8 @@ export interface TemaConfig {
   iconStyle: string;
   decorativeEmoji: string;
   customStyle?: string;
+  /** Si es true, el tema no aparece en el catálogo público (?catalog=true) ni en las
+   *  demos embebidas, pero sigue disponible en el selector del editor. Se usa para
+   *  temas base pensados como lienzo en blanco para invitaciones 100% personalizadas. */
+  oculto?: boolean;
 }

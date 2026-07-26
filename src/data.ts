@@ -1025,6 +1025,28 @@ export const temas: TemaConfig[] = [
         border-color: #00D9FF !important;
       }
     `
+  },
+  {
+    id: "personalizado",
+    nombre: "Personalizado 🎨 (A Medida)",
+    fontHeading: "Playfair Display",
+    fontBody: "Inter",
+    fontCursive: "Great Vibes",
+    colors: {
+      primary: "#8A8578",
+      secondary: "#C9C2B2",
+      accent: "#4A4640",
+      dark: "#2E2B26",
+      light: "#F7F5F0",
+      bg: "#FBFAF7",
+      border: "#DAD5C8"
+    },
+    bgGradient: "linear-gradient(135deg, #FBFAF7 0%, #F2EFE7 100%)",
+    textDark: "#2E2B26",
+    textLight: "#FBFAF7",
+    iconStyle: "border-2 border-[#DAD5C8] rounded-full text-[#4A4640] p-2 bg-[#F7F5F0]",
+    decorativeEmoji: "🎨",
+    oculto: true
   }
 ];
 

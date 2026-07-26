@@ -1584,7 +1584,7 @@ export default function App() {
             /* Listado de tarjetas de catálogo de todos los temas */
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {temas.map((t, idx) => {
+                {temas.filter(t => !t.oculto).map((t, idx) => {
                   const isDarkTheme = t.id === "celestial" || t.id === "princesa-elegante" || t.id === "neon";
                   const isVisorOscuro = t.id === "celestial" || t.id === "neon";
                   const lightBgColor = isVisorOscuro ? '#f8fafc' : (t.colors.light || '#f8fafc');
