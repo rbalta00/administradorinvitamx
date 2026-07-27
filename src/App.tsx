@@ -1284,7 +1284,15 @@ export default function App() {
     const htmlCompleto = generarHTMLFinal(datos, temaActual);
     const blob = new Blob([htmlCompleto], { type: "text/html;charset=utf-8" });
     const url = URL.createObjectURL(blob);
-    window.open(url, "_blank");
+    // Abrimos una VENTANA con el tamaño del dispositivo seleccionado en el monitor (Móvil/
+    // Tablet), en vez de una pestaña normal que toma el ancho completo del navegador — si no,
+    // aunque el contenido esté centrado, no se aprecia como una pantalla de celular real.
+    const featuresPorDispositivo: Record<string, string> = {
+      mobile: "width=430,height=900",
+      tablet: "width=820,height=1024"
+    };
+    const features = featuresPorDispositivo[previewDevice];
+    window.open(url, "_blank", features);
     setTimeout(() => {
       URL.revokeObjectURL(url);
     }, 4000);
