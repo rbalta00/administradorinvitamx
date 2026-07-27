@@ -1187,7 +1187,12 @@ export default function App() {
       contenedorTemporal.style.top = "-99999px";
       contenedorTemporal.style.left = "0";
       contenedorTemporal.style.width = "420px";
-      contenedorTemporal.style.height = "1px";
+      // Alto fijo tipo "pantalla de celular": varias secciones usan unidades vh (ej. la
+      // portada usa min-h-[92vh]) que se resuelven contra ESTE alto. Si luego estiráramos el
+      // iframe hasta igualar el alto total del contenido, ese 92vh pasaría a ser el 92% de TODA
+      // la invitación en vez de una pantalla — exactamente lo que causaba que las secciones se
+      // vieran separadas por espacios enormes en el PDF.
+      contenedorTemporal.style.height = "800px";
       contenedorTemporal.style.border = "0";
       document.body.appendChild(contenedorTemporal);
 
@@ -1225,41 +1230,43 @@ export default function App() {
         new Promise((resolve) => setTimeout(resolve, 4000))
       ]);
       await new Promise((resolve) => setTimeout(resolve, 300));
-      contenedorTemporal.style.height = `${iframeDoc.body.scrollHeight}px`;
-      await new Promise((resolve) => setTimeout(resolve, 200));
 
       const canvas = await html2canvas(iframeDoc.body, {
         useCORS: true,
         allowTaint: false,
         scale: 2,
         backgroundColor: "#ffffff",
+        // windowWidth/windowHeight fijan la base para resolver vh/vw (ej. min-h-[92vh] de la
+        // portada) — deben quedarse en el tamaño de "pantalla de celular" del iframe, NO en el
+        // alto real del contenido, que es lo que capturamos abajo con `height`.
         windowWidth: 420,
+        windowHeight: 800,
         height: iframeDoc.body.scrollHeight,
       });
 
       const imgData = canvas.toDataURL("image/jpeg", 0.92);
 
-      // jsPDF no permite páginas de más de 14400 unidades: dividimos la captura larga
-      // en páginas tamaño carta (misma proporción), como un conversor de página web a PDF.
-      const imgWidth = canvas.width;
-      const pageHeight = Math.round(imgWidth * (11 / 8.5));
+      // Una sola página con las medidas exactas de la invitación (mismo aspect ratio que la
+      // captura), en vez de partirla en páginas tamaño carta. El PDF/jsPDF no permite páginas
+      // de más de ~14400pt de alto, así que si la invitación es muy larga se reduce el tamaño
+      // físico de la página proporcionalmente (ancho y alto por igual) para no pasar ese límite
+      // — la imagen no se recorta ni se distorsiona, solo se imprime un poco más chica.
+      const PX_A_PT = 0.75; // 1 px CSS (96dpi) = 0.75pt (72dpi), conversión estándar
+      const LIMITE_PT = 14000; // margen de seguridad bajo el límite real de ~14400pt
+      let pageWidth = canvas.width * PX_A_PT;
+      let pageHeight = canvas.height * PX_A_PT;
+      if (pageHeight > LIMITE_PT) {
+        const factor = LIMITE_PT / pageHeight;
+        pageWidth *= factor;
+        pageHeight *= factor;
+      }
+
       const pdf = new jsPDF({
         orientation: "portrait",
-        unit: "px",
-        format: [imgWidth, pageHeight]
+        unit: "pt",
+        format: [pageWidth, pageHeight]
       });
-
-      let posicionY = 0;
-      let alturaRestante = canvas.height;
-      pdf.addImage(imgData, "JPEG", 0, posicionY, imgWidth, canvas.height);
-      alturaRestante -= pageHeight;
-
-      while (alturaRestante > 0) {
-        posicionY -= pageHeight;
-        pdf.addPage([imgWidth, pageHeight]);
-        pdf.addImage(imgData, "JPEG", 0, posicionY, imgWidth, canvas.height);
-        alturaRestante -= pageHeight;
-      }
+      pdf.addImage(imgData, "JPEG", 0, 0, pageWidth, pageHeight);
 
       const slugName = (datos.nombre || "invitacion").toLowerCase().replace(/[^a-z0-9]/g, "-");
       pdf.save(`invitacion-${slugName}-regalo.pdf`);
