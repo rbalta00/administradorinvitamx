@@ -54,6 +54,9 @@ export interface InvitacionDatos {
     colorPrimario?: string;
     colorAcento?: string;
     tipoApertura?: "sobre" | "cortina" | "tarjeta";
+    /** Set de emojis para la lluvia decorativa (ver "Efecto de Animación de Caída").
+     *  Solo aplica cuando esa animación está encendida (mostrarAnimacionCaida !== false). */
+    simbolosCaida?: string[];
   };
 }
 

@@ -1236,7 +1236,8 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
         'vintage-garden': ['🌸', '🌹', '🍃', '🦋']
       };
 
-      const simbolos = simbolosPorTema['${tema.id}'] || ['✨', '🌸', '🍃'];
+      const simbolosOverride = ${(tema.id === "personalizado" && datos.personalizacion?.simbolosCaida && datos.personalizacion.simbolosCaida.length > 0) ? JSON.stringify(datos.personalizacion.simbolosCaida) : 'null'};
+      const simbolos = simbolosOverride || simbolosPorTema['${tema.id}'] || ['✨', '🌸', '🍃'];
 
       function crearParticula() {
         if (!document.getElementById('particle-container')) return;
