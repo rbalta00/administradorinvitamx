@@ -337,7 +337,10 @@ const getDatosVisualizacionCatalog = (t: any, currentDatos?: any): any => {
     console.error("Error al cargar diseño guardado del catálogo:", err);
   }
 
-  const baseData = getDatosCatalogTema(datosDefault.premium, t);
+  // Usamos el tier Deluxe como base para las demos del catálogo (en vez de Premium) para que
+  // se vean TODAS las secciones posibles, incluida "Pases de Entrada" (exclusiva de Deluxe) —
+  // así un cliente puede ver esa función antes de decidir qué paquete comprar.
+  const baseData = getDatosCatalogTema(datosDefault.deluxe, t);
 
   // Asegurar que los bgImages del usuario se incluyan siempre en el catálogo
   const allBgImages = {

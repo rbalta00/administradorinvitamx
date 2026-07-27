@@ -1,6 +1,41 @@
 import { InvitacionDatos, TemaConfig } from "./types";
 import { paquetes, getFotosPorTema } from "./data";
 
+// Parámetros exactos de Google Fonts (pesos/itálicas) para cada familia usada por algún tema.
+// Antes se pedían las ~17 familias de TODOS los temas en cada invitación; ahora solo se piden
+// las 2-3 que el tema actual realmente usa (fontHeading/fontBody/fontCursive), lo que reduce
+// bastante el peso de la primera carga de cualquier invitación o demo del catálogo.
+const FONT_URL_SEGMENTS: Record<string, string> = {
+  "Orbitron": "Orbitron:wght@400;700;900",
+  "Alex Brush": "Alex+Brush",
+  "Cinzel": "Cinzel:wght@400;600;700",
+  "Cormorant Garamond": "Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400",
+  "Great Vibes": "Great+Vibes",
+  "Inter": "Inter:wght@300;400;500;600;700",
+  "Lora": "Lora:ital,wght@0,400;0,600;1,400",
+  "Monsieur La Doulaise": "Monsieur+La+Doulaise",
+  "Outfit": "Outfit:wght@300;400;600;700",
+  "Parisienne": "Parisienne",
+  "Pinyon Script": "Pinyon+Script",
+  "Petit Formal Script": "Petit+Formal+Script",
+  "Playfair Display": "Playfair+Display:ital,wght@0,400;0,600;0,700;1,400",
+  "Sacramento": "Sacramento",
+  "Syne": "Syne:wght@400;700;800",
+  "WindSong": "WindSong:wght@400;500",
+  "Dancing Script": "Dancing+Script:wght@400;600;700",
+};
+
+const construirUrlGoogleFonts = (tema: TemaConfig): string => {
+  const familias = new Set<string>();
+  [tema.fontHeading, tema.fontBody, tema.fontCursive].forEach(f => {
+    if (f) familias.add(f);
+  });
+  const segmentos = Array.from(familias)
+    .map(f => FONT_URL_SEGMENTS[f] || f.replace(/\s+/g, '+'))
+    .join('&family=');
+  return `https://fonts.googleapis.com/css2?family=${segmentos}&display=swap`;
+};
+
 export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): string {
   // Aseguramos que existan fotos válidas, si no, tomamos las ficticias del tema
   const fotosValidas = (datos.fotos || []).filter(f => f && typeof f === "string" && f.trim() !== "");
@@ -326,7 +361,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
   <!-- Google Fonts importados para el tema -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Alex+Brush&family=Cinzel:wght@400;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Great+Vibes&family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,600;1,400&family=Monsieur+La Doulaise&family=Montserrat:wght@300;400;600;700&family=Outfit:wght@300;400;600;700&family=Parisienne&family=Pinyon+Script&family=Petit+Formal+Script&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Sacramento&family=Syne:wght@400;700;800&family=WindSong:wght@400;500&display=swap" rel="stylesheet">
+  <link href="${construirUrlGoogleFonts(tema)}" rel="stylesheet">
   
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>

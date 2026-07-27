@@ -6,7 +6,20 @@
     <title>My Google AI Studio App</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!--
+        Placeholder estático (sin JS) que se ve mientras se descarga/ejecuta el bundle de la
+        app. React lo reemplaza automáticamente en cuanto monta, así que la pantalla nunca se
+        ve completamente en blanco durante la primera carga.
+      -->
+      <div style="min-height:100vh; display:flex; align-items:center; justify-content:center; background:#faf9f7; font-family:system-ui,-apple-system,sans-serif;">
+        <div style="display:flex; flex-direction:column; align-items:center; gap:12px;">
+          <div style="width:32px; height:32px; border-radius:50%; border:3px solid #e5e1da; border-top-color:#8a7a5c; animation:spin 0.8s linear infinite;"></div>
+          <span style="font-size:13px; color:#8a8578;">Cargando invitación…</span>
+        </div>
+      </div>
+      <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
