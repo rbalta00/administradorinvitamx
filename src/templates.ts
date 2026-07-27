@@ -1,5 +1,5 @@
 import { InvitacionDatos, TemaConfig } from "./types";
-import { paquetes, getFotosPorTema, getOrdenSeccionesEfectivo } from "./data";
+import { paquetes, getFotosPorTema, getOrdenSeccionesEfectivo, getColoresEfectivos } from "./data";
 
 // Parámetros exactos de Google Fonts (pesos/itálicas) para cada familia usada por algún tema.
 // Antes se pedían las ~17 familias de TODOS los temas en cada invitación; ahora solo se piden
@@ -37,8 +37,8 @@ const construirUrlGoogleFonts = (tema: TemaConfig): string => {
 };
 
 export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): string {
-  // Invitaciones 100% a la medida: el tema "personalizado" acepta overrides de tipografía
-  // y color de acento/primario definidos por el admin para ESA invitación en particular.
+  // Invitaciones 100% a la medida: el tema "personalizado" acepta overrides de tipografía,
+  // paleta de color y tipo de apertura definidos por el admin para ESA invitación en particular.
   // El resto de temas del catálogo no se ven afectados por esto.
   if (tema.id === "personalizado" && datos.personalizacion) {
     const p = datos.personalizacion;
@@ -47,11 +47,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
       fontHeading: p.fontHeading || tema.fontHeading,
       fontBody: p.fontBody || tema.fontBody,
       fontCursive: p.fontCursive || tema.fontCursive,
-      colors: {
-        ...tema.colors,
-        primary: p.colorPrimario || tema.colors.primary,
-        accent: p.colorAcento || tema.colors.accent
-      }
+      colors: getColoresEfectivos(tema, p.paletaColor)
     };
   }
 

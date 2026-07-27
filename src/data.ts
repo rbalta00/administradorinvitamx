@@ -85,6 +85,29 @@ export function getOrdenSeccionesEfectivo(paquete: "basico" | "premium" | "delux
   return [...ordenValido, ...faltantes];
 }
 
+// Paletas de color para el tema "Personalizado" (invitaciones 100% a la medida). Cada una
+// reutiliza el set de colores YA usado por uno de los 12 temas del catálogo (primary,
+// secondary, accent, dark, light, border) en vez de inventar combinaciones nuevas — así se
+// garantiza que las tonalidades ya estén coordinadas y probadas. Deliberadamente se dejan
+// fuera `bg`, `bgGradient` e `iconStyle`: esos siguen tomando el lienzo neutro propio del
+// tema Personalizado, para no mezclar un fondo/ícono de un tema con la paleta de otro.
+export const PALETAS_COLOR_PERSONALIZADO: { id: string; nombre: string; colors: Partial<TemaConfig["colors"]> }[] = [
+  { id: "neutro", nombre: "Neutro (tema base)", colors: {} },
+  { id: "dorado", nombre: "Dorado Clásico", colors: { primary: "#D4AF37", secondary: "#DFBA54", accent: "#B8860B", dark: "#2A2415", light: "#FCF9F2", border: "#E9D295" } },
+  { id: "lila", nombre: "Lila Mariposa", colors: { primary: "#E0B0FF", secondary: "#F3D5FF", accent: "#AB70D5", dark: "#2D1D3A", light: "#FCF5FE", border: "#E8C1F5" } },
+  { id: "rosa-acuarela", nombre: "Rosa Acuarela", colors: { primary: "#E2879F", secondary: "#FCD0D9", accent: "#AF5B71", dark: "#401B24", light: "#FCF6F7", border: "#F5C9D3" } },
+  { id: "verde-botanico", nombre: "Verde Botánico", colors: { primary: "#556B2F", secondary: "#D0E1D4", accent: "#B89D4B", dark: "#1C281F", light: "#F4F7F5", border: "#C1D2C6" } },
+  { id: "rosa-glam", nombre: "Rosa Glam", colors: { primary: "#B76E79", secondary: "#FCD5DB", accent: "#9E5561", dark: "#3B2226", light: "#FAF3F4", border: "#E8B9C1" } },
+  { id: "terracota-boho", nombre: "Terracota Boho", colors: { primary: "#C27A5B", secondary: "#EED9C4", accent: "#A0522D", dark: "#361D13", light: "#FDF8F5", border: "#E9CDBC" } },
+  { id: "coquette", nombre: "Rosa Coquette", colors: { primary: "#E45D8C", secondary: "#FFA6C9", accent: "#E45D8C", dark: "#472F35", light: "#FEE2E7", border: "#FCB5C9" } }
+];
+
+export function getColoresEfectivos(tema: TemaConfig, paletaColorId?: string): TemaConfig["colors"] {
+  const paleta = PALETAS_COLOR_PERSONALIZADO.find(p => p.id === paletaColorId);
+  if (!paleta || Object.keys(paleta.colors).length === 0) return tema.colors;
+  return { ...tema.colors, ...paleta.colors };
+}
+
 export const temas: TemaConfig[] = [
   {
     id: "dorado-clasico",

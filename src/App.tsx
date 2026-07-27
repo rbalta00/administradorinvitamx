@@ -33,7 +33,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 import { InvitacionDatos, TemaConfig } from "./types";
-import { temas, paquetes, datosDefault, getFotosPorTema, getOrdenSeccionesEfectivo } from "./data";
+import { temas, paquetes, datosDefault, getFotosPorTema, getOrdenSeccionesEfectivo, PALETAS_COLOR_PERSONALIZADO } from "./data";
 import { generarHTMLFinal } from "./templates";
 
 // Inicializar cliente de Supabase a partir de variables de entorno (Vite las inyecta en build time)
@@ -439,19 +439,6 @@ const TIPOS_APERTURA: { id: "sobre" | "cortina" | "tarjeta"; nombre: string; des
   { id: "tarjeta", nombre: "Tarjeta 🎴", desc: "Tarjeta simple con botón para abrir" },
   { id: "sobre", nombre: "Sobre 💌", desc: "Sobre con sello de cera que se abre" },
   { id: "cortina", nombre: "Cortina 🎭", desc: "Telón que se descorre a los lados" }
-];
-
-// Paletas curadas (primario + acento) para el tema Personalizado — más seguro que un color
-// picker libre, ya que evita combinaciones que choquen entre sí.
-const PALETAS_COLOR: { id: string; nombre: string; primario: string; acento: string }[] = [
-  { id: "dorado", nombre: "Dorado Clásico", primario: "#D4AF37", acento: "#8A6D1F" },
-  { id: "rosa-pastel", nombre: "Rosa Pastel", primario: "#E0B0FF", acento: "#AB70D5" },
-  { id: "rosa-terracota", nombre: "Rosa Terracota", primario: "#E2879F", acento: "#B85C74" },
-  { id: "azul-noche", nombre: "Azul Noche", primario: "#6B8CCE", acento: "#2E4A82" },
-  { id: "verde-salvia", nombre: "Verde Salvia", primario: "#8FA980", acento: "#4F6B44" },
-  { id: "borgona", nombre: "Borgoña", primario: "#9C4457", acento: "#6B222F" },
-  { id: "lavanda", nombre: "Lavanda", primario: "#B8A9DB", acento: "#6E5A9E" },
-  { id: "neutro", nombre: "Neutro (tema base)", primario: "#8A8578", acento: "#4A4640" }
 ];
 
 // Paletas de la lluvia decorativa ("Efecto de Animación de Caída"): conjuntos de emojis
@@ -3470,33 +3457,28 @@ export default function App() {
                     <div>
                       <h4 className="text-xs font-bold text-slate-700 mb-2">Paleta de Colores</h4>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        {PALETAS_COLOR.map(p => {
-                          const isSelected = p.id === "neutro"
-                            ? !datos.personalizacion?.colorPrimario && !datos.personalizacion?.colorAcento
-                            : datos.personalizacion?.colorPrimario === p.primario && datos.personalizacion?.colorAcento === p.acento;
+                        {PALETAS_COLOR_PERSONALIZADO.map(p => {
+                          const isSelected = (datos.personalizacion?.paletaColor || "neutro") === p.id;
+                          const dots = [p.colors.primary, p.colors.secondary, p.colors.accent, p.colors.border].filter(Boolean) as string[];
                           return (
                             <button
                               key={p.id}
-                              onClick={() => setDatos(prev => ({
-                                ...prev,
-                                personalizacion: {
-                                  ...(prev.personalizacion || {}),
-                                  colorPrimario: p.id === "neutro" ? undefined : p.primario,
-                                  colorAcento: p.id === "neutro" ? undefined : p.acento
-                                }
-                              }))}
+                              onClick={() => setDatos(prev => ({ ...prev, personalizacion: { ...(prev.personalizacion || {}), paletaColor: p.id } }))}
                               className={`text-left p-2.5 rounded-xl border-2 transition cursor-pointer ${isSelected ? "border-indigo-500 bg-indigo-50/40" : "border-slate-200 bg-white hover:border-slate-300"}`}
                             >
                               <div className="flex gap-1 mb-1.5">
-                                <span className="w-5 h-5 rounded-full border border-white shadow-xs" style={{ backgroundColor: p.primario }}></span>
-                                <span className="w-5 h-5 rounded-full border border-white shadow-xs" style={{ backgroundColor: p.acento }}></span>
+                                {dots.length > 0 ? dots.map((c, i) => (
+                                  <span key={i} className="w-5 h-5 rounded-full border border-white shadow-xs" style={{ backgroundColor: c }}></span>
+                                )) : (
+                                  <span className="w-5 h-5 rounded-full border border-white shadow-xs bg-gradient-to-br from-slate-300 to-slate-400"></span>
+                                )}
                               </div>
                               <span className="block text-[10px] font-bold text-slate-700">{p.nombre}</span>
                             </button>
                           );
                         })}
                       </div>
-                      <p className="text-[10px] text-slate-400 mt-2">El degradado de fondo y los íconos se mantienen neutros; la paleta solo recolorea botones, textos destacados y bordes.</p>
+                      <p className="text-[10px] text-slate-400 mt-2">El degradado de fondo y los íconos se mantienen neutros; la paleta recolorea textos, botones, bordes y tarjetas.</p>
                     </div>
 
                     <div>

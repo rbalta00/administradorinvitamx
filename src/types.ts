@@ -51,8 +51,8 @@ export interface InvitacionDatos {
     fontHeading?: string;
     fontBody?: string;
     fontCursive?: string;
-    colorPrimario?: string;
-    colorAcento?: string;
+    /** Id de una paleta en PALETAS_COLOR_PERSONALIZADO (data.ts). */
+    paletaColor?: string;
     tipoApertura?: "sobre" | "cortina" | "tarjeta";
     /** Set de emojis para la lluvia decorativa (ver "Efecto de Animación de Caída").
      *  Solo aplica cuando esa animación está encendida (mostrarAnimacionCaida !== false). */
