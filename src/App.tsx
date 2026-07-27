@@ -27,11 +27,13 @@ import {
   ListOrdered,
   Eye,
   X,
-  Palette
+  Palette,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 import { InvitacionDatos, TemaConfig } from "./types";
-import { temas, paquetes, datosDefault, getFotosPorTema } from "./data";
+import { temas, paquetes, datosDefault, getFotosPorTema, getOrdenSeccionesEfectivo } from "./data";
 import { generarHTMLFinal } from "./templates";
 
 // Inicializar cliente de Supabase a partir de variables de entorno (Vite las inyecta en build time)
@@ -441,17 +443,22 @@ const TIPOS_APERTURA: { id: "sobre" | "cortina" | "tarjeta"; nombre: string; des
 
 // Lista de toggles de secciones habilitadas/deshabilitadas, memoizada para no recalcularse
 // cuando cambia un estado de la app no relacionado (ej. abrir un modal).
-const SeccionesToggleList = memo(({ secciones, seccionesExcluidas, onToggle }: {
+const SeccionesToggleList = memo(({ secciones, seccionesExcluidas, onToggle, onMover }: {
   secciones: string[];
   seccionesExcluidas: string[];
   onToggle: (secName: string) => void;
+  onMover: (secName: string, direccion: 1 | -1) => void;
 }) => {
+  // "apertura" y "cierre" quedan fijas al inicio/final: no muestran flechas de reordenar.
+  const movibles = secciones.filter(s => s !== "apertura" && s !== "cierre");
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-1">
       {secciones.map(secName => {
         const isExcluded = seccionesExcluidas?.includes(secName);
         const isEnabled = !isExcluded;
         const label = NOMBRES_SECCIONES[secName] || secName;
+        const esMovible = secName !== "apertura" && secName !== "cierre";
+        const idxMovible = movibles.indexOf(secName);
         return (
           <div
             key={secName}
@@ -461,7 +468,29 @@ const SeccionesToggleList = memo(({ secciones, seccionesExcluidas, onToggle }: {
             <span className={`text-[11px] font-bold truncate ${isEnabled ? 'text-emerald-900' : 'text-slate-500'}`}>
               {label}
             </span>
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {esMovible && (
+                <div className="flex items-center gap-0.5 mr-0.5">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onMover(secName, -1); }}
+                    disabled={idxMovible <= 0}
+                    className="p-0.5 rounded text-slate-400 hover:text-indigo-600 hover:bg-white disabled:opacity-25 disabled:hover:text-slate-400 disabled:hover:bg-transparent disabled:cursor-not-allowed cursor-pointer transition"
+                    title="Mover arriba"
+                  >
+                    <ArrowUp className="w-3 h-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onMover(secName, 1); }}
+                    disabled={idxMovible === -1 || idxMovible >= movibles.length - 1}
+                    className="p-0.5 rounded text-slate-400 hover:text-indigo-600 hover:bg-white disabled:opacity-25 disabled:hover:text-slate-400 disabled:hover:bg-transparent disabled:cursor-not-allowed cursor-pointer transition"
+                    title="Mover abajo"
+                  >
+                    <ArrowDown className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
               <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded ${isEnabled ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'}`}>
                 {isEnabled ? "ON" : "OFF"}
               </span>
@@ -716,6 +745,18 @@ export default function App() {
       const ex = prev.seccionesExcluidas || [];
       const newEx = ex.includes(secName) ? ex.filter(s => s !== secName) : [...ex, secName];
       return { ...prev, seccionesExcluidas: newEx };
+    });
+  }, []);
+
+  const moverSeccion = useCallback((secName: string, direccion: 1 | -1) => {
+    setDatos(prev => {
+      const orden = getOrdenSeccionesEfectivo(prev.paquete, prev.ordenSecciones);
+      const idx = orden.indexOf(secName);
+      const nuevoIdx = idx + direccion;
+      if (idx === -1 || nuevoIdx < 0 || nuevoIdx >= orden.length) return prev;
+      const nuevoOrden = [...orden];
+      [nuevoOrden[idx], nuevoOrden[nuevoIdx]] = [nuevoOrden[nuevoIdx], nuevoOrden[idx]];
+      return { ...prev, ordenSecciones: nuevoOrden };
     });
   }, []);
 
@@ -2068,9 +2109,10 @@ export default function App() {
                       </button>
                     </div>
                     <SeccionesToggleList
-                      secciones={paquetes[datos.paquete].secciones}
+                      secciones={["apertura", ...getOrdenSeccionesEfectivo(datos.paquete, datos.ordenSecciones), "cierre"]}
                       seccionesExcluidas={datos.seccionesExcluidas || []}
                       onToggle={toggleSeccion}
+                      onMover={moverSeccion}
                     />
                   </div>
                 </div>

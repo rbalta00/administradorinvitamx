@@ -42,6 +42,9 @@ export interface InvitacionDatos {
   bgImages?: Record<string, string>;
   seccionesExcluidas?: string[];
   mostrarAnimacionCaida?: boolean;
+  /** Orden personalizado de las secciones de contenido (todas menos "apertura"/"cierre",
+   *  que siempre quedan fijas al inicio y al final). Ver getOrdenSeccionesEfectivo en data.ts. */
+  ordenSecciones?: string[];
   /** Overrides de tipografía/color/apertura para invitaciones 100% a la medida.
    *  Solo tiene efecto cuando `tema` es "personalizado" (ver generarHTMLFinal). */
   personalizacion?: {

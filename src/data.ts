@@ -72,6 +72,19 @@ export const paquetes: Record<"basico" | "premium" | "deluxe", PaqueteConfig> = 
   }
 };
 
+// Calcula el orden efectivo de las secciones de CONTENIDO (todas menos "apertura" y "cierre",
+// que siempre quedan fijas al inicio/final de la invitación). Si el admin guardó un orden
+// personalizado (`ordenSecciones`), se respeta para las secciones que sigan disponibles en el
+// paquete actual, y cualquier sección disponible que falte en ese orden (por cambio de paquete
+// o por ser nueva) se agrega al final en su posición por defecto.
+export function getOrdenSeccionesEfectivo(paquete: "basico" | "premium" | "deluxe", ordenSecciones?: string[]): string[] {
+  const disponibles = paquetes[paquete].secciones.filter(s => s !== "apertura" && s !== "cierre");
+  if (!ordenSecciones || ordenSecciones.length === 0) return disponibles;
+  const ordenValido = ordenSecciones.filter(s => disponibles.includes(s));
+  const faltantes = disponibles.filter(s => !ordenValido.includes(s));
+  return [...ordenValido, ...faltantes];
+}
+
 export const temas: TemaConfig[] = [
   {
     id: "dorado-clasico",
