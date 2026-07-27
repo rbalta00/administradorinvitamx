@@ -5,6 +5,9 @@ export const paquetes: Record<"basico" | "premium" | "deluxe", PaqueteConfig> = 
     nombre: "Básico",
     precio: "$499 MXN",
     maxFotos: 4,
+    // "pases" está disponible aquí como opción a la carta (ver datosDefault.basico, donde
+    // queda apagada por default vía seccionesExcluidas) — no es exclusiva de Deluxe, el
+    // cliente puede pagarla aparte y el admin la enciende manualmente para esa invitación.
     secciones: [
       "apertura",
       "portada",
@@ -15,6 +18,7 @@ export const paquetes: Record<"basico" | "premium" | "deluxe", PaqueteConfig> = 
       "itinerario",
       "vestimenta",
       "galeria",
+      "pases",
       "confirmacion",
       "cierre"
     ]
@@ -23,6 +27,7 @@ export const paquetes: Record<"basico" | "premium" | "deluxe", PaqueteConfig> = 
     nombre: "Premium",
     precio: "$799 MXN",
     maxFotos: 8,
+    // Igual que en Básico: "pases" es opcional a la carta aquí, apagada por default.
     secciones: [
       "apertura",
       "portada",
@@ -37,6 +42,7 @@ export const paquetes: Record<"basico" | "premium" | "deluxe", PaqueteConfig> = 
       "galeria",
       "hashtag",
       "calendario",
+      "pases",
       "confirmacion",
       "cierre"
     ]
@@ -1134,7 +1140,10 @@ export const datosDefault: Record<"basico" | "premium" | "deluxe", InvitacionDat
     invitados: [
       { nombre: "Familia Gómez Mendoza", pases: 4 },
       { nombre: "Tío Ernesto & Acompañante", pases: 2 }
-    ]
+    ],
+    // "Pases de Entrada" es a la carta en este paquete: apagada por default, el admin la
+    // enciende manualmente (quitándola de esta lista) si el cliente pagó por ella.
+    seccionesExcluidas: ["pases"]
   },
   premium: {
     paquete: "premium",
@@ -1183,7 +1192,9 @@ export const datosDefault: Record<"basico" | "premium" | "deluxe", InvitacionDat
     invitados: [
       { nombre: "Sr. Francisco Soto y Familia", pases: 5 },
       { nombre: "Dra. Sofía Rentería", pases: 1 }
-    ]
+    ],
+    // Igual que en Básico: "Pases de Entrada" es a la carta, apagada por default.
+    seccionesExcluidas: ["pases"]
   },
   deluxe: {
     paquete: "deluxe",

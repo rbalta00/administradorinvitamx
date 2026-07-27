@@ -1075,7 +1075,10 @@ export default function App() {
           cancion: "",
           linkPersonalizado: "",
           invitados: [],
-          bgImages: prev.bgImages // Preservamos los fondos subidos
+          bgImages: prev.bgImages, // Preservamos los fondos subidos
+          // "Pases de Entrada" es a la carta en Básico (el paquete al que resetea Limpiar):
+          // apagada por default, igual que en datosDefault.basico.
+          seccionesExcluidas: ["pases"]
         }));
         setSelectedTemaId("dorado-clasico");
         // Nueva invitación: si se guarda en Supabase de nuevo, debe crear una fila nueva,
