@@ -233,7 +233,9 @@ const decodeState = (str: string): any => {
   }
 };
 // Función para guardar en Supabase (agregar ANTES de export default function App)
-async function guardarEnSupabase(datosInvitacion: InvitacionDatos, temaActual: TemaConfig, shareUrl?: string) {
+// Si se pasa `existingId`, actualiza esa fila en vez de crear una nueva — evita que guardar
+// varias veces mientras se edita la MISMA invitación acumule filas duplicadas en la tabla.
+async function guardarEnSupabase(datosInvitacion: InvitacionDatos, temaActual: TemaConfig, shareUrl?: string, existingId?: string | null) {
   try {
     // Verificar que Supabase esté cargado
     if (!window.supabaseClient) {
@@ -265,14 +267,15 @@ async function guardarEnSupabase(datosInvitacion: InvitacionDatos, temaActual: T
 
     console.log('📤 Guardando en Supabase:', datosParaGuardar);
 
-    const { data, error } = await supabase
-      .from('invitaciones')
-      .insert([datosParaGuardar])
-      .select();
+    const query = existingId
+      ? supabase.from('invitaciones').update(datosParaGuardar).eq('id', existingId).select()
+      : supabase.from('invitaciones').insert([datosParaGuardar]).select();
+
+    const { data, error } = await query;
 
     if (error) throw error;
 
-    console.log('✅ Guardado en Supabase correctamente:', data[0]?.id);
+    console.log(existingId ? '✅ Actualizado en Supabase correctamente:' : '✅ Guardado en Supabase correctamente:', data[0]?.id);
     return data[0];
 
   } catch (err: any) {
@@ -917,6 +920,18 @@ export default function App() {
   // Estado para la pestaña de configuración activa en el panel lateral
   const [panelPestana, setPanelPestana] = useState<"ajustes" | "quince" | "lugares" | "itincode" | "familia" | "regalos" | "fotos" | "invitados">("ajustes");
 
+  // Id de la fila en Supabase de la invitación que se está editando actualmente (si ya se
+  // guardó al menos una vez). Permite que "Guardar en Supabase" actualice esa misma fila en
+  // vez de crear una fila nueva cada vez que se guarda mientras se sigue editando el mismo
+  // cliente. Se reinicia al usar "Limpiar formulario" (nueva invitación).
+  const [supabaseRowId, setSupabaseRowId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('xv_supabase_row_id');
+    } catch {
+      return null;
+    }
+  });
+
   // Estado para controles de copiado temporal
   const [htmlCopiado, setHtmlCopiado] = useState(false);
   const [datosCopiados, setDatosCopiados] = useState(false);
@@ -994,17 +1009,36 @@ export default function App() {
 
   // Aplicar plantilla completa predefinida de un paquete
   const handleCambiarPaquete = (paqKey: "basico" | "premium" | "deluxe") => {
+    // Si ya hay contenido real cargado (nombre, invitados o padres), cambiar de paquete solo
+    // debe ajustar el nivel/secciones disponibles, NO reemplazar los datos del cliente por
+    // datos de prueba. El reemplazo total solo tiene sentido cuando el formulario está vacío
+    // (invitación nueva, aún sin datos reales) y sirve como plantilla de arranque rápido.
+    const tieneContenidoReal = Boolean(
+      datos.nombre?.trim() || (datos.invitados && datos.invitados.length > 0) || (datos.padres && datos.padres.length > 0)
+    );
+
     setConfirmModal({
       titulo: `Cambiar al paquete "${paqKey.toUpperCase()}"`,
-      mensaje: `Al cambiar al paquete "${paqKey.toUpperCase()}", cargaremos los datos de prueba idóneos para ese nivel de secciones. Se reemplazarán tus cambios actuales. ¿Deseas proceder?`,
+      mensaje: tieneContenidoReal
+        ? `Vas a cambiar al paquete "${paqKey.toUpperCase()}". Tus datos actuales (invitados, direcciones, fotos, etc.) se conservan — solo cambia el nivel de paquete y las secciones disponibles. Si en vez de esto quieres cargar datos de ejemplo desde cero, usa "Limpiar formulario" primero. ¿Deseas proceder?`
+        : `Al cambiar al paquete "${paqKey.toUpperCase()}", cargaremos los datos de prueba idóneos para ese nivel de secciones. ¿Deseas proceder?`,
       onAceptar: () => {
-        const datosBase = datosDefault[paqKey];
-        setDatos(prev => ({
-          ...datosBase,
-          paquete: paqKey,
-          bgImages: { ...prev.bgImages, ...datosBase.bgImages } // Preservamos los fondos subidos
-        }));
-        setSelectedTemaId(datosBase.tema);
+        if (tieneContenidoReal) {
+          const maxFotosNuevoPaquete = paquetes[paqKey].maxFotos;
+          setDatos(prev => ({
+            ...prev,
+            paquete: paqKey,
+            fotos: (prev.fotos || []).slice(0, maxFotosNuevoPaquete)
+          }));
+        } else {
+          const datosBase = datosDefault[paqKey];
+          setDatos(prev => ({
+            ...datosBase,
+            paquete: paqKey,
+            bgImages: { ...prev.bgImages, ...datosBase.bgImages } // Preservamos los fondos subidos
+          }));
+          setSelectedTemaId(datosBase.tema);
+        }
         setPanelPestana("ajustes");
         mostrarToast(`¡Se ha cambiado al paquete ${paqKey.toUpperCase()}! ✨`, "success");
       }
@@ -1041,6 +1075,10 @@ export default function App() {
           bgImages: prev.bgImages // Preservamos los fondos subidos
         }));
         setSelectedTemaId("dorado-clasico");
+        // Nueva invitación: si se guarda en Supabase de nuevo, debe crear una fila nueva,
+        // no seguir actualizando la fila de la invitación anterior.
+        setSupabaseRowId(null);
+        try { localStorage.removeItem('xv_supabase_row_id'); } catch {}
         mostrarToast("¡El formulario ha sido reiniciado! 💮", "info");
       }
     });
@@ -1180,10 +1218,16 @@ export default function App() {
   // Generar URL del catálogo de demos. Siempre apunta al despliegue público sin
   // protección SSO (invitacionmx-demo.vercel.app) para que el link funcione para
   // cualquier cliente, sin importar desde dónde se genere (editor privado, localhost, etc.).
+  //
+  // Importante: NO se codifica `datos` aquí. Este link se pensó para reutilizarse muchas
+  // veces con distintos clientes potenciales, y si incluyera el estado de la invitación que
+  // esté abierta en ese momento en el editor, filtraría datos privados de un cliente real
+  // (cuenta bancaria, lista de invitados, teléfono) de forma decodificable en la URL. El
+  // catálogo no necesita esos datos: los fondos personalizados por tema ya se sincronizan
+  // vía Supabase para cualquiera que abra la página.
   const getCatalogUrl = () => {
     const appUrl = "https://invitacionmx-demo.vercel.app/";
-    const stateStr = encodeState(datos);
-    return `${appUrl}?catalog=true${stateStr ? `&d=${stateStr}` : ''}`;
+    return `${appUrl}?catalog=true`;
   };
 
   // Generar URL de compartir con todos los datos y el invitado seleccionado. Siempre apunta
@@ -1852,8 +1896,14 @@ export default function App() {
           <button
             onClick={() => {
               const finalLink = getShareUrl();
-              guardarEnSupabase(datos, temaActual, finalLink)
-                .then(() => mostrarToast('✅ Guardado en Supabase correctamente', 'success'))
+              guardarEnSupabase(datos, temaActual, finalLink, supabaseRowId)
+                .then((row) => {
+                  if (row?.id) {
+                    setSupabaseRowId(row.id);
+                    try { localStorage.setItem('xv_supabase_row_id', row.id); } catch {}
+                  }
+                  mostrarToast('✅ Guardado en Supabase correctamente', 'success');
+                })
                 .catch(() => mostrarToast('❌ Error al guardar', 'error'));
             }}
             className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-sm transition cursor-pointer"

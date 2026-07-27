@@ -71,7 +71,18 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
   const padresHTML = (datos.padres || []).map(p => `<p class="text-gray-800 font-medium text-[15px] py-0.5">${p}</p>`).join("");
   const padrinosHTML = (datos.padrinos || []).map(p => `<p class="text-gray-800 font-medium text-[15px] py-0.5">${p}</p>`).join("");
 
-  const JSONDatosString = JSON.stringify(datos, null, 2);
+  // Escapamos "<" para que un valor con "</script>" (ej. en un nombre de invitado) no pueda
+  // cerrar prematuramente el <script> donde se inyecta este JSON y romper la página del invitado.
+  const JSONDatosString = JSON.stringify(datos, null, 2).replace(/</g, '\\u003c');
+
+  // Escapa un valor para insertarlo de forma segura dentro de un template literal `...` del
+  // script generado, evitando que backticks o ${...} en un campo de texto rompan la sintaxis JS.
+  const escBacktick = (str: any): string =>
+    String(str ?? '').replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
+
+  // Igual que escBacktick, pero para insertar dentro de un string "..." del script generado.
+  const escDoubleQuote = (str: any): string =>
+    String(str ?? '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 
   // Definimos de forma segura la visibilidad inicial de las secciones en base al paquete
   const isSectionActive = (secName: string) => seccionesActivas.includes(secName);
@@ -1041,10 +1052,10 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
     // Ejecutar al cargar la página
     window.addEventListener('DOMContentLoaded', () => {
       // 1. Iniciar Cuenta Regresiva
-      iniciarCuentaRegresiva("${datos.fecha}");
+      iniciarCuentaRegresiva("${escDoubleQuote(datos.fecha)}");
 
       // 2. Colocar Fecha en Portada legible de forma humana
-      formatearFechaPortada("${datos.fecha}");
+      formatearFechaPortada("${escDoubleQuote(datos.fecha)}");
 
       // 3. Auto-búsqueda de pase de invitado por parámetro de URL
       try {
@@ -1306,22 +1317,33 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
         return;
       }
 
-      // Buscamos coincidencia parcial
-      const match = datosInvitacion.invitados.find(inv => {
-        return inv.nombre.toLowerCase().includes(q);
-      });
+      const invitados = datosInvitacion.invitados || [];
+
+      // Preferimos coincidencia exacta primero para no confundir familias con nombres
+      // parecidos (ej. "Familia Gómez" vs "Familia Gómez Hernández").
+      let match = invitados.find(inv => inv.nombre.toLowerCase().trim() === q);
+      let ambiguo = false;
+
+      if (!match) {
+        const coincidencias = invitados.filter(inv => inv.nombre.toLowerCase().includes(q));
+        if (coincidencias.length === 1) {
+          match = coincidencias[0];
+        } else if (coincidencias.length > 1) {
+          ambiguo = true;
+        }
+      }
 
       if (match) {
         document.getElementById('pase-nombre-invitado').innerText = match.nombre;
-        document.getElementById('pase-quantity') 
-          ? document.getElementById('pase-quantity').innerText = match.pases 
-          : document.getElementById('pase-cantidad').innerText = match.pases;
-          
+        document.getElementById('pase-cantidad').innerText = match.pases;
         resultadoBloque.classList.remove('hidden');
         sinCoincidencia.classList.add('hidden');
       } else {
         resultadoBloque.classList.add('hidden');
         sinCoincidencia.classList.remove('hidden');
+        sinCoincidencia.innerText = ambiguo
+          ? 'Hay varias familias con un nombre parecido, escribe tu nombre completo tal como aparece en tu invitación.'
+          : 'No encontramos ese nombre en la lista, intenta con otros apellidos o escríbelo de manera similar.';
       }
     }
 
@@ -1352,10 +1374,10 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
         ? \`\\n🎟️ Pases que confirmo: \${pases}\`
         : "";
 
-      const msg = \`¡Hola ${datos.nombre}! 👋\\nA través de tu invitación digital te confirmo lo siguiente:\\n\\n👤 Invitado: \${nombre}\\n💌 Estado: \${txtAsistira}\${cantPasesMsg}\\n\\n¡Muchas gracias por la invitación! ✨\`;
-      
+      const msg = \`¡Hola ${escBacktick(datos.nombre)}! 👋\\nA través de tu invitación digital te confirmo lo siguiente:\\n\\n👤 Invitado: \${nombre}\\n💌 Estado: \${txtAsistira}\${cantPasesMsg}\\n\\n¡Muchas gracias por la invitación! ✨\`;
+
       const encodeMsg = encodeURIComponent(msg);
-      window.open(\`https://api.whatsapp.com/send?phone=${datos.whatsappConfirmacion}&text=\${encodeMsg}\`, '_blank');
+      window.open(\`https://api.whatsapp.com/send?phone=${escBacktick(datos.whatsappConfirmacion)}&text=\${encodeMsg}\`, '_blank');
     }
 
     // 6. Copiar Datos de Transferencia al Portapapeles
@@ -1397,11 +1419,11 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
 
     // 8. Crear Calendario de Eventos Google
     function agregarAlCalendario() {
-      const name = "XV Años de ${datos.nombre}";
-      const location = "${datos.ceremonia.lugar} & ${datos.recepcion.lugar}";
-      
+      const name = "XV Años de ${escDoubleQuote(datos.nombre)}";
+      const location = "${escDoubleQuote(datos.ceremonia.lugar)} & ${escDoubleQuote(datos.recepcion.lugar)}";
+
       // Fecha en formato Google Cal UTC
-      const eventDate = new Date("${datos.fecha}");
+      const eventDate = new Date("${escDoubleQuote(datos.fecha)}");
       const startDateUTC = eventDate.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
       
       // Sumamos 5 horas para estimar duración
