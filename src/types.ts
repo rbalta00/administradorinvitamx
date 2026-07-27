@@ -42,6 +42,16 @@ export interface InvitacionDatos {
   bgImages?: Record<string, string>;
   seccionesExcluidas?: string[];
   mostrarAnimacionCaida?: boolean;
+  /** Overrides de tipografía/color/apertura para invitaciones 100% a la medida.
+   *  Solo tiene efecto cuando `tema` es "personalizado" (ver generarHTMLFinal). */
+  personalizacion?: {
+    fontHeading?: string;
+    fontBody?: string;
+    fontCursive?: string;
+    colorPrimario?: string;
+    colorAcento?: string;
+    tipoApertura?: "sobre" | "cortina" | "tarjeta";
+  };
 }
 
 export interface PaqueteConfig {

@@ -37,6 +37,24 @@ const construirUrlGoogleFonts = (tema: TemaConfig): string => {
 };
 
 export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): string {
+  // Invitaciones 100% a la medida: el tema "personalizado" acepta overrides de tipografía
+  // y color de acento/primario definidos por el admin para ESA invitación en particular.
+  // El resto de temas del catálogo no se ven afectados por esto.
+  if (tema.id === "personalizado" && datos.personalizacion) {
+    const p = datos.personalizacion;
+    tema = {
+      ...tema,
+      fontHeading: p.fontHeading || tema.fontHeading,
+      fontBody: p.fontBody || tema.fontBody,
+      fontCursive: p.fontCursive || tema.fontCursive,
+      colors: {
+        ...tema.colors,
+        primary: p.colorPrimario || tema.colors.primary,
+        accent: p.colorAcento || tema.colors.accent
+      }
+    };
+  }
+
   // Aseguramos que existan fotos válidas, si no, tomamos las ficticias del tema
   const fotosValidas = (datos.fotos || []).filter(f => f && typeof f === "string" && f.trim() !== "");
   const listadoFotos = fotosValidas.length > 0 
@@ -122,9 +140,20 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
   // Definimos de forma segura la visibilidad inicial de las secciones en base al paquete
   const isSectionActive = (secName: string) => seccionesActivas.includes(secName);
 
+  // Tipo de pantalla de apertura ("carta"): normalmente fijo por tema, pero el tema
+  // "personalizado" permite elegirlo manualmente por invitación.
+  const tipoAperturaEfectivo: "sobre" | "cortina" | "tarjeta" =
+    tema.id === "personalizado" && datos.personalizacion?.tipoApertura
+      ? datos.personalizacion.tipoApertura
+      : ["mariposas", "floral-acuarela", "boho-chic", "coquette-pink", "coquette-luxe"].includes(tema.id)
+        ? "sobre"
+        : ["celestial", "princesa-elegante", "neon"].includes(tema.id)
+          ? "cortina"
+          : "tarjeta";
+
   let aperturaHTML = "";
   if (isSectionActive("apertura")) {
-    if (["mariposas", "floral-acuarela", "boho-chic", "coquette-pink", "coquette-luxe"].includes(tema.id)) {
+    if (tipoAperturaEfectivo === "sobre") {
       aperturaHTML = `
   <div id="pantalla-apertura" class="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 transition-all duration-1000" style="background: ${tema.bgGradient};" onclick="comenzarExperienciaEnvoltura()">
     <style>
@@ -239,7 +268,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
       <p class="text-[10px] text-gray-500 mt-6 font-light font-sans">Haz clic en el sobre o el sello para abrir la invitación 🌸</p>
     </div>
   </div>`;
-    } else if (["celestial", "princesa-elegante", "neon"].includes(tema.id)) {
+    } else if (tipoAperturaEfectivo === "cortina") {
       const ribbonColor = tema.id === "neon" ? "#FF007F" : tema.colors.accent;
       const oppositeColor = tema.id === "neon" ? "#00F0FF" : tema.colors.border;
       aperturaHTML = `

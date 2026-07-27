@@ -26,7 +26,8 @@ import {
   Share2,
   ListOrdered,
   Eye,
-  X
+  X,
+  Palette
 } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 import { InvitacionDatos, TemaConfig } from "./types";
@@ -72,7 +73,8 @@ const KEY_MAP: Record<string, string> = {
   fotoPortada: "fp",
   mostrarFotoPortada: "mfp",
   seccionesExcluidas: "se",
-  mostrarAnimacionCaida: "mac"
+  mostrarAnimacionCaida: "mac",
+  personalizacion: "pz"
 };
 
 const SUB_KEY_MAP: Record<string, string> = {
@@ -423,6 +425,19 @@ const NOMBRES_SECCIONES: Record<string, string> = {
   confirmacion: "Confirmación (RSVP) 💬",
   cierre: "Mensaje de cierre 🌸"
 };
+
+// Listas curadas de fuentes para la personalización a la medida (tema "personalizado"):
+// son exactamente las fuentes que ya usan los 13 temas del catálogo, así que ya están
+// cargadas y probadas — no hay riesgo de romper la carga de Google Fonts.
+const FUENTES_ENCABEZADO = ["Playfair Display", "Cormorant Garamond", "Lora", "Cinzel", "Outfit", "Syne", "Orbitron"];
+const FUENTES_TEXTO = ["Inter", "Garamond"];
+const FUENTES_CURSIVA = ["Great Vibes", "Alex Brush", "Pinyon Script", "Monsieur La Doulaise", "Petit Formal Script", "WindSong", "Sacramento", "Parisienne", "Dancing Script"];
+
+const TIPOS_APERTURA: { id: "sobre" | "cortina" | "tarjeta"; nombre: string; desc: string }[] = [
+  { id: "tarjeta", nombre: "Tarjeta 🎴", desc: "Tarjeta simple con botón para abrir" },
+  { id: "sobre", nombre: "Sobre 💌", desc: "Sobre con sello de cera que se abre" },
+  { id: "cortina", nombre: "Cortina 🎭", desc: "Telón que se descorre a los lados" }
+];
 
 // Lista de toggles de secciones habilitadas/deshabilitadas, memoizada para no recalcularse
 // cuando cambia un estado de la app no relacionado (ej. abrir un modal).
@@ -921,7 +936,7 @@ export default function App() {
   };
 
   // Estado para la pestaña de configuración activa en el panel lateral
-  const [panelPestana, setPanelPestana] = useState<"ajustes" | "quince" | "lugares" | "itincode" | "familia" | "regalos" | "fotos" | "invitados">("ajustes");
+  const [panelPestana, setPanelPestana] = useState<"ajustes" | "quince" | "lugares" | "itincode" | "familia" | "regalos" | "fotos" | "invitados" | "personalizar">("ajustes");
 
   // Id de la fila en Supabase de la invitación que se está editando actualmente (si ya se
   // guardó al menos una vez). Permite que "Guardar en Supabase" actualice esa misma fila en
@@ -1992,6 +2007,13 @@ export default function App() {
             >
               <ListOrdered className="w-3.5 h-3.5" />
               <span>Lista Pases</span>
+            </button>
+            <button
+              onClick={() => setPanelPestana("personalizar")}
+              className={`px-4 py-3.5 text-xs font-bold border-b-2 flex items-center gap-1.5 transition cursor-pointer ${panelPestana === "personalizar" ? "border-indigo-600 text-indigo-600 bg-indigo-50/20" : "border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50/50"}`}
+            >
+              <Palette className="w-3.5 h-3.5" />
+              <span>A Medida</span>
             </button>
           </div>
 
@@ -3326,6 +3348,107 @@ export default function App() {
                   </div>
 
                 </div>
+              </div>
+            )}
+
+            {/* TAB 9: PERSONALIZACIÓN A LA MEDIDA (SOLO TEMA "PERSONALIZADO") */}
+            {panelPestana === "personalizar" && (
+              <div className="space-y-6 animate-fadeIn">
+                <div>
+                  <h3 className="text-sm font-semibold text-indigo-600 mb-1">Invitación 100% a la Medida</h3>
+                  <p className="text-xs text-slate-500 mb-4">Tipografías, color de acento y tipo de apertura, para invitaciones que el cliente pidió totalmente personalizadas.</p>
+                </div>
+
+                {datos.tema !== "personalizado" ? (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800">
+                    ⚠️ Esta personalización solo aplica al tema <strong>"Personalizado 🎨 (A Medida)"</strong>. Selecciona ese tema en la pestaña <strong>Tema/Paquete</strong> para habilitar estos controles.
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-700 mb-2">Tipografías</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-semibold text-slate-500 mb-1">Encabezados</label>
+                          <select
+                            value={datos.personalizacion?.fontHeading || temaActual.fontHeading}
+                            onChange={(e) => setDatos(prev => ({ ...prev, personalizacion: { ...(prev.personalizacion || {}), fontHeading: e.target.value } }))}
+                            className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 bg-white"
+                          >
+                            {FUENTES_ENCABEZADO.map(f => <option key={f} value={f}>{f}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-semibold text-slate-500 mb-1">Texto</label>
+                          <select
+                            value={datos.personalizacion?.fontBody || temaActual.fontBody}
+                            onChange={(e) => setDatos(prev => ({ ...prev, personalizacion: { ...(prev.personalizacion || {}), fontBody: e.target.value } }))}
+                            className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 bg-white"
+                          >
+                            {FUENTES_TEXTO.map(f => <option key={f} value={f}>{f}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-semibold text-slate-500 mb-1">Cursiva</label>
+                          <select
+                            value={datos.personalizacion?.fontCursive || temaActual.fontCursive}
+                            onChange={(e) => setDatos(prev => ({ ...prev, personalizacion: { ...(prev.personalizacion || {}), fontCursive: e.target.value } }))}
+                            className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 bg-white"
+                          >
+                            {FUENTES_CURSIVA.map(f => <option key={f} value={f}>{f}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-700 mb-2">Colores</h4>
+                      <div className="flex items-center gap-6">
+                        <div>
+                          <label className="block text-[10px] font-semibold text-slate-500 mb-1">Color primario</label>
+                          <input
+                            type="color"
+                            value={datos.personalizacion?.colorPrimario || temaActual.colors.primary}
+                            onChange={(e) => setDatos(prev => ({ ...prev, personalizacion: { ...(prev.personalizacion || {}), colorPrimario: e.target.value } }))}
+                            className="w-14 h-9 rounded-lg border border-slate-200 cursor-pointer"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-semibold text-slate-500 mb-1">Color de acento</label>
+                          <input
+                            type="color"
+                            value={datos.personalizacion?.colorAcento || temaActual.colors.accent}
+                            onChange={(e) => setDatos(prev => ({ ...prev, personalizacion: { ...(prev.personalizacion || {}), colorAcento: e.target.value } }))}
+                            className="w-14 h-9 rounded-lg border border-slate-200 cursor-pointer"
+                          />
+                        </div>
+                        <button
+                          onClick={() => setDatos(prev => ({ ...prev, personalizacion: { ...(prev.personalizacion || {}), colorPrimario: undefined, colorAcento: undefined } }))}
+                          className="self-end text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 shadow-xs cursor-pointer hover:border-slate-300"
+                        >
+                          Restablecer
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-2">El degradado de fondo y los íconos se mantienen neutros; solo se recolorean botones, textos destacados y bordes.</p>
+                    </div>
+
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-700 mb-2">Tipo de Apertura</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {TIPOS_APERTURA.map(t => (
+                          <button
+                            key={t.id}
+                            onClick={() => setDatos(prev => ({ ...prev, personalizacion: { ...(prev.personalizacion || {}), tipoApertura: t.id } }))}
+                            className={`text-left p-3 rounded-xl border-2 transition cursor-pointer ${(datos.personalizacion?.tipoApertura || "tarjeta") === t.id ? "border-indigo-500 bg-indigo-50/40" : "border-slate-200 bg-white hover:border-slate-300"}`}
+                          >
+                            <span className="block text-xs font-bold text-slate-700">{t.nombre}</span>
+                            <span className="block text-[10px] text-slate-500 mt-0.5">{t.desc}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
