@@ -1204,10 +1204,29 @@ export default function App() {
       const overlaySobre = iframeDoc.getElementById("pantalla-apertura");
       if (overlaySobre) overlaySobre.style.display = "none";
 
-      // Esperamos a que fuentes/imágenes de fondo carguen antes de medir la altura real
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      contenedorTemporal.style.height = `${iframeDoc.body.scrollHeight}px`;
+      // Esperamos a que las fuentes de Google Fonts y las imágenes terminen de cargar antes
+      // de capturar. Antes había solo un timeout fijo de 600ms, que en conexiones lentas no
+      // alcanza y html2canvas termina tomando la foto con la fuente de reemplazo del sistema.
+      const fontsReady = iframeDoc.fonts
+        ? Promise.all(Array.from(iframeDoc.fonts).map((f) => f.load().catch(() => {})))
+        : Promise.resolve();
+      const imagenesListas = Promise.all(
+        Array.from(iframeDoc.images).map((img) =>
+          img.complete
+            ? Promise.resolve()
+            : new Promise<void>((resolve) => {
+                img.addEventListener("load", () => resolve(), { once: true });
+                img.addEventListener("error", () => resolve(), { once: true });
+              })
+        )
+      );
+      await Promise.race([
+        Promise.all([fontsReady, imagenesListas]),
+        new Promise((resolve) => setTimeout(resolve, 4000))
+      ]);
       await new Promise((resolve) => setTimeout(resolve, 300));
+      contenedorTemporal.style.height = `${iframeDoc.body.scrollHeight}px`;
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       const canvas = await html2canvas(iframeDoc.body, {
         useCORS: true,

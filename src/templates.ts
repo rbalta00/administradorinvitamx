@@ -40,14 +40,43 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
   // Invitaciones 100% a la medida: el tema "personalizado" acepta overrides de tipografía,
   // paleta de color y tipo de apertura definidos por el admin para ESA invitación en particular.
   // El resto de temas del catálogo no se ven afectados por esto.
-  if (tema.id === "personalizado" && datos.personalizacion) {
-    const p = datos.personalizacion;
+  if (tema.id === "personalizado") {
+    const p = datos.personalizacion || {};
     tema = {
       ...tema,
       fontHeading: p.fontHeading || tema.fontHeading,
       fontBody: p.fontBody || tema.fontBody,
       fontCursive: p.fontCursive || tema.fontCursive,
       colors: getColoresEfectivos(tema, p.paletaColor)
+    };
+    // A diferencia de los otros 12 temas, "personalizado" no tiene una identidad visual fija,
+    // así que su customStyle (.cursive-text/.heading-text/.gold-card/.theme-container) se
+    // genera aquí mismo a partir de sus valores EFECTIVOS (ya con los overrides de arriba
+    // aplicados) en vez de venir hardcodeado en data.ts — si no, esas clases quedaban sin
+    // definir y el texto (ej. el nombre en cursiva) caía en la fuente por default del navegador.
+    tema = {
+      ...tema,
+      customStyle: `
+      .theme-container {
+        font-family: '${tema.fontBody}', sans-serif;
+        background-color: ${tema.colors.bg};
+        color: ${tema.colors.dark};
+      }
+      .heading-text {
+        font-family: '${tema.fontHeading}', serif;
+        color: ${tema.colors.accent};
+        letter-spacing: 0.05em;
+      }
+      .cursive-text {
+        font-family: '${tema.fontCursive}', cursive;
+        color: ${tema.colors.primary};
+      }
+      .gold-card {
+        border: 1px solid ${tema.colors.border};
+        background: linear-gradient(145deg, #FFFFFF, ${tema.colors.light});
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+      }
+    `
     };
   }
 
