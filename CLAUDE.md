@@ -2,6 +2,19 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ⚠️ This is the canonical repo (as of 2026-07-27)
+
+**`administradorinvitamx`** is the official, actively-maintained "Generador de Invitaciones XV". All new work goes here.
+
+There are several other repos on `github.com/rbalta00` that started from the same Google AI Studio scaffold (`react-example` / "GENERADOR PRIVADO XV") and share most of this file structure, but they are **stale duplicates that diverged independently** — do not confuse them with this one and do not port features from here into them:
+
+- `invitacionesmx` (deploys to Vercel project `invitacionmx-demo`, GitHub remote `invitacionmx`)
+- `invitamx`
+- `INVITAMXGEN`
+- `admin-hanny`, `hanny-xv-admin` (client-specific forks for one customer, not the general product)
+
+If asked to "open the generator" or "fix the generator" without a repo specified, assume this repo and its deployment at **https://administradorinvitamx.vercel.app** unless told otherwise.
+
 ## Project overview
 
 "Generador de Invitaciones XV" — a single-page React app for building and sharing digital invitations for Mexican quinceañera (XV años) parties. It's built and iterated on via Google AI Studio; the codebase is a single-app Vite project with (almost) no backend of its own.
@@ -43,13 +56,12 @@ The app is almost entirely contained in five files under `src/`:
 - **WhatsApp** — sharing/confirmation flows just build `https://api.whatsapp.com/send?phone=...&text=...` links and `window.open` them; no API integration.
 - `@google/genai` and `GEMINI_API_KEY` exist in `package.json`/`.env.example` as AI-Studio-template boilerplate but are not referenced anywhere in `src/` — treat as currently unused.
 
-### Deployment: two Vercel projects from this same repo
+### Deployment: single Vercel project
 
-- **`invitacionmx-generador`** — the private editor deployment. Protected by Vercel Authentication (SSO, `ssoProtection.deploymentType: "all_except_custom_domains"`), so only team members logged into Vercel can reach it. This is where invitations actually get built/edited (and the only place with Supabase write access).
-- **`invitacionmx-demo`** — a second Vercel project linked to the *same* GitHub repo/branch, with SSO protection explicitly disabled and env var `VITE_PUBLIC_DEMO_ONLY=true` set (production/preview/development). When that env var is `"true"`, `App.tsx` blocks the editor UI entirely (see the guard right before the component's final `return`) and only serves the read-only modes: catalog (`?catalog=true`), guest view (`?v=1&d=...`), and embed (`?embed=true&tema=<id>`). This is the domain that's actually safe to hand to clients/guests — no matter what query params someone appends, the private editor never renders here.
-- `getCatalogUrl()` and `getShareUrl()` in `App.tsx` always build links against `https://invitacionmx-demo.vercel.app`, never `window.location.origin`. Don't change that back — the editor's own domain is SSO-protected, so any catalog/invitation link generated from it would 302 to a Vercel login page for anyone outside the team.
-- `vercel.json`'s `headers` sets a `Content-Security-Policy: frame-ancestors ...` allow-listing `invitacionmx-catalogo.vercel.app`, `invitacionmx-landing.vercel.app`/`invitamx.online`, and localhost dev ports. This is what lets those two sites `<iframe>` the live demo catalog (`invitacionmx-demo.vercel.app/?catalog=true`). Vercel adds `X-Frame-Options: DENY` to every deployment by default; a CSP `frame-ancestors` header overrides that for the whitelisted origins (browsers prefer CSP `frame-ancestors` over `X-Frame-Options` when both are present).
-- Gotchas when redeploying: (1) `invitacionmx-generador.vercel.app` is a manually-assigned alias, not automatic — after `vercel --prod` you must re-run `vercel alias set <new-deployment-url> invitacionmx-generador.vercel.app`, or the friendly URL keeps pointing at the old deployment; (2) this Vercel account/team appears to auto-enable SSO protection on *new* projects too — if `invitacionmx-demo` (or any future public-facing project) ever needs it off, don't assume the default is unprotected, check `ssoProtection` via the API and clear it explicitly (`PATCH /v9/projects/:id` with `{"ssoProtection": null}`) if needed.
+- One Vercel project, **`administradorinvitamx`** (`.vercel/project.json`), deployed at **https://administradorinvitamx.vercel.app**. Unlike the old `invitacionesmx` repo, there is no separate SSO-protected editor domain plus a public demo/`VITE_PUBLIC_DEMO_ONLY` split here — this single deployment serves editor, guest view (`?v=1&d=...`), and catalog (`?catalog=true`) modes all from the same public URL. Treat it as effectively public: anyone with the URL can reach the editor UI (no SSO gate observed).
+- Supabase project is `ahwcilcejffgddeeuiux` (`VITE_SUPABASE_URL` in `.env.local`) — same Supabase backend used by the invitations product generally.
+- **Known inherited bug:** `getCatalogUrl()` and `getShareUrl()` in `App.tsx` still hardcode `https://invitacionmx-demo.vercel.app` as the share/catalog link base (copy-pasted from the `invitacionesmx` fork). Since this repo doesn't deploy to that domain, generated share/catalog links point at the *wrong* app. Fix this to use this project's own domain (or `window.location.origin`) before relying on sharing/catalog links from this deployment.
+- `vercel.json`'s `headers` sets a `Content-Security-Policy: frame-ancestors ...` allow-listing `invitacionmx-catalogo.vercel.app`, `invitacionmx-landing.vercel.app`/`invitamx.online`, and localhost dev ports — inherited from the same fork; revisit if this app's catalog needs to be embedded elsewhere.
 
 ### Adding a new theme
 
