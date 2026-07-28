@@ -95,3 +95,8 @@ Sections (e.g. `ceremonia`, `galeria`, `regalos`) are plain string ids listed pe
   - **Premium:** not included by default; à la carte add-on **+$180 MXN**, covers up to 20 familias, then +$15–20 MXN each beyond that.
   - **Básico:** not included by default; à la carte add-on **+$150 MXN**, covers up to 10 familias, then +$15–20 MXN each beyond that.
   - Toggling sections off (see the rule above) still never gets a discount — this policy is specifically about the pases feature's per-family cost, a separate axis from section visibility.
+- **Payment, delivery, and post-delivery policy (2026-07-28):**
+  - **Deposit:** 50% up front to reserve the client's date and start the design, remaining 50% due against delivery of the final link.
+  - **Turnaround:** 24–48 hours after receiving all the client's data (photos, text, dates, etc.) — faster than the ~72h competitors advertise, worth using as a selling point.
+  - **Post-delivery edits:** first 2 rounds of adjustments are free within 7 days of delivery; after that window or after 2 rounds, each additional edit costs $99–150 MXN.
+  - These three numbers are also baked into `ventas/plantillas-whatsapp.txt` (objection-handling templates) — if any of them change, update both places.

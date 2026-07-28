@@ -138,9 +138,13 @@ Tiene un costo adicional de $99–150 MXN si tu paquete no lo incluye. ¿Te gust
 ====================================================================
 OBJECIONES Y SITUACIONES COMUNES (usar cuando surjan, no en orden fijo)
 ====================================================================
-⚠️ Los que dicen [DEFINIR: ...] necesitan que TÚ definas la política real
-antes de usarlos — no inventes números, complétalos con tu propia regla
-de negocio (anticipo, tiempo de entrega, cambios) antes de mandarlos.
+Políticas de negocio ya definidas y aplicadas en estas plantillas:
+- Anticipo: 50% para reservar la fecha, 50% contra entrega del link final.
+- Tiempo de entrega: 24-48 horas una vez recibidos todos los datos completos.
+- Cambios post-entrega: 2 rondas de ajustes gratis dentro de los primeros
+  7 días; después, $99-150 MXN por ronda adicional.
+Si alguna cambia más adelante, actualízala aquí y en todos los mensajes
+que la mencionen.
 
 --------------------------------------------------------------------
 OBJECIÓN — "Está muy caro" / duda por el precio
@@ -159,7 +163,7 @@ OBJECIÓN — "Lo voy a pensar" / silencio general (no ligado a que expire la mu
 --------------------------------------------------------------------
 OBJECIÓN — "¿Es seguro pagar por adelantado?" / duda de anticipo
 --------------------------------------------------------------------
-Es una duda muy válida 🙂 Trabajamos así: [DEFINIR: ej. "50% de anticipo para reservar tu fecha y empezar el diseño, el resto contra entrega de tu invitación lista"]. Puedes ver ejemplos reales de invitaciones ya entregadas en nuestro catálogo para que veas la calidad del trabajo. Cualquier otra duda, con gusto te la resuelvo antes de que decidas.
+Es una duda muy válida 🙂 Trabajamos así: 50% de anticipo para reservar tu fecha y comenzar el diseño, y el otro 50% contra entrega de tu invitación ya lista. Puedes ver ejemplos reales de invitaciones ya entregadas en nuestro catálogo para que veas la calidad del trabajo. Cualquier otra duda, con gusto te la resuelvo antes de que decidas.
 
 --------------------------------------------------------------------
 OBJECIÓN — "No sé qué paquete elegir"
@@ -174,7 +178,7 @@ Te ayudo a decidir rápido:
 --------------------------------------------------------------------
 OBJECIÓN — "Mi evento es en muy poco tiempo, ¿alcanzan a hacerla?"
 --------------------------------------------------------------------
-¡No te preocupes! Nuestras invitaciones digitales se entregan en [DEFINIR: tiempo real de entrega, ej. "24-48 horas"] una vez que tengamos tus datos completos — mucho más rápido que una invitación impresa. Dime la fecha de tu evento y confirmamos juntos si alcanzamos perfecto los tiempos 🌸
+¡No te preocupes! Nuestras invitaciones digitales se entregan en 24-48 horas una vez que tengamos tus datos completos — mucho más rápido que una invitación impresa. Dime la fecha de tu evento y confirmamos juntos si alcanzamos perfecto los tiempos 🌸
 
 --------------------------------------------------------------------
 SITUACIÓN — Su muestra ya expiró y la pide de nuevo
@@ -188,6 +192,6 @@ Válida por otros 5 días. ¿Seguimos platicando de tu paquete? 💕
 --------------------------------------------------------------------
 SITUACIÓN — Ya entregada, pide cambios o ajustes
 --------------------------------------------------------------------
-¡Claro que sí! Con gusto te ayudo a ajustar [DETALLE_QUE_PIDE] en tu invitación. [DEFINIR: tu política real de cambios — ej. "Los ajustes de texto/datos no tienen costo dentro de los primeros 7 días de entregada; pasado eso aplica un cargo de $XX por edición"].
+¡Claro que sí! Con gusto te ayudo a ajustar [DETALLE_QUE_PIDE] en tu invitación. Tienes hasta 2 rondas de ajustes sin costo dentro de los primeros 7 días después de la entrega; pasado ese periodo o esas 2 rondas, cada ajuste adicional tiene un costo de $99–150 MXN.
 
 En cuanto me confirmes qué necesitas, te lo actualizo 🌸
