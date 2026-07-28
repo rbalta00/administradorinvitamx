@@ -683,7 +683,12 @@ export default function App() {
     setIsCatalogMode(isCatalogMode_url);
   }, [isCatalogMode_url]);
 
-  // Cargar fondos personalizados desde Supabase al iniciar
+  // Cargar fondos personalizados desde Supabase al iniciar. Esta carga es asíncrona (red),
+  // así que `datos.bgImages` empieza vacío durante uno o dos segundos en cada carga de página
+  // -- sin `cargandoFondos`, la UI ("Ver fondos guardados (0 temas)", "No hay fondos guardados
+  // aún") se ve idéntica a si de verdad no hubiera nada, aunque los fondos sigan intactos en
+  // Supabase. `cargandoFondos` existe solo para no mostrar ese falso "está vacío" mientras la
+  // petición sigue en vuelo.
   useEffect(() => {
     const cargarFondosDesdeSupabase = async () => {
       try {
@@ -720,6 +725,8 @@ export default function App() {
         }
       } catch (err) {
         console.warn('Error al cargar fondos desde Supabase:', err);
+      } finally {
+        setCargandoFondos(false);
       }
     };
 
@@ -1009,6 +1016,7 @@ export default function App() {
 
   // Estado para mostrar modal de fondos guardados
   const [mostrarFondosGuardados, setMostrarFondosGuardados] = useState(false);
+  const [cargandoFondos, setCargandoFondos] = useState(true);
 
   // Optimizaciones de PC: Dispositivo de vista previa y escala de zoom
   const [previewDevice, setPreviewDevice] = useState<"mobile" | "tablet" | "desktop">("mobile");
@@ -2379,10 +2387,13 @@ export default function App() {
 
                     <button
                       onClick={() => setMostrarFondosGuardados(true)}
-                      className="w-full flex items-center justify-center gap-2 p-2 border border-emerald-200 rounded-lg bg-emerald-50 hover:bg-emerald-100 transition text-emerald-700 font-semibold text-[11px]"
+                      disabled={cargandoFondos}
+                      className="w-full flex items-center justify-center gap-2 p-2 border border-emerald-200 rounded-lg bg-emerald-50 hover:bg-emerald-100 transition text-emerald-700 font-semibold text-[11px] disabled:opacity-60 disabled:cursor-wait"
                     >
                       <Eye className="w-4 h-4" />
-                      Ver fondos guardados ({Object.keys(datos.bgImages || {}).length} temas)
+                      {cargandoFondos
+                        ? "Cargando fondos guardados..."
+                        : `Ver fondos guardados (${Object.keys(datos.bgImages || {}).length} temas)`}
                     </button>
 
                     <div className="space-y-1">
@@ -4101,7 +4112,9 @@ export default function App() {
               </button>
             </div>
 
-            {Object.keys(datos.bgImages || {}).length === 0 ? (
+            {cargandoFondos ? (
+              <p className="text-sm text-slate-500 py-8 text-center">Cargando fondos guardados desde Supabase...</p>
+            ) : Object.keys(datos.bgImages || {}).length === 0 ? (
               <p className="text-sm text-slate-500 py-8 text-center">No hay fondos guardados aún. Sube fondos para cada tema.</p>
             ) : (
               <div className="space-y-3">
