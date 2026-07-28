@@ -1029,6 +1029,9 @@ export default function App() {
   const [nuevoInvitadoNombre, setNuevoInvitadoNombre] = useState("");
   const [nuevoInvitadoPases, setNuevoInvitadoPases] = useState(2);
 
+  const [mostrarImportarLista, setMostrarImportarLista] = useState(false);
+  const [textoImportarInvitados, setTextoImportarInvitados] = useState("");
+
   const [nuevoFotoUrl, setNuevoFotoUrl] = useState("");
 
   // Referencia al iframe para actualizar la vista previa de forma aislada
@@ -1619,6 +1622,48 @@ export default function App() {
       ...prev,
       invitados: (prev.invitados || []).filter((_, i) => i !== index)
     }));
+  };
+
+  // Invitados: Parsear una línea de texto libre en { nombre, pases }. Acepta el formato en el
+  // que el cliente naturalmente mande su lista (copiado/pegado de Excel/Sheets, Word, o
+  // escrito a mano en WhatsApp) — no exigimos un archivo ni un formato específico:
+  //   "Familia Pérez, 4"        "Familia Pérez - 4 pases"     "Familia Pérez   4" (tab de Excel)
+  //   "Familia Pérez (4)"       "Familia Pérez 4 personas"    "Familia Pérez" (sin número -> 2 pases)
+  const parsearLineaInvitado = (linea: string): { nombre: string; pases: number } | null => {
+    const trimmed = linea.trim();
+    if (!trimmed) return null;
+
+    const match = trimmed.match(
+      /^(.*?)[\s,;:\-–—]+\(?(\d{1,2})\)?\s*(?:pases?|boletos?|personas?|invitados?)?\.?$/i
+    );
+
+    if (match && match[1].trim()) {
+      const pases = parseInt(match[2], 10);
+      return { nombre: match[1].trim(), pases: pases > 0 ? pases : 1 };
+    }
+    // Sin número identificable al final -> se toma la línea completa como nombre, default 2 pases
+    return { nombre: trimmed, pases: 2 };
+  };
+
+  // Invitados: Importar lista completa pegada de un jalón (una familia por línea)
+  const handleImportarListaInvitados = () => {
+    const lineas = textoImportarInvitados.split(/\r?\n/);
+    const nuevos = lineas
+      .map(parsearLineaInvitado)
+      .filter((x): x is { nombre: string; pases: number } => x !== null);
+
+    if (nuevos.length === 0) {
+      mostrarToast("No encontré ninguna familia válida en el texto pegado.", "error");
+      return;
+    }
+
+    setDatos(prev => ({
+      ...prev,
+      invitados: [...(prev.invitados || []), ...nuevos]
+    }));
+    setTextoImportarInvitados("");
+    setMostrarImportarLista(false);
+    mostrarToast(`✅ ${nuevos.length} invitado(s) importado(s) correctamente`, "success");
   };
 
   // Código de Vestimenta: Agregar color sugerido
@@ -3398,15 +3443,50 @@ export default function App() {
             {panelPestana === "invitados" && (
               <div className="space-y-6 animate-fadeIn">
                 <div>
-                  <h3 className="text-sm font-semibold text-indigo-600 mb-2">Buscador de Pases Personalizados</h3>
+                  <h3 className="text-sm font-semibold text-indigo-600 mb-2">Pases Personalizados de Invitados</h3>
                   <p className="text-xs text-slate-500 mb-4">
-                    Introduce los nombres de las familias para que puedan consultarlo con el buscador interactivo del pase.
+                    Cada invitado recibe su propio link fijo con su nombre y número de pases — genera el link de cada uno abajo en la lista.
                   </p>
 
-                  {/* Formulario nuevo invitado */}
+                  {/* Importar lista completa de un jalón */}
+                  <div className="mb-4">
+                    <button
+                      onClick={() => setMostrarImportarLista(v => !v)}
+                      className="w-full py-1.5 bg-white hover:bg-slate-50 text-indigo-600 border border-indigo-200 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition cursor-pointer"
+                    >
+                      📋 {mostrarImportarLista ? "Cerrar importar lista" : "Importar lista completa (pegar de una vez)"}
+                    </button>
+
+                    {mostrarImportarLista && (
+                      <div className="mt-2 p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2 shadow-xs">
+                        <p className="text-[10px] text-slate-500 leading-relaxed">
+                          Pega la lista que te mande el cliente tal cual la manden — copiada de Excel/Sheets, de Word, o escrita en WhatsApp. Una familia por línea, por ejemplo:
+                          <br />
+                          <span className="font-mono text-slate-600">Familia Pérez González, 4{"\n"}Familia López - 2 pases{"\n"}Tía Lupita</span>
+                          <br />
+                          Si una línea no trae número, se le asignan 2 pases por default (lo puedes ajustar después en la lista).
+                        </p>
+                        <textarea
+                          value={textoImportarInvitados}
+                          onChange={(e) => setTextoImportarInvitados(e.target.value)}
+                          placeholder={"Familia Pérez González, 4\nFamilia López - 2 pases\nTía Lupita"}
+                          rows={6}
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-xs font-mono focus:border-indigo-600 outline-none resize-y"
+                        />
+                        <button
+                          onClick={handleImportarListaInvitados}
+                          className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition text-white cursor-pointer"
+                        >
+                          Importar lista
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Formulario nuevo invitado (uno por uno) */}
                   <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 mb-4 space-y-3 shadow-xs">
                     <span className="text-[10px] uppercase font-bold text-slate-500 block">Nuevo Invitado / Pase Familiar</span>
-                    
+
                     <div className="grid grid-cols-3 gap-2">
                       <input
                         type="text"
