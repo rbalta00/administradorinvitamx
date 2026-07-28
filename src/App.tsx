@@ -1322,9 +1322,9 @@ export default function App() {
       .catch(err => mostrarToast("Error al copiar datos JSON: " + err, "error"));
   };
 
-  // Generar URL del catálogo de demos. Siempre apunta al despliegue público sin
-  // protección SSO (invitacionmx-demo.vercel.app) para que el link funcione para
-  // cualquier cliente, sin importar desde dónde se genere (editor privado, localhost, etc.).
+  // Generar URL del catálogo de demos. Este deploy (administradorinvitamx.vercel.app) es
+  // público sin protección SSO, así que basta con apuntar al propio origen para que el link
+  // funcione para cualquier cliente, sin importar desde dónde se genere (editor, localhost, etc.).
   //
   // Importante: NO se codifica `datos` aquí. Este link se pensó para reutilizarse muchas
   // veces con distintos clientes potenciales, y si incluyera el estado de la invitación que
@@ -1333,15 +1333,15 @@ export default function App() {
   // catálogo no necesita esos datos: los fondos personalizados por tema ya se sincronizan
   // vía Supabase para cualquiera que abra la página.
   const getCatalogUrl = () => {
-    const appUrl = "https://invitacionmx-demo.vercel.app/";
+    const appUrl = window.location.origin + "/";
     return `${appUrl}?catalog=true`;
   };
 
-  // Generar URL de compartir con todos los datos y el invitado seleccionado. Siempre apunta
-  // al despliegue público sin protección SSO (invitacionmx-demo.vercel.app) para que los
-  // invitados reales puedan abrir su invitación sin toparse con el login de Vercel.
+  // Generar URL de compartir con todos los datos y el invitado seleccionado. Este deploy es
+  // público sin protección SSO, así que apuntar al propio origen es seguro: los invitados
+  // reales abren su invitación sin toparse con ningún login de Vercel.
   const getShareUrl = (invitadoIndex = selectedInvitadoIndex) => {
-    const appUrl = "https://invitacionmx-demo.vercel.app/";
+    const appUrl = window.location.origin + "/";
 
     // Sincronizar el tema activo de forma explícita en los datos decodificables antes de codificar la URL
     const datosListos = {
