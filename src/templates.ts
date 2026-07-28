@@ -714,25 +714,17 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
     </section>
     ` : "";
 
-  // Sección de contenido: pases
+  // Sección de contenido: pases. Muestra el pase FIJO del invitado incluido en este link —
+  // ya no hay buscador: cada link personalizado solo trae los datos de UN invitado (ver
+  // getShareUrl en App.tsx), así que no hay lista de nadie más que buscar/exponer.
   const pasesSeccionHTML = isSectionActive("pases") ? `
     <section data-section="pases" class="p-6">
       <div class="gold-card rounded-3xl p-6 text-center relative overflow-hidden">
         <span class="text-3xl text-accent/80 block mb-3 animate-float">${tema.decorativeEmoji}</span>
         <h3 class="font-serif text-xl text-dark font-bold">Pases de Entrada</h3>
         <p class="text-xs text-gray-500 font-light uppercase tracking-wider mb-4">Acceso Exclusivo</p>
-        
-        <p class="text-xs text-gray-500 font-light mb-4 text-center line-clamp-3">Para buscar los pases que te corresponden, por favor introduce los apellidos de tu familia o tu nombre:</p>
-        
-        <!-- Buscador de pases -->
-        <div class="relative max-w-xs mx-auto mb-4">
-          <input type="text" id="input-buscar-pase" placeholder="Ej. Familia Gómez Mendoza..." class="w-full pl-4 pr-10 py-2.5 text-xs text-gray-700 bg-gray-50 rounded-full border border-gray-200 outline-none focus:border-accent focus:bg-white transition" />
-          <button onclick="buscarBoletos()" class="absolute right-1.5 top-1.5 bg-accent text-white rounded-full p-1.5 hover:bg-accent/95 transition cursor-pointer">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-          </button>
-        </div>
 
-        <!-- Tarjeta de pase dinámico -->
+        <!-- Tarjeta de pase fijo -->
         <div id="resultado-pase-bloque" class="hidden max-w-xs mx-auto p-4 rounded-2xl bg-[${tema.colors.light}] border border-borderTheme/50 mt-4 text-center animate-pulse-soft">
           <span class="text-[9px] uppercase tracking-widest text-[#B89D4B] font-bold block">Pase de Invitación</span>
           <div class="h-[1px] bg-borderTheme/30 my-2"></div>
@@ -745,7 +737,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
         </div>
 
         <div id="sin-coincidencia-pases" class="hidden text-xs text-gray-500 italic mt-3">
-          No encontramos ese nombre en la lista, intenta con otros apellidos o escríbelo de manera similar.
+          Esta invitación no tiene un pase asignado. Contacta a los anfitriones para más información.
         </div>
       </div>
     </section>
@@ -1141,27 +1133,21 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
       // 2. Colocar Fecha en Portada legible de forma humana
       formatearFechaPortada("${escDoubleQuote(datos.fecha)}");
 
-      // 3. Auto-búsqueda de pase de invitado por parámetro de URL
+      // 3. Mostrar el pase fijo de este invitado (ya no hay buscador: cada link solo trae
+      // los datos del invitado al que se le envió, por privacidad — ver getShareUrl en App.tsx)
       try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const guestParam = urlParams.get('g') || urlParams.get('guest');
-        if (guestParam) {
-          const inputBuscar = document.getElementById('input-buscar-pase');
-          if (inputBuscar) {
-            inputBuscar.value = guestParam;
-            buscarBoletos();
-            
-            // Hacer scroll suave hacia la sección de pases tras abrir la invitación
-            setTimeout(() => {
-              const pasesSection = document.querySelector('[data-section="pases"]');
-              if (pasesSection) {
-                pasesSection.scrollIntoView({ behavior: 'smooth' });
-              }
-            }, 1200);
-          }
+        const huboPase = mostrarPaseFijo();
+        if (huboPase) {
+          // Hacer scroll suave hacia la sección de pases tras abrir la invitación
+          setTimeout(() => {
+            const pasesSection = document.querySelector('[data-section="pases"]');
+            if (pasesSection) {
+              pasesSection.scrollIntoView({ behavior: 'smooth' });
+            }
+          }, 1200);
         }
       } catch (err) {
-        console.warn("Error auto-buscando pase:", err);
+        console.warn("Error mostrando pase:", err);
       }
 
       // Si no hay pantalla de apertura, activar la experiencia de inmediato
@@ -1388,56 +1374,28 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
       }
     }
 
-    // 4. Lógica de Pases Personalizados
-    function buscarBoletos() {
-      const q = document.getElementById('input-buscar-pase').value.trim().toLowerCase();
+    // 4. Mostrar el pase fijo del invitado incluido en esta invitación. datosInvitacion.invitados
+    // ya viene con como máximo UN elemento (el invitado al que se le generó este link específico
+    // — ver getShareUrl en App.tsx), así que no hay nada que buscar ni ambigüedad posible.
+    // Devuelve true si había un pase que mostrar (para decidir si hacer scroll a la sección).
+    function mostrarPaseFijo() {
       const resultadoBloque = document.getElementById('resultado-pase-bloque');
       const sinCoincidencia = document.getElementById('sin-coincidencia-pases');
+      if (!resultadoBloque || !sinCoincidencia) return false;
 
-      if (!resultadoBloque || !sinCoincidencia) return;
+      const invitado = (datosInvitacion.invitados || [])[0];
 
-      if (!q) {
-        resultadoBloque.classList.add('hidden');
-        sinCoincidencia.classList.add('hidden');
-        return;
-      }
-
-      const invitados = datosInvitacion.invitados || [];
-
-      // Preferimos coincidencia exacta primero para no confundir familias con nombres
-      // parecidos (ej. "Familia Gómez" vs "Familia Gómez Hernández").
-      let match = invitados.find(inv => inv.nombre.toLowerCase().trim() === q);
-      let ambiguo = false;
-
-      if (!match) {
-        const coincidencias = invitados.filter(inv => inv.nombre.toLowerCase().includes(q));
-        if (coincidencias.length === 1) {
-          match = coincidencias[0];
-        } else if (coincidencias.length > 1) {
-          ambiguo = true;
-        }
-      }
-
-      if (match) {
-        document.getElementById('pase-nombre-invitado').innerText = match.nombre;
-        document.getElementById('pase-cantidad').innerText = match.pases;
+      if (invitado) {
+        document.getElementById('pase-nombre-invitado').innerText = invitado.nombre;
+        document.getElementById('pase-cantidad').innerText = invitado.pases;
         resultadoBloque.classList.remove('hidden');
         sinCoincidencia.classList.add('hidden');
-      } else {
-        resultadoBloque.classList.add('hidden');
-        sinCoincidencia.classList.remove('hidden');
-        sinCoincidencia.innerText = ambiguo
-          ? 'Hay varias familias con un nombre parecido, escribe tu nombre completo tal como aparece en tu invitación.'
-          : 'No encontramos ese nombre en la lista, intenta con otros apellidos o escríbelo de manera similar.';
+        return true;
       }
-    }
 
-    // Permitir buscar pases presionando enter
-    const txtBuscar = document.getElementById('input-buscar-pase');
-    if (txtBuscar) {
-      txtBuscar.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') buscarBoletos();
-      });
+      resultadoBloque.classList.add('hidden');
+      sinCoincidencia.classList.remove('hidden');
+      return false;
     }
 
     // 5. RSVP por WhatsApp

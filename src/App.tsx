@@ -1340,18 +1340,30 @@ export default function App() {
   // Generar URL de compartir con todos los datos y el invitado seleccionado. Este deploy es
   // público sin protección SSO, así que apuntar al propio origen es seguro: los invitados
   // reales abren su invitación sin toparse con ningún login de Vercel.
+  //
+  // Privacidad: cada link SOLO lleva los datos del invitado al que se le está enviando, nunca
+  // la lista completa de `datos.invitados`. Antes se mandaba el arreglo completo siempre (el
+  // parámetro `g` solo pre-llenaba un buscador), así que CUALQUIER link -general o
+  // "personalizado"- exponía nombre y número de pases de TODAS las demás familias a quien sea
+  // que lo abriera. Ahora, si no hay un invitado específico seleccionado (link general de
+  // preview), la lista va vacía a propósito.
   const getShareUrl = (invitadoIndex = selectedInvitadoIndex) => {
     const appUrl = window.location.origin + "/";
+    const invitadoObjetivo =
+      invitadoIndex !== -1 && datos.invitados && datos.invitados[invitadoIndex]
+        ? datos.invitados[invitadoIndex]
+        : null;
 
     // Sincronizar el tema activo de forma explícita en los datos decodificables antes de codificar la URL
     const datosListos = {
       ...datos,
-      tema: selectedTemaId
+      tema: selectedTemaId,
+      invitados: invitadoObjetivo ? [invitadoObjetivo] : []
     };
 
     let url = `${appUrl}?v=1&d=${encodeState(datosListos)}`;
-    if (invitadoIndex !== -1 && datos.invitados && datos.invitados[invitadoIndex]) {
-      url += `&g=${encodeURIComponent(datos.invitados[invitadoIndex].nombre)}`;
+    if (invitadoObjetivo) {
+      url += `&g=${encodeURIComponent(invitadoObjetivo.nombre)}`;
     }
     return url;
   };
