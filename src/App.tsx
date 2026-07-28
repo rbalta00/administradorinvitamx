@@ -1716,10 +1716,13 @@ export default function App() {
 
       if (esVistaDeMuestra) {
         const numeroContacto = datos.whatsappConfirmacion || whatsappDestino;
+        // Estilos forzados con !important: el CSS global de la invitación oculta (opacity/visibility)
+        // los hijos directos de <body> hasta que termina la animación de apertura, y este banner
+        // se inyecta como el primer hijo de <body> -- sin !important quedaría invisible igual.
         const bannerHTML = `
-          <div style="position:fixed;top:0;left:0;right:0;z-index:99999;background:#4f46e5;color:#fff;text-align:center;padding:9px 14px;font-family:system-ui,sans-serif;font-size:12px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.15);">
+          <div style="position:fixed !important;top:0 !important;left:0 !important;right:0 !important;z-index:2147483647 !important;opacity:1 !important;visibility:visible !important;background:#4f46e5;color:#fff;text-align:center;padding:9px 14px;font-family:system-ui,sans-serif;font-size:12px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.15);">
             🎀 Esta es una MUESTRA — así se vería tu invitación real con tus datos completos.
-            <a href="https://api.whatsapp.com/send?phone=${encodeURIComponent(numeroContacto)}&text=${encodeURIComponent("¡Hola! Vi la muestra de mi invitación y quiero continuar 🌸")}" style="color:#fff;text-decoration:underline;margin-left:6px;" target="_blank" rel="noopener">Contáctanos para continuar</a>
+            <a href="https://api.whatsapp.com/send?phone=${encodeURIComponent(numeroContacto)}&text=${encodeURIComponent("¡Hola! Vi la muestra de mi invitación y quiero continuar 🌸")}" style="color:#fff !important;text-decoration:underline;margin-left:6px;" target="_blank" rel="noopener">Contáctanos para continuar</a>
           </div>`;
         htmlContent = htmlContent.replace(/<body([^>]*)>/i, `<body$1>${bannerHTML}`);
       }
