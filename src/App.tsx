@@ -823,6 +823,58 @@ export default function App() {
   const [isCatalogMode, setIsCatalogMode] = useState<boolean>(isCatalogInitial);
   const [selectedCatalogTemaId, setSelectedCatalogTemaId] = useState<string | null>(initialCatalogTemaId);
 
+  // Guarda UN fondo de tema en Supabase sin arriesgar los demás. Antes, handleBgImageUpload y
+  // handleGuardarEnlaceCloudinary armaban el objeto completo a partir de localStorage y lo
+  // subían tal cual con upsert -- si el localStorage de ESE navegador/dispositivo no tenía
+  // los fondos de otros temas (navegador distinto, caché limpiado, primera carga antes de que
+  // el efecto de sincronización con Supabase terminara), el upsert sobreescribía la columna
+  // completa en Supabase, borrando de la base de datos los fondos de los demás temas aunque
+  // sus archivos siguieran intactos en Cloudinary. Esta función en cambio SIEMPRE lee el
+  // estado real y actual de Supabase primero, y solo le agrega/actualiza la entrada del tema
+  // que se está guardando, así que nunca puede pisar datos que no vio.
+  const guardarFondoEnSupabase = async (temaId: string, url: string): Promise<Record<string, string>> => {
+    if (!window.supabaseClient) {
+      throw new Error('Supabase no está disponible');
+    }
+    const supabase = window.supabaseClient;
+
+    const { data: actual, error: errorLectura } = await supabase
+      .from('invitaciones')
+      .select('fondos_personalizados')
+      .eq('id', FONDOS_ROW_ID)
+      .maybeSingle();
+
+    if (errorLectura) {
+      throw new Error('No se pudo leer el estado actual de fondos: ' + errorLectura.message);
+    }
+
+    const fondosActuales = (actual && actual.fondos_personalizados) || {};
+    const fondosActualizados = { ...fondosActuales, [temaId]: url };
+
+    const { error: errorEscritura } = await supabase
+      .from('invitaciones')
+      .upsert([{
+        id: FONDOS_ROW_ID,
+        nombre_quinceanera: datos.nombre || 'Sin nombre',
+        tema_elegido: temaId,
+        fondos_personalizados: fondosActualizados,
+        estado: 'fondos_personalizados',
+        updated_at: new Date().toISOString()
+      }], { onConflict: 'id' });
+
+    if (errorEscritura) {
+      throw new Error('No se pudo guardar en Supabase: ' + errorEscritura.message);
+    }
+
+    try {
+      localStorage.setItem('xv_fondos_personalizados', JSON.stringify(fondosActualizados));
+    } catch (err) {
+      console.warn('Error al guardar fondos en localStorage:', err);
+    }
+
+    return fondosActualizados;
+  };
+
   // Manejo de carga de imágenes de fondo por tema por separado
   const handleBgImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -831,36 +883,12 @@ export default function App() {
     setSubiendoCloudinary(true);
     try {
       const url = await subirACloudinary(file);
-      
-      // Guardar en el almacenamiento persistente global de fondos
-      try {
-        const savedBgs = localStorage.getItem('xv_fondos_personalizados');
-        const customBgs = savedBgs ? JSON.parse(savedBgs) : {};
-        customBgs[selectedTemaId] = url;
-        localStorage.setItem('xv_fondos_personalizados', JSON.stringify(customBgs));
 
-        // Guardar también en Supabase para sincronizar entre dispositivos
-        try {
-          if (window.supabaseClient) {
-            const supabase = window.supabaseClient;
-            // Usar upsert para actualizar o crear si no existe
-            await supabase
-              .from('invitaciones')
-              .upsert([{
-                id: FONDOS_ROW_ID,
-                nombre_quinceanera: datos.nombre || 'Sin nombre',
-                tema_elegido: selectedTemaId,
-                fondos_personalizados: customBgs,
-                estado: 'fondos_personalizados',
-                updated_at: new Date().toISOString()
-              }], { onConflict: 'id' });
-            console.log('✅ Fondo guardado en Supabase');
-          }
-        } catch (err) {
-          console.warn("Advertencia: Error al guardar fondo en Supabase:", err);
-        }
+      try {
+        await guardarFondoEnSupabase(selectedTemaId, url);
       } catch (err) {
-        console.error("Error al guardar fondo personalizado en localStorage:", err);
+        console.warn("Advertencia: Error al guardar fondo en Supabase:", err);
+        mostrarToast("Se subió a Cloudinary pero no se pudo sincronizar en Supabase: " + (err as Error).message, "error");
       }
 
       setDatos(prev => {
@@ -891,35 +919,18 @@ export default function App() {
     setEstadoGuardadoLink('guardando');
 
     try {
-      // Guardar en el almacenamiento persistente global de fondos
-      const savedBgs = localStorage.getItem('xv_fondos_personalizados');
-      const customBgs = savedBgs ? JSON.parse(savedBgs) : {};
-      customBgs[selectedTemaId] = enlaceCloudinary.trim();
-      localStorage.setItem('xv_fondos_personalizados', JSON.stringify(customBgs));
-
-      // Guardar también en Supabase para sincronizar entre dispositivos
       if (!window.supabaseClient) {
         setEstadoGuardadoLink('error');
-        mostrarToast('❌ Supabase no está disponible: el link solo se guardó en este navegador', 'error');
+        mostrarToast('❌ Supabase no está disponible: el link no se pudo sincronizar', 'error');
         return;
       }
 
-      const supabase = window.supabaseClient;
-      const { error } = await supabase
-        .from('invitaciones')
-        .upsert([{
-          id: FONDOS_ROW_ID,
-          nombre_quinceanera: datos.nombre || 'Sin nombre',
-          tema_elegido: selectedTemaId,
-          fondos_personalizados: customBgs,
-          estado: 'fondos_personalizados',
-          updated_at: new Date().toISOString()
-        }], { onConflict: 'id' });
-
-      if (error) {
-        console.error('Error de Supabase al guardar link:', error.message);
+      try {
+        await guardarFondoEnSupabase(selectedTemaId, enlaceCloudinary.trim());
+      } catch (err: any) {
+        console.error('Error de Supabase al guardar link:', err.message);
         setEstadoGuardadoLink('error');
-        mostrarToast('❌ Error al guardar en Supabase: ' + error.message, 'error');
+        mostrarToast('❌ Error al guardar en Supabase: ' + err.message, 'error');
         return;
       }
 
