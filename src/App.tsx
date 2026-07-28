@@ -1018,6 +1018,7 @@ export default function App() {
   const [whatsappDestino, setWhatsappDestino] = useState("522217445410");
   const [whatsappTemplateId, setWhatsappTemplateId] = useState("completo");
   const [selectedInvitadoIndex, setSelectedInvitadoIndex] = useState<number>(-1);
+  const [esEnlaceMuestra, setEsEnlaceMuestra] = useState(false);
 
   // Estados locales para nuevos elementos interactivos de listas
   const [nuevoItinHora, setNuevoItinHora] = useState("");
@@ -1371,10 +1372,23 @@ export default function App() {
     return url;
   };
 
+  // Enlaces de "muestra": para mandarle una vista previa a un cliente potencial ANTES de que
+  // pague. Se agregan como parámetros de URL sueltos (fuera del blob `d`) para no tocar el
+  // modelo de datos de la invitación en absoluto. Expiran a los `MUESTRA_DIAS_VIGENCIA` días
+  // (revisión del lado del cliente en isViewMode más abajo — no es seguridad real, solo un
+  // límite práctico) y muestran un banner de "MUESTRA" sobre la invitación mientras estén
+  // vigentes.
+  const MUESTRA_DIAS_VIGENCIA = 5;
+  const aplicarModoMuestra = (url: string): string => {
+    if (!esEnlaceMuestra) return url;
+    const exp = Date.now() + MUESTRA_DIAS_VIGENCIA * 24 * 60 * 60 * 1000;
+    return `${url}&muestra=1&exp=${exp}`;
+  };
+
   // Compartir datos de la invitación final por WhatsApp
   const handleEnviarWhatsApp = (overrideInvitadoIndex?: number) => {
     const targetIndex = typeof overrideInvitadoIndex === "number" ? overrideInvitadoIndex : selectedInvitadoIndex;
-    const urlFinal = getShareUrl(targetIndex);
+    const urlFinal = aplicarModoMuestra(getShareUrl(targetIndex));
     const nombreQuince = datos.nombre || "Sophia Valeria";
     
     let fechaBonita = datos.fecha;
@@ -1684,18 +1698,56 @@ export default function App() {
     }));
   };
 
+  // Enlaces de "muestra" (ver aplicarModoMuestra más arriba): `exp`/`muestra` viajan como
+  // parámetros de URL sueltos, fuera del blob `d`, así que se leen aparte aquí. Esto NO es
+  // seguridad real (alguien técnico podría decodificar `d` sin pasar por este chequeo) — es
+  // solo un límite práctico para que una vista previa de venta no quede accesible para siempre.
+  const paramsMuestra = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+  const muestraExp = paramsMuestra?.get("exp");
+  const esVistaDeMuestra = paramsMuestra?.get("muestra") === "1";
+  const muestraExpirada = !!muestraExp && Date.now() > parseInt(muestraExp, 10);
+
   // Reemplazar el DOM de la página para la vista de los invitados (isViewMode = true)
   // Esto elimina las restricciones severas de iframe y sandbox del navegador,
   // permitiendo que el copiado de cuentas de banco, itinerarios, música y mapas funcionen de manera nativa y confiable.
   useEffect(() => {
-    if (isViewMode) {
-      const htmlContent = generarHTMLFinal(datos, temaActual);
+    if (isViewMode && !muestraExpirada) {
+      let htmlContent = generarHTMLFinal(datos, temaActual);
+
+      if (esVistaDeMuestra) {
+        const numeroContacto = datos.whatsappConfirmacion || whatsappDestino;
+        const bannerHTML = `
+          <div style="position:fixed;top:0;left:0;right:0;z-index:99999;background:#4f46e5;color:#fff;text-align:center;padding:9px 14px;font-family:system-ui,sans-serif;font-size:12px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.15);">
+            🎀 Esta es una MUESTRA — así se vería tu invitación real con tus datos completos.
+            <a href="https://api.whatsapp.com/send?phone=${encodeURIComponent(numeroContacto)}&text=${encodeURIComponent("¡Hola! Vi la muestra de mi invitación y quiero continuar 🌸")}" style="color:#fff;text-decoration:underline;margin-left:6px;" target="_blank" rel="noopener">Contáctanos para continuar</a>
+          </div>`;
+        htmlContent = htmlContent.replace(/<body([^>]*)>/i, `<body$1>${bannerHTML}`);
+      }
 
       document.open();
       document.write(htmlContent);
       document.close();
     }
-  }, [isViewMode, datos, temaActual]);
+  }, [isViewMode, datos, temaActual, esVistaDeMuestra, muestraExpirada]);
+
+  if (isViewMode && muestraExpirada) {
+    const numeroContacto = datos.whatsappConfirmacion || whatsappDestino;
+    return (
+      <div className="w-screen h-screen fixed inset-0 flex flex-col items-center justify-center bg-slate-50 z-50 px-6 text-center">
+        <span className="text-4xl mb-3">🌸</span>
+        <p className="text-sm font-semibold text-slate-700 mb-1">Esta muestra ya expiró</p>
+        <p className="text-xs text-slate-500 mb-5 max-w-xs">Contáctanos para continuar con tu invitación personalizada.</p>
+        <a
+          href={`https://api.whatsapp.com/send?phone=${encodeURIComponent(numeroContacto)}&text=${encodeURIComponent("¡Hola! Vi la muestra de mi invitación y quiero continuar 🌸")}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-full transition"
+        >
+          Contactar por WhatsApp
+        </a>
+      </div>
+    );
+  }
 
   if (isViewMode) {
     return (
@@ -2512,20 +2564,53 @@ export default function App() {
                         </div>
                       </div>
 
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">Tipo de Enlace</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setEsEnlaceMuestra(false)}
+                            className={`p-2 text-center rounded-lg border text-xs font-semibold transition cursor-pointer ${
+                              !esEnlaceMuestra
+                                ? "bg-emerald-600/10 border-emerald-500 text-emerald-800"
+                                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                            }`}
+                          >
+                            Normal
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEsEnlaceMuestra(true)}
+                            className={`p-2 text-center rounded-lg border text-xs font-semibold transition cursor-pointer ${
+                              esEnlaceMuestra
+                                ? "bg-amber-500/10 border-amber-500 text-amber-800"
+                                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                            }`}
+                          >
+                            🎀 Muestra (5 días)
+                          </button>
+                        </div>
+                        {esEnlaceMuestra && (
+                          <p className="text-[10px] text-amber-700 mt-1.5 leading-relaxed">
+                            Este enlace deja de funcionar en {MUESTRA_DIAS_VIGENCIA} días y muestra un aviso de "MUESTRA" mientras esté vigente — pensado para mandarle una vista previa a un cliente antes de que pague, no para la invitación final.
+                          </p>
+                        )}
+                      </div>
+
                       <div className="pt-2">
                         <label className="block text-[10px] font-bold text-emerald-800 uppercase tracking-wider mb-1">Enlace de Invitación Resultante (Elección Actual)</label>
                         <div className="flex gap-1.5 w-full">
                           <input
                             type="text"
                             readOnly
-                            value={getShareUrl()}
+                            value={aplicarModoMuestra(getShareUrl())}
                             className="flex-1 px-3 py-2 bg-white/75 border border-slate-200 rounded-lg text-slate-600 text-[10px] outline-none font-mono truncate"
                             title="Este enlace incluye toda tu configuración guardada encriptada en tiempo real"
                           />
                           <button
                             type="button"
                             onClick={() => {
-                              navigator.clipboard.writeText(getShareUrl())
+                              navigator.clipboard.writeText(aplicarModoMuestra(getShareUrl()))
                                 .then(() => mostrarToast("¡Enlace de invitación copiado con éxito! 🌸✨", "success"))
                                 .catch(err => mostrarToast("Error al copiar enlace: " + err, "error"));
                             }}
