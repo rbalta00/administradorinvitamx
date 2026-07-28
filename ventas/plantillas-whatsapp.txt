@@ -1,0 +1,136 @@
+====================================================================
+PLANTILLAS DE WHATSAPP BUSINESS — PROCESO DE VENTA DE INVITACIONES XV
+====================================================================
+Generador oficial: administradorinvitamx.vercel.app
+Cataloga de temas: administradorinvitamx.vercel.app/?catalog=true
+
+Cómo usar este archivo:
+- Copia el mensaje completo del paso que necesites.
+- Reemplaza todo lo que está entre [CORCHETES] antes de enviar.
+- Los pasos van en el mismo orden que el proceso de venta acordado.
+- En WhatsApp Business puedes guardar cada uno como "Mensaje rápido"
+  (Configuración > Herramientas para la empresa > Mensajes rápidos)
+  para no tener que abrir este archivo cada vez.
+
+====================================================================
+PASO 1 — RESPUESTA A PRIMER CONTACTO
+====================================================================
+¡Hola! 🌸 Gracias por escribirnos. Hacemos invitaciones digitales de XV Años totalmente personalizadas, con música, animaciones, cuenta regresiva, mapa de ubicaciones y pases digitales para tus invitados 🎀✨
+
+Para empezar, te comparto nuestro catálogo con 12 diseños distintos para que veas cuál te gusta más:
+👉 https://administradorinvitamx.vercel.app/?catalog=true
+
+Cuéntame cuál te late más y en un momento te mando un ejemplo armado con tu nombre y fecha para que veas cómo se vería la tuya 💕
+
+====================================================================
+PASO 2 — YA ELIGIÓ TEMA, LE AVISAS QUE VAS A ARMAR SU MUESTRA
+====================================================================
+¡Excelente elección! 🌸 Ese tema es hermoso.
+
+Para armarte una muestra con tu nombre y tu fecha real, solo necesito:
+- Nombre completo de la quinceañera
+- Fecha del evento
+- Hora aproximada (si ya la tienes)
+
+En cuanto me los pases te mando tu invitación de muestra en un momento ✨
+
+====================================================================
+PASO 3 — ENVÍO DE LA MUESTRA PERSONALIZADA (link tipo "Muestra 5 días")
+====================================================================
+¡Aquí está! 🎀 Así se vería TU invitación digital, con tu nombre y tu fecha ya cargados:
+
+👉 [LINK_DE_MUESTRA]
+
+Esta es una vista previa — tu invitación final incluye todas las secciones (ubicaciones, itinerario, código de vestimenta, galería de fotos, confirmación de asistencia y más) según el paquete que elijas.
+
+⏳ Ojo: este link de muestra solo está disponible por 5 días, así que si te encanta (¡como creo que te va a encantar! 😍) avísame para reservar tu fecha.
+
+====================================================================
+PASO 4 — PRESENTACIÓN DE PAQUETES Y PRECIOS (cierre de venta)
+====================================================================
+Te comparto nuestros paquetes disponibles para que elijas el que mejor se acomode a lo que necesitas 🌸
+
+🎀 *BÁSICO — $499 MXN*
+Hasta 4 fotos · Apertura animada · Portada · Cuenta regresiva · Ubicaciones de ceremonia y recepción · Itinerario · Código de vestimenta · Confirmación de asistencia
+
+💕 *PREMIUM — $799 MXN*
+Todo lo del Básico, más:
+Hasta 8 fotos · Padres y padrinos · Mesa de regalos · Hashtag de Instagram · Botón de "Añadir a calendario" · PDF de tu invitación incluido de regalo 🎁
+
+👑 *DELUXE — $1,199 MXN*
+Todo lo del Premium, más:
+Hasta 14 fotos · Pases digitales personalizados para hasta 40 familias invitadas (con su propio link y número de pases) · PDF incluido
+
+📌 Extras disponibles en cualquier paquete:
+- Pases personalizados en Básico: +$150 (hasta 10 familias)
+- Pases personalizados en Premium: +$180 (hasta 20 familias)
+- PDF de regalo en Básico: +$99–150
+
+¿Cuál te gustaría reservar? 🌸
+
+====================================================================
+PASO 5 — SEGUIMIENTO SI NO RESPONDE (antes de que expire la muestra)
+====================================================================
+¡Hola [NOMBRE]! 🌸 Solo para recordarte que tu muestra personalizada sigue disponible por unos días más:
+👉 [LINK_DE_MUESTRA]
+
+Si tienes dudas sobre los paquetes o quieres ajustar algo del diseño, aquí estoy para ayudarte 💕 ¿Seguimos con tu invitación?
+
+====================================================================
+PASO 6 — CONFIRMACIÓN DE PAGO Y SIGUIENTES PASOS
+====================================================================
+¡Muchas gracias por tu confianza! 🎉 Ya registré tu pago del paquete [PAQUETE].
+
+Ahora necesito estos datos para armar tu invitación completa:
+- Fotos que quieras incluir (hasta [MAX_FOTOS])
+- Ubicación y hora de la ceremonia
+- Ubicación y hora de la recepción
+- Itinerario del evento (si ya lo tienes)
+- Código de vestimenta / colores sugeridos
+[SI APLICA] - Datos de mesa de regalos / cuenta bancaria
+[SI APLICA] - Lista de invitados con número de pases por familia
+
+En cuanto me los compartas, tu invitación estará lista en [TIEMPO] 🌸✨
+
+====================================================================
+PASO 7 — PEDIR LISTA DE INVITADOS (para pases personalizados)
+====================================================================
+Para armar los pases personalizados de tus invitados, mándame la lista como te sea más fácil — no importa el formato, puede ser:
+
+- Copiada de Excel o Google Sheets
+- Escrita aquí mismo en WhatsApp
+- Una lista a mano, una familia por línea
+
+Ejemplo de cómo la puedes escribir:
+Familia Pérez González, 4
+Familia López - 2 pases
+Tía Lupita
+
+Si no me pones el número de pases, le pongo 2 por default y lo ajustamos después 😊
+
+====================================================================
+PASO 8 — ENTREGA FINAL DE LA INVITACIÓN
+====================================================================
+¡Ya está lista tu invitación de XV Años! 🎉🌸 Quedó hermosa.
+
+👉 [LINK_FINAL]
+
+Este es tu link definitivo, no expira y ya trae todos tus datos completos. Puedes compartirlo directo con tus invitados o pedirme los pases personalizados por familia si aún no los tienes.
+
+¡Fue un placer ayudarte a armar este momento tan especial! 💕✨
+
+====================================================================
+PASO 9 — ENTREGA DE PASES PERSONALIZADOS (uno por familia)
+====================================================================
+¡Hola [NOMBRE_FAMILIA]! 🌸 Te comparto tu pase digital personalizado con [NUMERO_PASES] boleto(s) para los XV Años de [NOMBRE_QUINCEAÑERA]:
+
+👉 [LINK_PERSONALIZADO]
+
+¡Los esperamos! ✨
+
+====================================================================
+PASO 10 — OFRECER PDF DE REGALO (si no venía incluido en su paquete)
+====================================================================
+¿Sabías que también puedes tener un PDF descargable de tu invitación como recuerdo? 🎁 Es perfecto para imprimir o guardar de regalo.
+
+Tiene un costo adicional de $99–150 MXN si tu paquete no lo incluye. ¿Te gustaría agregarlo?
