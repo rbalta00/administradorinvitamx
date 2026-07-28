@@ -2368,6 +2368,17 @@ export default function App() {
                       </button>
                     </div>
 
+                    <a
+                      href="https://console.cloudinary.com/console/media_library"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-1.5 p-2 mb-2 border border-slate-200 rounded-lg bg-white hover:bg-slate-50 transition text-center text-slate-600 hover:text-slate-800 text-[10px] font-bold"
+                      title="Abre tu cuenta de Cloudinary en una pestaña nueva para subir cualquier foto o fondo manualmente y copiar su link"
+                    >
+                      <ImageIcon className="w-3.5 h-3.5" />
+                      Abrir Cloudinary (subir manual) ↗
+                    </a>
+
                     <div className="flex gap-2">
                       <input
                         type="text"
@@ -3350,6 +3361,17 @@ export default function App() {
                         <span className="text-[11px] font-bold">Fondos protegidos</span>
                       </button>
                     </div>
+
+                    <a
+                      href="https://console.cloudinary.com/console/media_library"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-1.5 p-2 border border-slate-200 rounded-lg bg-white hover:bg-slate-50 transition text-center text-slate-600 hover:text-slate-800 text-[11px] font-bold"
+                      title="Abre tu cuenta de Cloudinary en una pestaña nueva para subir cualquier foto o fondo manualmente y copiar su link"
+                    >
+                      <ImageIcon className="w-3.5 h-3.5" />
+                      Abrir Cloudinary (subir manual) ↗
+                    </a>
 
                     <div className="flex gap-2 pt-1">
                       <input
