@@ -2342,6 +2342,52 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* TIPO DE APERTURA Y LLUVIA DECORATIVA */}
+                <div className="border-t border-slate-200 pt-6">
+                  <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                    Apertura y Decoración
+                  </h3>
+                  <div className="p-4 bg-purple-50/20 border border-purple-100 rounded-xl space-y-4">
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-700 mb-2">Tipo de Apertura</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {TIPOS_APERTURA.map(t => (
+                          <button
+                            key={t.id}
+                            onClick={() => setDatos(prev => ({ ...prev, tipoApertura: t.id }))}
+                            className={`text-left p-3 rounded-xl border-2 transition cursor-pointer ${(datos.tipoApertura || "tarjeta") === t.id ? "border-purple-500 bg-purple-50/40" : "border-slate-200 bg-white hover:border-slate-300"}`}
+                          >
+                            <span className="block text-xs font-bold text-slate-700">{t.nombre}</span>
+                            <span className="block text-[10px] text-slate-500 mt-0.5">{t.desc}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="border-t border-purple-100/60 pt-3">
+                      <h4 className="text-xs font-bold text-slate-700 mb-2">Símbolos de Lluvia Decorativa</h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {PALETAS_ANIMACION.map(a => {
+                          const actual = datos.simbolosCaida;
+                          const isSelected = actual ? actual.join(",") === a.simbolos.join(",") : a.id === "elegante";
+                          return (
+                            <button
+                              key={a.id}
+                              onClick={() => setDatos(prev => ({ ...prev, simbolosCaida: a.simbolos }))}
+                              className={`text-left p-2.5 rounded-xl border-2 transition cursor-pointer ${isSelected ? "border-purple-500 bg-purple-50/40" : "border-slate-200 bg-white hover:border-slate-300"}`}
+                            >
+                              <span className="block text-base mb-1">{a.simbolos.join(" ")}</span>
+                              <span className="block text-[10px] font-bold text-slate-700">{a.nombre}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-2">💡 Solo visible si "Efecto de Animación de Caída" está en ON</p>
+                    </div>
+                  </div>
+                </div>
+
                 {/* COMPARTIR POR WHATSAPP */}
                 <div className="border-t border-slate-200 pt-6">
                   <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
@@ -3521,8 +3567,8 @@ export default function App() {
                         {TIPOS_APERTURA.map(t => (
                           <button
                             key={t.id}
-                            onClick={() => setDatos(prev => ({ ...prev, personalizacion: { ...(prev.personalizacion || {}), tipoApertura: t.id } }))}
-                            className={`text-left p-3 rounded-xl border-2 transition cursor-pointer ${(datos.personalizacion?.tipoApertura || "tarjeta") === t.id ? "border-indigo-500 bg-indigo-50/40" : "border-slate-200 bg-white hover:border-slate-300"}`}
+                            onClick={() => setDatos(prev => ({ ...prev, tipoApertura: t.id }))}
+                            className={`text-left p-3 rounded-xl border-2 transition cursor-pointer ${(datos.tipoApertura || "tarjeta") === t.id ? "border-indigo-500 bg-indigo-50/40" : "border-slate-200 bg-white hover:border-slate-300"}`}
                           >
                             <span className="block text-xs font-bold text-slate-700">{t.nombre}</span>
                             <span className="block text-[10px] text-slate-500 mt-0.5">{t.desc}</span>
@@ -3535,12 +3581,12 @@ export default function App() {
                       <h4 className="text-xs font-bold text-slate-700 mb-2">Animación de la Lluvia Decorativa</h4>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {PALETAS_ANIMACION.map(a => {
-                          const actual = datos.personalizacion?.simbolosCaida;
+                          const actual = datos.simbolosCaida;
                           const isSelected = actual ? actual.join(",") === a.simbolos.join(",") : a.id === "elegante";
                           return (
                             <button
                               key={a.id}
-                              onClick={() => setDatos(prev => ({ ...prev, personalizacion: { ...(prev.personalizacion || {}), simbolosCaida: a.simbolos } }))}
+                              onClick={() => setDatos(prev => ({ ...prev, simbolosCaida: a.simbolos }))}
                               className={`text-left p-2.5 rounded-xl border-2 transition cursor-pointer ${isSelected ? "border-indigo-500 bg-indigo-50/40" : "border-slate-200 bg-white hover:border-slate-300"}`}
                             >
                               <span className="block text-base mb-1">{a.simbolos.join(" ")}</span>
