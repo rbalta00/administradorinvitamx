@@ -1092,6 +1092,7 @@ export default function App() {
   // panel (evita N+1 queries al abrir la lista si hay muchas invitaciones guardadas).
   const [confirmacionesPorInvitacion, setConfirmacionesPorInvitacion] = useState<Record<string, ConfirmacionRSVP[]>>({});
   const [invitacionExpandidaId, setInvitacionExpandidaId] = useState<string | null>(null);
+  const [busquedaInvitaciones, setBusquedaInvitaciones] = useState("");
   const [cargandoConfirmaciones, setCargandoConfirmaciones] = useState(false);
 
   // Optimizaciones de PC: Dispositivo de vista previa y escala de zoom
@@ -2350,6 +2351,16 @@ export default function App() {
       </div>
     );
   }
+
+  // Filtro del panel "Mis Invitaciones" por nombre de la quinceañera o nombre del tema.
+  const invitacionesFiltradas = (() => {
+    const q = busquedaInvitaciones.trim().toLowerCase();
+    if (!q) return listaInvitaciones;
+    return listaInvitaciones.filter(row => {
+      const temaNombre = temas.find(t => t.id === row.tema_elegido)?.nombre || row.tema_elegido || "";
+      return (row.nombre_quinceanera || "").toLowerCase().includes(q) || temaNombre.toLowerCase().includes(q);
+    });
+  })();
 
   return (
     <div className="lg:h-screen lg:overflow-hidden min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
@@ -4549,17 +4560,29 @@ export default function App() {
                 <X className="w-5 h-5 text-slate-600" />
               </button>
             </div>
-            <p className="text-xs text-slate-500 mb-6">
+            <p className="text-xs text-slate-500 mb-4">
               Invitaciones de clientes guardadas con "💾 Guardar en Supabase". Ábrelas para seguir editándolas, elimínalas cuando ya no las necesites, o marca hasta cuándo debe quedarse activa cada una (solo un recordatorio para ti — no bloquea el link ya compartido).
             </p>
+
+            {listaInvitaciones.length > 0 && (
+              <input
+                type="text"
+                value={busquedaInvitaciones}
+                onChange={(e) => setBusquedaInvitaciones(e.target.value)}
+                placeholder="🔎 Buscar por nombre de la quinceañera o tema..."
+                className="w-full px-3 py-2 mb-4 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 outline-none focus:border-indigo-500"
+              />
+            )}
 
             {cargandoMisInvitaciones ? (
               <p className="text-sm text-slate-500 py-8 text-center">Cargando invitaciones guardadas desde Supabase...</p>
             ) : listaInvitaciones.length === 0 ? (
               <p className="text-sm text-slate-500 py-8 text-center">Aún no has guardado ninguna invitación. Usa "💾 Guardar en Supabase" para que aparezca aquí.</p>
+            ) : invitacionesFiltradas.length === 0 ? (
+              <p className="text-sm text-slate-500 py-8 text-center">Ninguna invitación coincide con "{busquedaInvitaciones}".</p>
             ) : (
               <div className="space-y-3">
-                {listaInvitaciones.map((row) => {
+                {invitacionesFiltradas.map((row) => {
                   const tema = temas.find(t => t.id === row.tema_elegido);
                   const vigenciaVencida = !!row.activo_hasta && new Date(row.activo_hasta).getTime() < Date.now();
                   const esLaCargada = row.id === supabaseRowId;
