@@ -1733,7 +1733,7 @@ export default function App() {
   const [notaNuevoAbono, setNotaNuevoAbono] = useState<Record<string, string>>({});
   const [busquedaInvitaciones, setBusquedaInvitaciones] = useState("");
   const [filtroEstatusInvitaciones, setFiltroEstatusInvitaciones] = useState("todos");
-  const [filtroRapidoInvitaciones, setFiltroRapidoInvitaciones] = useState<"ninguno" | "pendientes" | "proximos">("ninguno");
+  const [filtroRapidoInvitaciones, setFiltroRapidoInvitaciones] = useState<"ninguno" | "pendientes" | "proximos" | "urgentes">("ninguno");
   // Alta rápida de "Nuevo Cliente": lo primero que se hace al vender un paquete -- guarda un
   // registro en Supabase de inmediato (estatus "Cotización") con solo nombre + celular, antes
   // de llenar el resto de la invitación.
@@ -3378,6 +3378,7 @@ export default function App() {
   const invitacionesConSaldoPendiente = listaInvitaciones.filter(invitacionTienePendiente);
   const totalSaldoPendiente = invitacionesConSaldoPendiente.reduce((acc, r) => acc + ((r.precio_total || 0) - (r.precio_pagado || 0)), 0);
   const invitacionesProximas = listaInvitaciones.filter(invitacionEsProxima);
+  const invitacionesUrgentes = listaInvitaciones.filter(row => invitacionEsProxima(row) && invitacionTienePendiente(row));
 
   // Filtro del panel "Mis Invitaciones" por nombre de la quinceañera/tema, estatus, y el chip
   // rápido de "con saldo pendiente" / "evento próximo" que se activa desde el resumen de arriba.
@@ -3387,6 +3388,7 @@ export default function App() {
       if (filtroEstatusInvitaciones !== "todos" && (row.estado || "cotizacion") !== filtroEstatusInvitaciones) return false;
       if (filtroRapidoInvitaciones === "pendientes" && !invitacionTienePendiente(row)) return false;
       if (filtroRapidoInvitaciones === "proximos" && !invitacionEsProxima(row)) return false;
+      if (filtroRapidoInvitaciones === "urgentes" && !(invitacionEsProxima(row) && invitacionTienePendiente(row))) return false;
       if (!q) return true;
       const temaNombre = temas.find(t => t.id === row.tema_elegido)?.nombre || row.tema_elegido || "";
       return (row.nombre_quinceanera || "").toLowerCase().includes(q) || temaNombre.toLowerCase().includes(q);
@@ -5623,6 +5625,13 @@ export default function App() {
 
             {listaInvitaciones.length > 0 && (
               <div className="flex gap-2 mb-4 flex-wrap">
+                <button
+                  onClick={() => setFiltroRapidoInvitaciones(prev => prev === "urgentes" ? "ninguno" : "urgentes")}
+                  disabled={invitacionesUrgentes.length === 0}
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition disabled:opacity-40 disabled:cursor-not-allowed ${filtroRapidoInvitaciones === "urgentes" ? "bg-rose-600 border-rose-600 text-white" : "bg-rose-50 border-rose-300 text-rose-800 hover:bg-rose-100"}`}
+                >
+                  🔥 {invitacionesUrgentes.length} urgentes (evento próximo + debe)
+                </button>
                 <button
                   onClick={() => setFiltroRapidoInvitaciones(prev => prev === "pendientes" ? "ninguno" : "pendientes")}
                   disabled={invitacionesConSaldoPendiente.length === 0}
