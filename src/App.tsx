@@ -1532,6 +1532,10 @@ export default function App() {
   // de la sección comparativa "Estilos de Presentación") -- se resetea a "normal" cada vez que
   // se abre la demo de un tema distinto, para no dejar un estado raro pegado entre temas.
   const [catalogDemoEstiloCajas, setCatalogDemoEstiloCajas] = useState<"normal" | "sin_cajon" | "solo_borde">("normal");
+  // Personalización en vivo de la demo del catálogo: el visitante escribe su nombre y fecha y ve
+  // su propia invitación al instante (sin backend) -- se resetea al abrir la demo de otro tema.
+  const [catalogDemoNombre, setCatalogDemoNombre] = useState("");
+  const [catalogDemoFecha, setCatalogDemoFecha] = useState("");
 
   // Guarda UN fondo de tema en Supabase sin arriesgar los demás. Antes, handleBgImageUpload y
   // handleGuardarEnlaceCloudinary armaban el objeto completo a partir de localStorage y lo
@@ -3204,27 +3208,74 @@ export default function App() {
           ) : selectedCatalogTemaId ? (
             /* Render del Demo en vivo dentro de un iframe interactivo, con selector de estilo
                de cajón para poder combinar este tema con cualquiera de las 3 opciones */
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center justify-center gap-2 bg-white border border-slate-200 rounded-xl p-2.5 shadow-sm">
-                <span className="text-[11px] font-bold text-slate-500 px-1">Estilo de cajón:</span>
-                {ESTILOS_CAJAS_SECCIONES.map(e => (
-                  <button
-                    key={e.id}
-                    onClick={() => setCatalogDemoEstiloCajas(e.id)}
-                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border-2 transition cursor-pointer ${catalogDemoEstiloCajas === e.id ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"}`}
-                  >
-                    {e.nombre}
-                  </button>
-                ))}
-              </div>
-              <div className="w-full h-[calc(100vh-200px)] rounded-2xl border border-slate-200 overflow-hidden shadow-xl bg-white">
-                <iframe
-                  srcDoc={generarHTMLFinal({ ...getDatosVisualizacionCatalog(temas.find(t => t.id === selectedCatalogTemaId) || temas[0], datos), seccionesExcluidas: ["apertura"], estiloCajasSecciones: catalogDemoEstiloCajas }, temas.find(t => t.id === selectedCatalogTemaId) || temas[0])}
-                  className="w-full h-full border-0"
-                  title="Invitación Demo en Vivo"
-                />
-              </div>
-            </div>
+            (() => {
+              const temaDemoSel = temas.find(t => t.id === selectedCatalogTemaId) || temas[0];
+              const datosDemoBase = getDatosVisualizacionCatalog(temaDemoSel, datos);
+              const datosDemoPersonalizada = {
+                ...datosDemoBase,
+                ...(catalogDemoNombre.trim() ? { nombre: catalogDemoNombre.trim() } : {}),
+                // Se le agrega una hora fija porque el resto del código espera un datetime-local
+                // ("YYYY-MM-DDTHH:mm"); una fecha sola se interpreta como UTC y se corre un día
+                // en zonas horarias negativas (confirmado en vivo con GMT-6).
+                ...(catalogDemoFecha ? { fecha: `${catalogDemoFecha}T19:00` } : {}),
+                seccionesExcluidas: ["apertura"],
+                estiloCajasSecciones: catalogDemoEstiloCajas
+              };
+              const handleEnviarDemoPersonalizada = () => {
+                const linkPersonalizado = `${window.location.origin}/?v=1&d=${encodeState({ ...datosDemoPersonalizada, seccionesExcluidas: (datosDemoBase.seccionesExcluidas || []).filter((s: string) => s !== "apertura") })}`;
+                const msg = `¡Hola! Así se vería mi invitación de XV años (tema "${temaDemoSel.nombre}"${catalogDemoNombre.trim() ? ` a nombre de ${catalogDemoNombre.trim()}` : ""}): ${linkPersonalizado}`;
+                window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, "_blank");
+              };
+              return (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-end justify-center gap-3 bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Ve tu propia invitación (opcional)</label>
+                      <input
+                        type="text"
+                        value={catalogDemoNombre}
+                        onChange={(e) => setCatalogDemoNombre(e.target.value)}
+                        placeholder="Tu nombre"
+                        className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 outline-none focus:border-indigo-500 w-40"
+                      />
+                    </div>
+                    <input
+                      type="date"
+                      value={catalogDemoFecha}
+                      onChange={(e) => setCatalogDemoFecha(e.target.value)}
+                      className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 outline-none focus:border-indigo-500"
+                    />
+                    {(catalogDemoNombre.trim() || catalogDemoFecha) && (
+                      <button
+                        onClick={handleEnviarDemoPersonalizada}
+                        className="px-3 py-1.5 bg-[#25D366] hover:bg-[#20ba56] text-white rounded-lg text-[11px] font-bold transition cursor-pointer"
+                      >
+                        Enviar mi demo por WhatsApp 💬
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center gap-2 bg-white border border-slate-200 rounded-xl p-2.5 shadow-sm">
+                    <span className="text-[11px] font-bold text-slate-500 px-1">Estilo de cajón:</span>
+                    {ESTILOS_CAJAS_SECCIONES.map(e => (
+                      <button
+                        key={e.id}
+                        onClick={() => setCatalogDemoEstiloCajas(e.id)}
+                        className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border-2 transition cursor-pointer ${catalogDemoEstiloCajas === e.id ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"}`}
+                      >
+                        {e.nombre}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="w-full h-[calc(100vh-240px)] rounded-2xl border border-slate-200 overflow-hidden shadow-xl bg-white">
+                    <iframe
+                      srcDoc={generarHTMLFinal(datosDemoPersonalizada, temaDemoSel)}
+                      className="w-full h-full border-0"
+                      title="Invitación Demo en Vivo"
+                    />
+                  </div>
+                </div>
+              );
+            })()
           ) : (
             /* Listado de tarjetas de catálogo de todos los temas */
             <div className="space-y-6">
@@ -3397,7 +3448,7 @@ export default function App() {
                         {/* Botones de acción */}
                         <div className="pt-2 flex flex-col gap-2">
                           <button
-                            onClick={() => { setSelectedCatalogTemaId(t.id); setCatalogDemoEstiloCajas("normal"); }}
+                            onClick={() => { setSelectedCatalogTemaId(t.id); setCatalogDemoEstiloCajas("normal"); setCatalogDemoNombre(""); setCatalogDemoFecha(""); }}
                             className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all duration-200 active:scale-95 cursor-pointer text-center shadow-md flex items-center justify-center gap-1.5"
                           >
                             Ver Demo en Vivo 👁️✨
