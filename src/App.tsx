@@ -48,6 +48,20 @@ if (supabaseUrl && supabaseAnonKey && typeof window !== "undefined") {
 // Fila fija (columna `id` es uuid) usada para guardar/leer los fondos personalizados compartidos
 const FONDOS_ROW_ID = "00000000-0000-0000-0000-000000000001";
 
+// Forma de una fila de la tabla `invitaciones` tal como la usa el panel "Mis Invitaciones"
+// (no son todas las columnas de la tabla, solo las que ese panel lee/muestra/edita).
+interface InvitacionGuardadaRow {
+  id: string;
+  nombre_quinceanera: string | null;
+  fecha_fiesta: string | null;
+  tema_elegido: string | null;
+  estado: string | null;
+  activo_hasta: string | null;
+  updated_at: string | null;
+  link_invitacion: string | null;
+  datos_completos: InvitacionDatos | null;
+}
+
 // Helper functions for UTF-8 safe and compact Base64 encoding/decoding of state in URLs
 const KEY_MAP: Record<string, string> = {
   paquete: "p",
@@ -66,6 +80,7 @@ const KEY_MAP: Record<string, string> = {
   datosBancarios: "b",
   fotos: "k",
   bgImages: "bg",
+  fondoVeloOpacidad: "fv",
   hashtag: "h",
   mostrarCajasSecciones: "mc",
   whatsappConfirmacion: "w",
@@ -266,6 +281,10 @@ async function guardarEnSupabase(datosInvitacion: InvitacionDatos, temaActual: T
       email_cliente: '',
       link_invitacion: shareUrl || window.location.href,
       fondos_personalizados: datosInvitacion.bgImages || {},
+      // Estado completo (todos los campos de InvitacionDatos), aparte de las columnas de
+      // resumen de arriba — es lo que permite reabrir esta invitación exacta en el editor
+      // desde el panel "Mis Invitaciones" en vez de solo poder leer un resumen.
+      datos_completos: datosInvitacion,
       estado: 'completada'
     };
 
@@ -440,6 +459,15 @@ const TIPOS_APERTURA: { id: "sobre" | "cortina" | "tarjeta"; nombre: string; des
   { id: "sobre", nombre: "Sobre 💌", desc: "Sobre con sello de cera que se abre" },
   { id: "cortina", nombre: "Cortina 🎭", desc: "Telón que se descorre a los lados" }
 ];
+
+// Apertura por defecto de cada tema cuando el usuario no la sobreescribe manualmente.
+// Debe coincidir exactamente con tipoAperturaEfectivo en templates.ts.
+const tipoAperturaPorDefectoDelTema = (temaId: string): "sobre" | "cortina" | "tarjeta" =>
+  ["mariposas", "floral-acuarela", "boho-chic", "coquette-pink", "coquette-luxe"].includes(temaId)
+    ? "sobre"
+    : ["celestial", "princesa-elegante", "neon"].includes(temaId)
+      ? "cortina"
+      : "tarjeta";
 
 // Paletas de la lluvia decorativa ("Efecto de Animación de Caída"): conjuntos de emojis
 // coordinados por estética, en vez de dejar elegir emoji por emoji.
@@ -1029,6 +1057,13 @@ export default function App() {
   const [mostrarFondosGuardados, setMostrarFondosGuardados] = useState(false);
   const [cargandoFondos, setCargandoFondos] = useState(true);
 
+  // Estado para el panel "Mis Invitaciones": lista de invitaciones de clientes guardadas en
+  // Supabase, para poder reabrirlas y seguir editándolas, borrarlas, o marcar hasta cuándo
+  // deben quedarse activas (bookkeeping propio del admin, ver InvitacionGuardadaRow).
+  const [mostrarMisInvitaciones, setMostrarMisInvitaciones] = useState(false);
+  const [cargandoMisInvitaciones, setCargandoMisInvitaciones] = useState(false);
+  const [listaInvitaciones, setListaInvitaciones] = useState<InvitacionGuardadaRow[]>([]);
+
   // Optimizaciones de PC: Dispositivo de vista previa y escala de zoom
   const [previewDevice, setPreviewDevice] = useState<"mobile" | "tablet" | "desktop">("mobile");
   const [previewZoom, setPreviewZoom] = useState<number>(0.85);
@@ -1081,11 +1116,56 @@ export default function App() {
     }));
   }, [selectedTemaId]);
 
+  // Recuerda qué apertura/tema tenía la última vez que regeneramos el preview, para saber
+  // si el cambio actual es justo el que afecta la apertura (en cuyo caso sí queremos volver
+  // a mostrarla) o es cualquier otro campo (en cuyo caso preferimos no interrumpir al usuario).
+  const previaAperturaRef = useRef<{ tipo?: string; temaId?: string }>({ tipo: undefined, temaId: undefined });
+
   // Actualizar la vista previa dentro del iframe de simulación de smartphone
   const actualizarVistaPrevia = () => {
     if (!iframeRef.current) return;
+
+    const tipoAperturaActual = datos.personalizacion?.tipoApertura;
+    const cambioAfectaApertura =
+      previaAperturaRef.current.tipo !== tipoAperturaActual || previaAperturaRef.current.temaId !== temaActual.id;
+    previaAperturaRef.current = { tipo: tipoAperturaActual, temaId: temaActual.id };
+
+    // Si el usuario ya "abrió" la invitación en el preview y lo que cambió NO es el tipo de
+    // apertura ni el tema (ej. edita un texto, sube una foto, cambia colores), conservamos
+    // ese estado y el scroll al regenerar el HTML en vez de mandarlo de vuelta a la pantalla
+    // de apertura. Si sí cambió la apertura o el tema, queremos que la vea desde el inicio.
+    let yaAbierta = false;
+    let scrollY = 0;
+    if (!cambioAfectaApertura) {
+      try {
+        const doc = iframeRef.current.contentDocument;
+        const win = iframeRef.current.contentWindow;
+        if (doc?.body?.classList.contains("experiencia-iniciada")) {
+          yaAbierta = true;
+          scrollY = win?.scrollY || 0;
+        }
+      } catch {
+        // Iframe todavía sin cargar o sin acceso: se regenera desde la pantalla de apertura.
+      }
+    }
+
     const htmlString = generarHTMLFinal(datos, temaActual);
-    
+
+    if (yaAbierta) {
+      const iframeEl = iframeRef.current;
+      iframeEl.addEventListener("load", function restaurarEstadoAbierto() {
+        iframeEl.removeEventListener("load", restaurarEstadoAbierto);
+        const doc = iframeEl.contentDocument;
+        const win = iframeEl.contentWindow as (Window & { iniciarAnimacionCaida?: () => void }) | null;
+        if (!doc || !win) return;
+        doc.body.classList.add("experiencia-iniciada");
+        doc.getElementById("pantalla-apertura")?.remove();
+        doc.getElementById("music-widget")?.classList.remove("hidden");
+        win.iniciarAnimacionCaida?.();
+        win.scrollTo(0, scrollY);
+      }, { once: true });
+    }
+
     // Asignamos el HTML al iframe usando srcdoc para evitar contaminación global de estilos y permitir scripts
     iframeRef.current.srcdoc = htmlString;
 
@@ -1095,10 +1175,14 @@ export default function App() {
     }, 1200);
   };
 
-  // Escucha cambios en datos o tema para refrescar la visualización en vivo
+  // Escucha cambios en datos o tema para refrescar la visualización en vivo. También escucha
+  // previewDevice: Móvil/Tablet/Escritorio son <iframe> DISTINTOS que se montan y desmontan al
+  // cambiar de mockup (cada uno pierde el srcdoc del anterior), así que sin esta dependencia el
+  // iframe recién montado de Tablet/Escritorio nacía vacío y solo Móvil (el que ya traía
+  // contenido del montaje inicial) parecía funcionar.
   useEffect(() => {
     actualizarVistaPrevia();
-  }, [datos, temaActual]);
+  }, [datos, temaActual, previewDevice]);
 
   // Aplicar plantilla completa predefinida de un paquete
   const handleCambiarPaquete = (paqKey: "basico" | "premium" | "deluxe") => {
@@ -1178,6 +1262,90 @@ export default function App() {
         mostrarToast("¡El formulario ha sido reiniciado! 💮", "info");
       }
     });
+  };
+
+  // Trae la lista de invitaciones de clientes guardadas en Supabase para el panel "Mis
+  // Invitaciones". Excluye la fila fija de fondos personalizados (no es una invitación real).
+  const cargarListaInvitaciones = async () => {
+    if (!window.supabaseClient) {
+      mostrarToast("Supabase no está configurado en este entorno.", "error");
+      return;
+    }
+    setCargandoMisInvitaciones(true);
+    try {
+      const { data, error } = await window.supabaseClient
+        .from("invitaciones")
+        .select("id, nombre_quinceanera, fecha_fiesta, tema_elegido, estado, activo_hasta, updated_at, link_invitacion, datos_completos")
+        .neq("id", FONDOS_ROW_ID)
+        .order("updated_at", { ascending: false });
+
+      if (error) throw error;
+      setListaInvitaciones((data || []) as InvitacionGuardadaRow[]);
+    } catch (err: any) {
+      mostrarToast("Error al cargar invitaciones: " + err.message, "error");
+    } finally {
+      setCargandoMisInvitaciones(false);
+    }
+  };
+
+  // Reabre en el editor una invitación previamente guardada, para seguir modificándola según
+  // lo que vaya pidiendo el cliente. Las filas guardadas antes de que existiera la columna
+  // `datos_completos` no se pueden recargar (solo tienen el resumen), así que se avisa en vez
+  // de cargar un estado incompleto/roto.
+  const handleAbrirInvitacionGuardada = (row: InvitacionGuardadaRow) => {
+    if (!row.datos_completos) {
+      mostrarToast("Esta invitación se guardó antes de esta función y no tiene el estado completo disponible para recargar.", "error");
+      return;
+    }
+    setDatos(row.datos_completos);
+    setSelectedTemaId(row.datos_completos.tema || "dorado-clasico");
+    setSupabaseRowId(row.id);
+    try { localStorage.setItem("xv_supabase_row_id", row.id); } catch {}
+    setMostrarMisInvitaciones(false);
+    setPanelPestana("ajustes");
+    mostrarToast(`Invitación de "${row.nombre_quinceanera || "cliente"}" cargada en el editor ✏️`, "success");
+  };
+
+  // Elimina la fila de Supabase. Nota importante para el admin: esto solo borra el registro de
+  // este panel; el link ya compartido con el invitado (?v=1&d=...) sigue siendo autocontenido
+  // y seguirá funcionando aunque se borre aquí, porque no depende de Supabase para mostrarse.
+  const handleEliminarInvitacionGuardada = (row: InvitacionGuardadaRow) => {
+    setConfirmModal({
+      titulo: "Eliminar invitación guardada",
+      mensaje: `¿Eliminar el registro de "${row.nombre_quinceanera || "esta invitación"}"? Esto solo borra tu registro en el panel — si ya le compartiste el link al invitado, ese link seguirá abriendo igual.`,
+      onAceptar: async () => {
+        if (!window.supabaseClient) return;
+        try {
+          const { error } = await window.supabaseClient.from("invitaciones").delete().eq("id", row.id);
+          if (error) throw error;
+          setListaInvitaciones(prev => prev.filter(r => r.id !== row.id));
+          if (supabaseRowId === row.id) {
+            setSupabaseRowId(null);
+            try { localStorage.removeItem("xv_supabase_row_id"); } catch {}
+          }
+          mostrarToast("Invitación eliminada del panel", "success");
+        } catch (err: any) {
+          mostrarToast("Error al eliminar: " + err.message, "error");
+        }
+      }
+    });
+  };
+
+  // Actualiza solo la fecha de vigencia (bookkeeping del admin) de una fila ya guardada.
+  const handleActualizarVigenciaInvitacion = async (row: InvitacionGuardadaRow, nuevaFechaISO: string) => {
+    if (!window.supabaseClient) return;
+    try {
+      const valor = nuevaFechaISO ? new Date(nuevaFechaISO).toISOString() : null;
+      const { error } = await window.supabaseClient
+        .from("invitaciones")
+        .update({ activo_hasta: valor })
+        .eq("id", row.id);
+      if (error) throw error;
+      setListaInvitaciones(prev => prev.map(r => r.id === row.id ? { ...r, activo_hasta: valor } : r));
+      mostrarToast("Vigencia actualizada", "success");
+    } catch (err: any) {
+      mostrarToast("Error al actualizar vigencia: " + err.message, "error");
+    }
   };
 
   // Descargar el archivo index.html standalone
@@ -2133,6 +2301,18 @@ export default function App() {
 
           <button
             onClick={() => {
+              setMostrarMisInvitaciones(true);
+              cargarListaInvitaciones();
+            }}
+            className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+            title="Ver, reabrir, eliminar o marcar vigencia de invitaciones de clientes ya guardadas"
+          >
+            <Layers className="w-3.5 h-3.5 text-slate-500" />
+            <span>Mis Invitaciones</span>
+          </button>
+
+          <button
+            onClick={() => {
               const finalLink = getShareUrl();
               guardarEnSupabase(datos, temaActual, finalLink, supabaseRowId)
                 .then((row) => {
@@ -2342,6 +2522,40 @@ export default function App() {
                       )}
                     </div>
 
+                    {datos.bgImages?.[selectedTemaId] && (() => {
+                      const esOscuro = temaActual.id === "celestial" || temaActual.id === "neon";
+                      const opacidadActual = datos.fondoVeloOpacidad ?? (esOscuro ? 0.65 : 0.55);
+                      return (
+                        <div className="p-2.5 border border-slate-200 rounded-lg bg-white space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-extrabold text-slate-700">
+                              🔎 Nitidez del fondo (velo: {Math.round(opacidadActual * 100)}%)
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => setDatos({ ...datos, fondoVeloOpacidad: undefined })}
+                              className="text-[9px] font-bold text-indigo-500 hover:text-indigo-700"
+                            >
+                              Restablecer
+                            </button>
+                          </div>
+                          <input
+                            type="range"
+                            min={0}
+                            max={90}
+                            step={1}
+                            value={Math.round(opacidadActual * 100)}
+                            onChange={(e) => setDatos({ ...datos, fondoVeloOpacidad: Number(e.target.value) / 100 })}
+                            className="w-full accent-indigo-600 cursor-pointer"
+                          />
+                          <div className="flex justify-between text-[9px] text-slate-400 font-medium">
+                            <span>Más nítido</span>
+                            <span>Más opaco (mejor legibilidad)</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     <div className="grid grid-cols-2 gap-2 mb-2">
                       <label className="flex items-center justify-center gap-1.5 p-2 border border-dashed border-indigo-200 rounded-lg bg-white hover:bg-indigo-50/40 transition cursor-pointer text-center group">
                         <Upload className={`w-3.5 h-3.5 text-indigo-500 group-hover:text-indigo-600 ${subiendoCloudinary ? 'animate-bounce' : ''}`} />
@@ -2496,12 +2710,13 @@ export default function App() {
                   <div className="p-4 bg-purple-50/20 border border-purple-100 rounded-xl space-y-4">
                     <div>
                       <h4 className="text-xs font-bold text-slate-700 mb-2">Tipo de Apertura</h4>
+                      <p className="text-[10px] text-slate-400 mb-2">💡 Aplica al tema activo, sea cual sea. Si no eliges ninguno, se usa la apertura por defecto de "{temaActual.nombre}".</p>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         {TIPOS_APERTURA.map(t => (
                           <button
                             key={t.id}
-                            onClick={() => setDatos(prev => ({ ...prev, tipoApertura: t.id }))}
-                            className={`text-left p-3 rounded-xl border-2 transition cursor-pointer ${(datos.tipoApertura || "tarjeta") === t.id ? "border-purple-500 bg-purple-50/40" : "border-slate-200 bg-white hover:border-slate-300"}`}
+                            onClick={() => setDatos(prev => ({ ...prev, personalizacion: { ...(prev.personalizacion || {}), tipoApertura: t.id } }))}
+                            className={`text-left p-3 rounded-xl border-2 transition cursor-pointer ${(datos.personalizacion?.tipoApertura || tipoAperturaPorDefectoDelTema(temaActual.id)) === t.id ? "border-purple-500 bg-purple-50/40" : "border-slate-200 bg-white hover:border-slate-300"}`}
                           >
                             <span className="block text-xs font-bold text-slate-700">{t.nombre}</span>
                             <span className="block text-[10px] text-slate-500 mt-0.5">{t.desc}</span>
@@ -2514,12 +2729,12 @@ export default function App() {
                       <h4 className="text-xs font-bold text-slate-700 mb-2">Símbolos de Lluvia Decorativa</h4>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {PALETAS_ANIMACION.map(a => {
-                          const actual = datos.simbolosCaida;
+                          const actual = datos.personalizacion?.simbolosCaida;
                           const isSelected = actual ? actual.join(",") === a.simbolos.join(",") : a.id === "elegante";
                           return (
                             <button
                               key={a.id}
-                              onClick={() => setDatos(prev => ({ ...prev, simbolosCaida: a.simbolos }))}
+                              onClick={() => setDatos(prev => ({ ...prev, personalizacion: { ...(prev.personalizacion || {}), simbolosCaida: a.simbolos } }))}
                               className={`text-left p-2.5 rounded-xl border-2 transition cursor-pointer ${isSelected ? "border-purple-500 bg-purple-50/40" : "border-slate-200 bg-white hover:border-slate-300"}`}
                             >
                               <span className="block text-base mb-1">{a.simbolos.join(" ")}</span>
@@ -2528,7 +2743,7 @@ export default function App() {
                           );
                         })}
                       </div>
-                      <p className="text-[10px] text-slate-400 mt-2">💡 Solo visible si "Efecto de Animación de Caída" está en ON</p>
+                      <p className="text-[10px] text-slate-400 mt-2">💡 Solo visible si "Efecto de Animación de Caída" está en ON.</p>
                     </div>
                   </div>
                 </div>
@@ -3791,8 +4006,8 @@ export default function App() {
                         {TIPOS_APERTURA.map(t => (
                           <button
                             key={t.id}
-                            onClick={() => setDatos(prev => ({ ...prev, tipoApertura: t.id }))}
-                            className={`text-left p-3 rounded-xl border-2 transition cursor-pointer ${(datos.tipoApertura || "tarjeta") === t.id ? "border-indigo-500 bg-indigo-50/40" : "border-slate-200 bg-white hover:border-slate-300"}`}
+                            onClick={() => setDatos(prev => ({ ...prev, personalizacion: { ...(prev.personalizacion || {}), tipoApertura: t.id } }))}
+                            className={`text-left p-3 rounded-xl border-2 transition cursor-pointer ${(datos.personalizacion?.tipoApertura || tipoAperturaPorDefectoDelTema(temaActual.id)) === t.id ? "border-indigo-500 bg-indigo-50/40" : "border-slate-200 bg-white hover:border-slate-300"}`}
                           >
                             <span className="block text-xs font-bold text-slate-700">{t.nombre}</span>
                             <span className="block text-[10px] text-slate-500 mt-0.5">{t.desc}</span>
@@ -3805,12 +4020,12 @@ export default function App() {
                       <h4 className="text-xs font-bold text-slate-700 mb-2">Animación de la Lluvia Decorativa</h4>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {PALETAS_ANIMACION.map(a => {
-                          const actual = datos.simbolosCaida;
+                          const actual = datos.personalizacion?.simbolosCaida;
                           const isSelected = actual ? actual.join(",") === a.simbolos.join(",") : a.id === "elegante";
                           return (
                             <button
                               key={a.id}
-                              onClick={() => setDatos(prev => ({ ...prev, simbolosCaida: a.simbolos }))}
+                              onClick={() => setDatos(prev => ({ ...prev, personalizacion: { ...(prev.personalizacion || {}), simbolosCaida: a.simbolos } }))}
                               className={`text-left p-2.5 rounded-xl border-2 transition cursor-pointer ${isSelected ? "border-indigo-500 bg-indigo-50/40" : "border-slate-200 bg-white hover:border-slate-300"}`}
                             >
                               <span className="block text-base mb-1">{a.simbolos.join(" ")}</span>
@@ -4181,6 +4396,105 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setMostrarFondosGuardados(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition cursor-pointer"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {mostrarMisInvitaciones && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-4xl w-full shadow-2xl animate-scaleIn max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-extrabold text-slate-900">📋 Mis Invitaciones</h3>
+              <button
+                onClick={() => setMostrarMisInvitaciones(false)}
+                className="p-1 hover:bg-slate-100 rounded-lg transition"
+              >
+                <X className="w-5 h-5 text-slate-600" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 mb-6">
+              Invitaciones de clientes guardadas con "💾 Guardar en Supabase". Ábrelas para seguir editándolas, elimínalas cuando ya no las necesites, o marca hasta cuándo debe quedarse activa cada una (solo un recordatorio para ti — no bloquea el link ya compartido).
+            </p>
+
+            {cargandoMisInvitaciones ? (
+              <p className="text-sm text-slate-500 py-8 text-center">Cargando invitaciones guardadas desde Supabase...</p>
+            ) : listaInvitaciones.length === 0 ? (
+              <p className="text-sm text-slate-500 py-8 text-center">Aún no has guardado ninguna invitación. Usa "💾 Guardar en Supabase" para que aparezca aquí.</p>
+            ) : (
+              <div className="space-y-3">
+                {listaInvitaciones.map((row) => {
+                  const tema = temas.find(t => t.id === row.tema_elegido);
+                  const vigenciaVencida = !!row.activo_hasta && new Date(row.activo_hasta).getTime() < Date.now();
+                  const esLaCargada = row.id === supabaseRowId;
+                  return (
+                    <div key={row.id} className={`border rounded-xl p-4 ${esLaCargada ? "border-indigo-400 bg-indigo-50/40" : "border-slate-200 bg-slate-50"}`}>
+                      <div className="flex items-start justify-between gap-3 flex-wrap">
+                        <div className="flex-1 min-w-[200px]">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="block text-sm font-bold text-slate-900">{row.nombre_quinceanera || "Sin nombre"}</span>
+                            {esLaCargada && (
+                              <span className="px-2 py-0.5 rounded-full bg-indigo-600 text-white text-[9px] font-bold uppercase">Abierta ahora</span>
+                            )}
+                            {vigenciaVencida && (
+                              <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[9px] font-bold uppercase">Vigencia vencida</span>
+                            )}
+                          </div>
+                          <span className="block text-[11px] text-slate-500 mt-0.5">
+                            {tema?.nombre || row.tema_elegido || "Sin tema"} · {row.fecha_fiesta ? new Date(row.fecha_fiesta + "T00:00:00").toLocaleDateString("es-MX") : "Sin fecha"}
+                          </span>
+                          {!row.datos_completos && (
+                            <span className="block text-[10px] text-amber-600 font-semibold mt-1">⚠️ Guardada antes de esta función — solo se puede ver el resumen, no reabrir para editar.</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => handleAbrirInvitacionGuardada(row)}
+                            disabled={!row.datos_completos}
+                            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-[10px] font-bold rounded-lg transition"
+                          >
+                            Abrir en editor
+                          </button>
+                          <button
+                            onClick={() => handleEliminarInvitacionGuardada(row)}
+                            className="p-1.5 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-300 text-rose-500 rounded-lg transition"
+                            title="Eliminar registro"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-slate-200/60 flex items-center gap-2 flex-wrap">
+                        <label className="text-[10px] font-bold text-slate-600">Activa hasta:</label>
+                        <input
+                          type="date"
+                          defaultValue={row.activo_hasta ? row.activo_hasta.substring(0, 10) : ""}
+                          onBlur={(e) => handleActualizarVigenciaInvitacion(row, e.target.value)}
+                          className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 outline-none focus:border-indigo-500"
+                        />
+                        {row.activo_hasta && (
+                          <button
+                            onClick={() => handleActualizarVigenciaInvitacion(row, "")}
+                            className="text-[10px] font-bold text-slate-400 hover:text-slate-600"
+                          >
+                            Quitar fecha
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="mt-6 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setMostrarMisInvitaciones(false)}
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition cursor-pointer"
               >
                 Cerrar

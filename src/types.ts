@@ -40,13 +40,18 @@ export interface InvitacionDatos {
     pases: number;
   }>;
   bgImages?: Record<string, string>;
+  /** Opacidad (0-1) del velo que se pone encima del fondo personalizado para mantener el
+   *  texto legible. Si no está definida, se usa el valor por tema en generarHTMLFinal
+   *  (0.55 claros / 0.65 oscuros). Ver control deslizante "Nitidez del fondo" en el editor. */
+  fondoVeloOpacidad?: number;
   seccionesExcluidas?: string[];
   mostrarAnimacionCaida?: boolean;
   /** Orden personalizado de las secciones de contenido (todas menos "apertura"/"cierre",
    *  que siempre quedan fijas al inicio y al final). Ver getOrdenSeccionesEfectivo en data.ts. */
   ordenSecciones?: string[];
-  /** Overrides de tipografía/color/apertura para invitaciones 100% a la medida.
-   *  Solo tiene efecto cuando `tema` es "personalizado" (ver generarHTMLFinal). */
+  /** Overrides de tipografía/color/apertura. fontHeading/fontBody/fontCursive/paletaColor
+   *  solo tienen efecto cuando `tema` es "personalizado" (ver generarHTMLFinal); tipoApertura
+   *  y simbolosCaida, en cambio, aplican al tema activo sea cual sea. */
   personalizacion?: {
     fontHeading?: string;
     fontBody?: string;

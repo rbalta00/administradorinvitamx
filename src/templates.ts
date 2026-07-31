@@ -165,10 +165,11 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
   // Definimos de forma segura la visibilidad inicial de las secciones en base al paquete
   const isSectionActive = (secName: string) => seccionesActivas.includes(secName);
 
-  // Tipo de pantalla de apertura ("carta"): normalmente fijo por tema, pero el tema
-  // "personalizado" permite elegirlo manualmente por invitación.
+  // Tipo de pantalla de apertura ("carta"): cada tema trae un tipo por defecto, pero el
+  // control "Tipo de Apertura" del editor lo puede sobreescribir para cualquier tema, ya
+  // que sobre/cortina/tarjeta se pintan con los colores del tema activo, no con CSS fijo.
   const tipoAperturaEfectivo: "sobre" | "cortina" | "tarjeta" =
-    tema.id === "personalizado" && datos.personalizacion?.tipoApertura
+    datos.personalizacion?.tipoApertura
       ? datos.personalizacion.tipoApertura
       : ["mariposas", "floral-acuarela", "boho-chic", "coquette-pink", "coquette-luxe"].includes(tema.id)
         ? "sobre"
@@ -907,12 +908,18 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
       background: transparent !important;
       background-image: none !important;
     }
-    /* Agregar un velo sutil que de soporte a los temas claros/oscuros */
+    /* Agregar un velo sutil que de soporte a los temas claros/oscuros.
+       Opacidad ajustable desde el editor (control "Nitidez del fondo"); si el usuario
+       no lo ha tocado, se usa el valor por defecto original de cada tipo de tema. */
     body.experiencia-iniciada::before, body.experiencia-iniciada.theme-container::before {
       content: "";
       position: fixed;
       inset: 0;
-      background: ${tema.id === "celestial" || tema.id === "neon" ? "rgba(8, 6, 16, 0.65)" : "rgba(255, 255, 255, 0.55)"};
+      background: ${(() => {
+        const esOscuro = tema.id === "celestial" || tema.id === "neon";
+        const opacidad = datos.fondoVeloOpacidad ?? (esOscuro ? 0.65 : 0.55);
+        return esOscuro ? `rgba(8, 6, 16, ${opacidad})` : `rgba(255, 255, 255, ${opacidad})`;
+      })()};
       pointer-events: none;
       z-index: 1;
     }
@@ -1247,7 +1254,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
         'vintage-garden': ['🌸', '🌹', '🍃', '🦋']
       };
 
-      const simbolosOverride = ${(tema.id === "personalizado" && datos.personalizacion?.simbolosCaida && datos.personalizacion.simbolosCaida.length > 0) ? JSON.stringify(datos.personalizacion.simbolosCaida) : 'null'};
+      const simbolosOverride = ${(datos.personalizacion?.simbolosCaida && datos.personalizacion.simbolosCaida.length > 0) ? JSON.stringify(datos.personalizacion.simbolosCaida) : 'null'};
       const simbolos = simbolosOverride || simbolosPorTema['${tema.id}'] || ['✨', '🌸', '🍃'];
 
       function crearParticula() {
