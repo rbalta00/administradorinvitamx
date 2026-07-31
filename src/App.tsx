@@ -1361,6 +1361,33 @@ export default function App() {
     mostrarToast(`Invitación de "${row.nombre_quinceanera || "cliente"}" cargada en el editor ✏️`, "success");
   };
 
+  // Clona una invitación ya guardada como punto de partida para un cliente nuevo (mismo
+  // tema/estilo/secciones, distinto nombre) -- crea una FILA NUEVA en Supabase (no toca la
+  // original) y la deja cargada en el editor lista para renombrar y ajustar.
+  const handleDuplicarInvitacionGuardada = async (row: InvitacionGuardadaRow) => {
+    if (!row.datos_completos) {
+      mostrarToast("Esta invitación se guardó antes de esta función y no tiene el estado completo disponible para duplicar.", "error");
+      return;
+    }
+    const temaDuplicado = temas.find(t => t.id === row.datos_completos!.tema) || temas[0];
+    try {
+      const nuevaFila = await guardarEnSupabase(row.datos_completos, temaDuplicado, row.link_invitacion || undefined, null);
+      if (!nuevaFila?.id) {
+        mostrarToast("No se pudo duplicar la invitación", "error");
+        return;
+      }
+      setDatos(row.datos_completos);
+      setSelectedTemaId(row.datos_completos.tema || "dorado-clasico");
+      setSupabaseRowId(nuevaFila.id);
+      try { localStorage.setItem("xv_supabase_row_id", nuevaFila.id); } catch {}
+      setMostrarMisInvitaciones(false);
+      setPanelPestana("ajustes");
+      mostrarToast(`Copia de "${row.nombre_quinceanera || "la invitación"}" creada y cargada en el editor — cambia el nombre antes de compartirla ✏️`, "success");
+    } catch (err: any) {
+      mostrarToast("Error al duplicar: " + err.message, "error");
+    }
+  };
+
   // Elimina la fila de Supabase. Nota importante para el admin: esto solo borra el registro de
   // este panel; el link ya compartido con el invitado (?v=1&d=...) sigue siendo autocontenido
   // y seguirá funcionando aunque se borre aquí, porque no depende de Supabase para mostrarse.
@@ -4563,6 +4590,14 @@ export default function App() {
                             className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-[10px] font-bold rounded-lg transition"
                           >
                             Abrir en editor
+                          </button>
+                          <button
+                            onClick={() => handleDuplicarInvitacionGuardada(row)}
+                            disabled={!row.datos_completos}
+                            title="Duplicar como punto de partida para un cliente nuevo"
+                            className="p-1.5 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 text-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleEliminarInvitacionGuardada(row)}
