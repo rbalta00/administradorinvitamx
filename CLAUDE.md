@@ -33,6 +33,15 @@ Explicitly deferred, not started — user said "por ahora déjalo pendiente" (le
 - The intake-form link (`?intake=1&iid=...`) already depends on Supabase, so locking *that one* specifically (e.g. respecting `activo_hasta` or a dedicated expiry column, returning a "this link is no longer active" screen from `IntakeForm`) would be comparatively easy and low-risk — worth doing first if/when this gets picked back up, independent of the harder guest-link problem.
 - Do not build either half of this until the user explicitly asks — this note exists purely so the open item isn't lost between sessions.
 
+### Pending setup (2026-07-31): Telegram notifications to the admin
+
+Code is written, typechecked, and deployed — but **inert** until the user finishes creating the Telegram bot (got stuck talking to @BotFather; user said "no llega, déjalo pendiente"):
+
+- `api/notify-telegram.ts` is a Vercel serverless function (`export default async function handler(request: Request)`, same style as `middleware.ts`) that POSTs a message to the Telegram Bot API. It silently no-ops (returns 200) if `TELEGRAM_BOT_TOKEN` or `TELEGRAM_CHAT_ID` env vars aren't set in Vercel — so shipping this with no bot configured is safe and changes no behavior.
+- `notificarAdminTelegram(mensaje: string)` (module-scope helper in `App.tsx`, right after `subirImagenPublica`) does a fire-and-forget `fetch("/api/notify-telegram", ...)`. Wired into three places: `IntakeForm`'s `handleEnviarAvisoPago` (cliente avisa pago), `IntakeForm`'s `handleEnviar` (cliente llena/guarda su formulario de datos), and `enviarRSVPWhatsApp()` in `templates.ts` (invitado confirma asistencia).
+- `vercel.json`'s catch-all rewrite to `/index.html` was narrowed from `/(.*)` to `/((?!api/).*)` so it doesn't shadow this new API route.
+- **To finish:** user needs to (1) message `/newbot` to `@BotFather` in Telegram (they got stuck before sending this command — make sure they actually send `/newbot`, not just the desired username, and that they've pressed "Start" on the BotFather chat first), (2) get the bot token, (3) message the new bot once so it has a chat to reply to, (4) get that chat's `chat_id` (can be done by calling `https://api.telegram.org/bot<token>/getUpdates` once they've messaged the bot), (5) set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` as env vars in Vercel (production + preview). None of this requires further code changes — just finishing the bot setup and setting the two env vars.
+
 ## Project overview
 
 "Generador de Invitaciones XV" — a single-page React app for building and sharing digital invitations for Mexican quinceañera (XV años) parties. It's built and iterated on via Google AI Studio; the codebase is a single-app Vite project with (almost) no backend of its own.

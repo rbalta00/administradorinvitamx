@@ -1442,6 +1442,12 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
             })
           }).catch(() => {});
         }
+        const txtEstadoAviso = asistencia === 'si' ? 'SÍ asistirá' : 'NO asistirá';
+        fetch('/api/notify-telegram', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mensaje: '🎉 ' + nombre + ' confirmó: ' + txtEstadoAviso + ' (' + pases + ' pases) a los XV de ${escBacktick(datos.nombre)}' })
+        }).catch(() => {});
       } catch (e) { /* nunca debe impedir que el RSVP por WhatsApp funcione */ }
 
       const txtAsistira = asistencia === 'si'

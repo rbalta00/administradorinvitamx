@@ -676,6 +676,18 @@ const subirImagenPublica = async (file: File): Promise<string> => {
   return resData.secure_url;
 };
 
+// Avisa al admin por Telegram (mejor esfuerzo, nunca bloquea el flujo del cliente) cuando pasa
+// algo que antes solo se veía si el admin abría "Mis Invitaciones" a revisar manualmente: un
+// RSVP, un aviso de pago, o que el cliente llenó su formulario de datos. El endpoint vive en
+// api/notify-telegram.ts y no hace nada si el admin no configuró el bot en Vercel.
+const notificarAdminTelegram = (mensaje: string) => {
+  fetch("/api/notify-telegram", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mensaje })
+  }).catch(() => {});
+};
+
 // Formulario público (sin login) para que el cliente capture sus propios datos y fotos, en vez
 // de que el admin tenga que escribirlo todo a mano. Se accede por ?intake=1&iid=<id de la fila
 // en la tabla `invitaciones`> -- el middleware.ts del proyecto deja pasar este modo sin pedir la
@@ -874,6 +886,8 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
       if (errInsert) throw errInsert;
       setAvisoPagoEnviado(true);
       setMostrarFormPago(false);
+      const montoTxt = montoAvisoPago ? `$${Number(montoAvisoPago).toLocaleString("es-MX")} MXN` : "un pago (sin monto especificado)";
+      notificarAdminTelegram(`💵 ${nombreQuinceanera || "Un cliente"} avisó que pagó ${montoTxt}.`);
     } catch (err: any) {
       setError("No se pudo enviar tu aviso de pago: " + err.message);
     } finally {
@@ -924,6 +938,7 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
         .eq("id", invitacionId);
       if (errUpdate) throw errUpdate;
       setEnviado(true);
+      notificarAdminTelegram(`📋 ${nombreQuinceanera || "Un cliente"} llenó su formulario de datos y fotos.`);
     } catch (e: any) {
       setError("No se pudo guardar tu información: " + e.message);
     } finally {
