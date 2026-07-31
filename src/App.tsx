@@ -1934,6 +1934,21 @@ export default function App() {
     mostrarToast(`Invitación de "${row.nombre_quinceanera || "cliente"}" cargada en el editor ✏️`, "success");
   };
 
+  // Descarga un respaldo del CONTENIDO completo de una invitación (todo InvitacionDatos: fotos,
+  // itinerario, padrinos, mensaje, etc.) como archivo JSON -- el CSV de "Mis Invitaciones" solo
+  // trae los campos de administración (nombre, pagos, estatus), no el diseño en sí.
+  const handleDescargarRespaldoInvitacion = (row: InvitacionGuardadaRow) => {
+    if (!row.datos_completos) return;
+    const slug = (row.nombre_quinceanera || "invitacion").toLowerCase().replace(/[^a-z0-9]/g, "-");
+    const blob = new Blob([JSON.stringify(row.datos_completos, null, 2)], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `respaldo-${slug}-${new Date().toISOString().substring(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   // Clona una invitación ya guardada como punto de partida para un cliente nuevo (mismo
   // tema/estilo/secciones, distinto nombre) -- crea una FILA NUEVA en Supabase (no toca la
   // original) y la deja cargada en el editor lista para renombrar y ajustar.
@@ -5454,6 +5469,14 @@ export default function App() {
                             className="p-1.5 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 text-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition"
                           >
                             <Copy className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDescargarRespaldoInvitacion(row)}
+                            disabled={!row.datos_completos}
+                            title="Descargar respaldo completo (JSON) de esta invitación"
+                            className="p-1.5 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition"
+                          >
+                            <Download className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleEliminarInvitacionGuardada(row)}
