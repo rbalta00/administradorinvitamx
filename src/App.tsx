@@ -60,7 +60,24 @@ interface InvitacionGuardadaRow {
   updated_at: string | null;
   link_invitacion: string | null;
   datos_completos: InvitacionDatos | null;
+  telefono_whatsapp: string | null;
+  precio_total: number | null;
+  precio_pagado: number | null;
+  pases_pagado: boolean;
+  pdf_pagado: boolean;
+  notas: string | null;
+  link_pago: string | null;
 }
+
+// Estatus del pedido (columna `estado`), en el orden en que normalmente avanza una venta.
+const ESTATUS_PEDIDO: { id: string; label: string }[] = [
+  { id: "cotizacion", label: "🗨️ Cotización" },
+  { id: "anticipo_pagado", label: "💰 Anticipo pagado" },
+  { id: "en_diseno", label: "🎨 En diseño" },
+  { id: "entregada", label: "✅ Entregada" },
+  { id: "evento_pasado", label: "🎉 Evento pasado" },
+  { id: "archivada", label: "📦 Archivada" }
+];
 
 // Una respuesta del formulario de RSVP dentro de una invitación (tabla `confirmaciones`)
 interface ConfirmacionRSVP {
@@ -1092,7 +1109,16 @@ export default function App() {
   // panel (evita N+1 queries al abrir la lista si hay muchas invitaciones guardadas).
   const [confirmacionesPorInvitacion, setConfirmacionesPorInvitacion] = useState<Record<string, ConfirmacionRSVP[]>>({});
   const [invitacionExpandidaId, setInvitacionExpandidaId] = useState<string | null>(null);
+  const [invitacionPagosExpandidaId, setInvitacionPagosExpandidaId] = useState<string | null>(null);
   const [busquedaInvitaciones, setBusquedaInvitaciones] = useState("");
+  // Alta rápida de "Nuevo Cliente": lo primero que se hace al vender un paquete -- guarda un
+  // registro en Supabase de inmediato (estatus "Cotización") con solo nombre + celular, antes
+  // de llenar el resto de la invitación.
+  const [mostrarNuevoCliente, setMostrarNuevoCliente] = useState(false);
+  const [nuevoClienteNombre, setNuevoClienteNombre] = useState("");
+  const [nuevoClienteTelefono, setNuevoClienteTelefono] = useState("52");
+  const [nuevoClientePaquete, setNuevoClientePaquete] = useState<"basico" | "premium" | "deluxe">("basico");
+  const [creandoNuevoCliente, setCreandoNuevoCliente] = useState(false);
   const [cargandoConfirmaciones, setCargandoConfirmaciones] = useState(false);
 
   // Optimizaciones de PC: Dispositivo de vista previa y escala de zoom
@@ -1306,7 +1332,7 @@ export default function App() {
     try {
       const { data, error } = await window.supabaseClient
         .from("invitaciones")
-        .select("id, nombre_quinceanera, fecha_fiesta, tema_elegido, estado, activo_hasta, updated_at, link_invitacion, datos_completos")
+        .select("id, nombre_quinceanera, fecha_fiesta, tema_elegido, estado, activo_hasta, updated_at, link_invitacion, datos_completos, telefono_whatsapp, precio_total, precio_pagado, pases_pagado, pdf_pagado, notas, link_pago")
         .neq("id", FONDOS_ROW_ID)
         .order("updated_at", { ascending: false });
 
@@ -1429,6 +1455,110 @@ export default function App() {
     } catch (err: any) {
       mostrarToast("Error al actualizar vigencia: " + err.message, "error");
     }
+  };
+
+  // Actualiza un solo campo de administración de pedido (estatus, precios, pases/PDF pagado,
+  // notas, link de pago) de una fila ya guardada, sin tocar el resto de columnas -- separado a
+  // propósito de guardarEnSupabase (que guarda el DISEÑO) para que abrir/guardar la invitación
+  // en el editor nunca pise estos datos de administración, y viceversa.
+  const handleActualizarCampoInvitacion = async (
+    row: InvitacionGuardadaRow,
+    campo: "estado" | "precio_total" | "precio_pagado" | "pases_pagado" | "pdf_pagado" | "notas" | "link_pago",
+    valor: string | number | boolean | null
+  ) => {
+    if (!window.supabaseClient) return;
+    try {
+      const { error } = await window.supabaseClient.from("invitaciones").update({ [campo]: valor }).eq("id", row.id);
+      if (error) throw error;
+      setListaInvitaciones(prev => prev.map(r => r.id === row.id ? { ...r, [campo]: valor } : r));
+    } catch (err: any) {
+      mostrarToast("Error al guardar: " + err.message, "error");
+    }
+  };
+
+  // Alta rápida de un cliente nuevo: solo pide nombre + celular + paquete, guarda la fila en
+  // Supabase DE INMEDIATO (estatus "Cotización") y deja el editor abierto con esos datos para
+  // seguir llenando el resto (fotos, itinerario, etc.) con calma. Así el cliente queda
+  // registrado en "Mis Invitaciones" desde el minuto uno de la venta, no hasta que termines de
+  // diseñar toda la invitación.
+  const handleCrearNuevoCliente = async () => {
+    if (!nuevoClienteNombre.trim()) {
+      mostrarToast("Falta el nombre de la quinceañera", "error");
+      return;
+    }
+    const soloDigitos = nuevoClienteTelefono.replace(/[^0-9]/g, "");
+    if (soloDigitos.length < 10) {
+      mostrarToast("El número de celular/WhatsApp no parece válido (necesita código de país + 10 dígitos)", "error");
+      return;
+    }
+    setCreandoNuevoCliente(true);
+    try {
+      const nuevosDatos: InvitacionDatos = {
+        paquete: nuevoClientePaquete,
+        tema: "dorado-clasico",
+        nombre: nuevoClienteNombre.trim(),
+        fecha: "",
+        mensajeBienvenida: "",
+        ceremonia: { lugar: "", hora: "", direccion: "", maps: "" },
+        recepcion: { lugar: "", hora: "", direccion: "", maps: "" },
+        itinerario: [],
+        dressCode: "",
+        colorSugerido: [],
+        padres: [],
+        padrinos: [],
+        mesaRegalos: "",
+        datosBancarios: "",
+        fotos: [],
+        hashtag: "",
+        whatsappConfirmacion: soloDigitos,
+        cancion: "",
+        linkPersonalizado: "",
+        invitados: [],
+        // "pases" es a la carte en Básico/Premium (apagada por default), incluida en Deluxe.
+        seccionesExcluidas: nuevoClientePaquete === "deluxe" ? [] : ["pases"]
+      };
+      const temaConfig = temas.find(t => t.id === "dorado-clasico") || temas[0];
+      const nuevaFila = await guardarEnSupabase(nuevosDatos, temaConfig, undefined, null);
+      if (!nuevaFila?.id) {
+        mostrarToast("No se pudo crear el cliente", "error");
+        return;
+      }
+      // guardarEnSupabase siempre inserta con estado:"completada" -- lo corregimos aparte a
+      // "cotizacion" para no tener que tocar esa función compartida por el resto de la app.
+      if (window.supabaseClient) {
+        await window.supabaseClient.from("invitaciones").update({ estado: "cotizacion" }).eq("id", nuevaFila.id);
+      }
+      setDatos(nuevosDatos);
+      setSelectedTemaId("dorado-clasico");
+      setSupabaseRowId(nuevaFila.id);
+      try { localStorage.setItem("xv_supabase_row_id", nuevaFila.id); } catch {}
+      setMostrarNuevoCliente(false);
+      setMostrarMisInvitaciones(false);
+      setPanelPestana("ajustes");
+      mostrarToast(`Cliente "${nuevosDatos.nombre}" creado — sigue llenando su invitación ✨`, "success");
+      setNuevoClienteNombre("");
+      setNuevoClienteTelefono("52");
+      setNuevoClientePaquete("basico");
+    } catch (err: any) {
+      mostrarToast("Error al crear cliente: " + err.message, "error");
+    } finally {
+      setCreandoNuevoCliente(false);
+    }
+  };
+
+  // Manda el link de pago guardado de esta fila por WhatsApp al número del cliente.
+  const handleEnviarLinkPago = (row: InvitacionGuardadaRow) => {
+    if (!row.link_pago?.trim()) {
+      mostrarToast("Primero pega el link de pago en esta invitación", "error");
+      return;
+    }
+    if (!row.telefono_whatsapp?.trim()) {
+      mostrarToast("Esta invitación no tiene un número de WhatsApp guardado", "error");
+      return;
+    }
+    const numeroLimpio = row.telefono_whatsapp.replace(/[^0-9]/g, "");
+    const msg = `¡Hola! 🌸 Te comparto el link de pago para tu invitación de XV Años de *${row.nombre_quinceanera || "tu evento"}*:\n${row.link_pago.trim()}`;
+    window.open(`https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(msg)}`, "_blank");
   };
 
   // Descargar el archivo index.html standalone
@@ -4588,15 +4718,23 @@ export default function App() {
           <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-4xl w-full shadow-2xl animate-scaleIn max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-lg font-extrabold text-slate-900">📋 Mis Invitaciones</h3>
-              <button
-                onClick={() => setMostrarMisInvitaciones(false)}
-                className="p-1 hover:bg-slate-100 rounded-lg transition"
-              >
-                <X className="w-5 h-5 text-slate-600" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setMostrarNuevoCliente(true)}
+                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5"
+                >
+                  <UserPlus className="w-3.5 h-3.5" /> Nuevo Cliente
+                </button>
+                <button
+                  onClick={() => setMostrarMisInvitaciones(false)}
+                  className="p-1 hover:bg-slate-100 rounded-lg transition"
+                >
+                  <X className="w-5 h-5 text-slate-600" />
+                </button>
+              </div>
             </div>
             <p className="text-xs text-slate-500 mb-4">
-              Invitaciones de clientes guardadas con "💾 Guardar en Supabase". Ábrelas para seguir editándolas, elimínalas cuando ya no las necesites, o marca hasta cuándo debe quedarse activa cada una (solo un recordatorio para ti — no bloquea el link ya compartido).
+              Registra aquí cada cliente desde que vende el paquete: administra pagos, estatus del pedido y complementos á la carte. Ábrelas para seguir editando el diseño, elimínalas cuando ya no las necesites, o marca hasta cuándo debe quedarse activa cada una (solo un recordatorio para ti — no bloquea el link ya compartido).
             </p>
 
             {listaInvitaciones.length > 0 && (
@@ -4683,6 +4821,12 @@ export default function App() {
                           </button>
                         )}
                         <button
+                          onClick={() => setInvitacionPagosExpandidaId(prev => prev === row.id ? null : row.id)}
+                          className="text-[10px] font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1"
+                        >
+                          💳 {invitacionPagosExpandidaId === row.id ? "Ocultar pagos" : "Pagos y estatus"}
+                        </button>
+                        <button
                           onClick={() => toggleConfirmacionesInvitacion(row)}
                           className="ml-auto text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
                         >
@@ -4692,6 +4836,101 @@ export default function App() {
                           )}
                         </button>
                       </div>
+
+                      {invitacionPagosExpandidaId === row.id && (() => {
+                        const precioSugerido = paquetes[(row.datos_completos?.paquete || "basico")].precio.replace(/[^0-9.]/g, "");
+                        const falta = (row.precio_total || 0) - (row.precio_pagado || 0);
+                        return (
+                          <div className="mt-3 pt-3 border-t border-slate-200/60 space-y-3">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <label className="text-[10px] font-bold text-slate-600 shrink-0">Estatus:</label>
+                              <select
+                                value={row.estado || "cotizacion"}
+                                onChange={(e) => handleActualizarCampoInvitacion(row, "estado", e.target.value)}
+                                className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 outline-none focus:border-indigo-500"
+                              >
+                                {ESTATUS_PEDIDO.map(e => <option key={e.id} value={e.id}>{e.label}</option>)}
+                              </select>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-[10px] font-bold text-slate-600 block mb-1">Precio total ($ MXN)</label>
+                                <input
+                                  type="number"
+                                  defaultValue={row.precio_total ?? ""}
+                                  placeholder={precioSugerido}
+                                  onBlur={(e) => handleActualizarCampoInvitacion(row, "precio_total", e.target.value ? Number(e.target.value) : null)}
+                                  className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 outline-none focus:border-indigo-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-bold text-slate-600 block mb-1">Pagado hasta ahora ($ MXN)</label>
+                                <input
+                                  type="number"
+                                  defaultValue={row.precio_pagado ?? ""}
+                                  onBlur={(e) => handleActualizarCampoInvitacion(row, "precio_pagado", e.target.value ? Number(e.target.value) : null)}
+                                  className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 outline-none focus:border-indigo-500"
+                                />
+                              </div>
+                            </div>
+                            {!!row.precio_total && (
+                              <p className={`text-[11px] font-bold ${falta > 0 ? "text-amber-700" : "text-emerald-700"}`}>
+                                {falta > 0 ? `Falta pagar: $${falta.toLocaleString("es-MX")} MXN` : "✅ Pagado por completo"}
+                              </p>
+                            )}
+
+                            <div className="flex items-center gap-4">
+                              <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-700 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={row.pases_pagado}
+                                  onChange={(e) => handleActualizarCampoInvitacion(row, "pases_pagado", e.target.checked)}
+                                />
+                                Á la carte "pases" pagado
+                              </label>
+                              <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-700 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={row.pdf_pagado}
+                                  onChange={(e) => handleActualizarCampoInvitacion(row, "pdf_pagado", e.target.checked)}
+                                />
+                                Á la carte "PDF" pagado
+                              </label>
+                            </div>
+
+                            <div>
+                              <label className="text-[10px] font-bold text-slate-600 block mb-1">Link de pago (Mercado Pago, PayPal.me, etc.)</label>
+                              <div className="flex gap-1.5">
+                                <input
+                                  type="text"
+                                  defaultValue={row.link_pago || ""}
+                                  onBlur={(e) => handleActualizarCampoInvitacion(row, "link_pago", e.target.value || null)}
+                                  placeholder="Pega aquí el link de pago..."
+                                  className="flex-1 px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 outline-none focus:border-indigo-500 font-mono"
+                                />
+                                <button
+                                  onClick={() => handleEnviarLinkPago(row)}
+                                  className="px-2.5 bg-[#25D366] hover:bg-[#20ba56] text-white rounded-lg text-[10px] font-bold transition whitespace-nowrap"
+                                >
+                                  Enviar
+                                </button>
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="text-[10px] font-bold text-slate-600 block mb-1">Notas</label>
+                              <textarea
+                                defaultValue={row.notas || ""}
+                                onBlur={(e) => handleActualizarCampoInvitacion(row, "notas", e.target.value || null)}
+                                placeholder="Qué pidió, ajustes pendientes, seguimiento..."
+                                rows={2}
+                                className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 outline-none focus:border-indigo-500 resize-none"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       {invitacionExpandidaId === row.id && (
                         <div className="mt-3 pt-3 border-t border-slate-200/60">
@@ -4738,6 +4977,82 @@ export default function App() {
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition cursor-pointer"
               >
                 Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {mostrarNuevoCliente && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-md w-full shadow-2xl animate-scaleIn">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-extrabold text-slate-900">✨ Nuevo Cliente</h3>
+              <button
+                onClick={() => setMostrarNuevoCliente(false)}
+                className="p-1 hover:bg-slate-100 rounded-lg transition"
+              >
+                <X className="w-5 h-5 text-slate-600" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">
+              Regístralo en cuanto venda el paquete. Se guarda de inmediato en "Mis Invitaciones" con estatus "Cotización" — el resto de la invitación (fotos, itinerario, etc.) lo llenas después con calma en el editor.
+            </p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Nombre de la quinceañera</label>
+                <input
+                  type="text"
+                  value={nuevoClienteNombre}
+                  onChange={(e) => setNuevoClienteNombre(e.target.value)}
+                  placeholder="Ej. Sophia Valeria"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 outline-none focus:border-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Celular / WhatsApp del cliente</label>
+                <input
+                  type="text"
+                  value={nuevoClienteTelefono}
+                  onChange={(e) => setNuevoClienteTelefono(e.target.value)}
+                  placeholder="Ej. 5212345678"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 outline-none focus:border-indigo-500 font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Paquete</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(Object.keys(paquetes) as Array<"basico" | "premium" | "deluxe">).map((key) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setNuevoClientePaquete(key)}
+                      className={`p-2 rounded-lg border text-center transition cursor-pointer ${nuevoClientePaquete === key ? "border-indigo-600 bg-indigo-50/70" : "border-slate-200 bg-slate-50 hover:bg-slate-100/80"}`}
+                    >
+                      <span className="block text-xs font-bold text-slate-800 capitalize">{paquetes[key].nombre}</span>
+                      <span className="block text-[10px] text-indigo-600 font-mono">{paquetes[key].precio}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setMostrarNuevoCliente(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleCrearNuevoCliente}
+                disabled={creandoNuevoCliente}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white text-xs font-bold rounded-lg transition cursor-pointer"
+              >
+                {creandoNuevoCliente ? "Creando..." : "Crear y empezar a editar"}
               </button>
             </div>
           </div>
