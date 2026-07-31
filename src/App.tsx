@@ -1589,6 +1589,22 @@ export default function App() {
   // "personalizado"- exponía nombre y número de pases de TODAS las demás familias a quien sea
   // que lo abriera. Ahora, si no hay un invitado específico seleccionado (link general de
   // preview), la lista va vacía a propósito.
+  // Detecta fotos "locales" (base64, recién elegidas del teléfono/computadora pero nunca
+  // subidas a Cloudinary). encodeState (más abajo) las quita del link compartido y cae al
+  // diseño por defecto del tema -- se ven perfecto en TU editor, pero desaparecen del todo
+  // para quien abra el link, sin ningún aviso. Se usa para mostrar una advertencia antes de
+  // compartir (ver banner en la sección "Compartir por WhatsApp").
+  const detectarFotosLocalesSinSubir = (): string[] => {
+    const problemas: string[] = [];
+    if (datos.fotoPortada?.startsWith("data:")) problemas.push("Foto de Portada");
+    (datos.fotos || []).forEach((f, i) => {
+      if (f?.startsWith("data:")) problemas.push(`Foto de Galería #${i + 1}`);
+    });
+    const fondoActual = datos.bgImages?.[selectedTemaId];
+    if (fondoActual?.startsWith("data:")) problemas.push(`Fondo del tema "${temaActual.nombre}"`);
+    return problemas;
+  };
+
   const getShareUrl = (invitadoIndex = selectedInvitadoIndex) => {
     const appUrl = window.location.origin + "/";
     const invitadoObjetivo =
@@ -2905,6 +2921,16 @@ export default function App() {
                           </p>
                         )}
                       </div>
+
+                      {detectarFotosLocalesSinSubir().length > 0 && (
+                        <div className="p-2.5 bg-amber-50 border border-amber-300 rounded-lg">
+                          <p className="text-[11px] font-bold text-amber-800">⚠️ Estas fotos no se verán en el link que compartas:</p>
+                          <ul className="text-[10px] text-amber-700 list-disc list-inside mt-1">
+                            {detectarFotosLocalesSinSubir().map((nombre, i) => <li key={i}>{nombre}</li>)}
+                          </ul>
+                          <p className="text-[10px] text-amber-700 mt-1">Súbelas a Cloudinary (arriba, en "Fotos") antes de compartir — mientras tanto, el link usa el diseño por defecto del tema en su lugar.</p>
+                        </div>
+                      )}
 
                       <div className="pt-2">
                         <label className="block text-[10px] font-bold text-emerald-800 uppercase tracking-wider mb-1">Enlace de Invitación Resultante (Elección Actual)</label>
