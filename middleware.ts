@@ -1,8 +1,13 @@
 // Protege el panel administrador (el editor de invitaciones) con un login simple (HTTP Basic
-// Auth) a nivel de servidor -- la contraseña vive únicamente en la variable de entorno
-// ADMIN_PASSWORD de Vercel (sin prefijo VITE_, así que Vite nunca la incluye en el bundle que
-// baja al navegador). Esto es justo lo que faltaba: antes cualquiera con la URL del deploy
-// llegaba directo al editor completo sin pedir nada.
+// Auth) a nivel de servidor -- las contraseñas viven únicamente en variables de entorno de
+// Vercel (sin prefijo VITE_, así que Vite nunca las incluye en el bundle que baja al
+// navegador). Esto es justo lo que faltaba: antes cualquiera con la URL del deploy llegaba
+// directo al editor completo sin pedir nada.
+//
+// Para agregar una segunda persona con su PROPIA contraseña (poder quitarle acceso a alguien
+// sin cambiarle la contraseña a los demás): en Vercel > Settings > Environment Variables,
+// agrega ADMIN_USERS = "nombre:contraseña,nombre2:contraseña2" (además de ADMIN_PASSWORD, que
+// sigue siendo el usuario "admin"). El navegador pedirá usuario Y contraseña por separado.
 //
 // Los links que sí deben seguir siendo 100% públicos (invitados, clientes viendo el catálogo, o
 // llenando su formulario de datos) se dejan pasar sin pedir contraseña, detectando los mismos
@@ -32,17 +37,37 @@ export default function middleware(request: Request) {
     return;
   }
 
+  // Soporta más de una persona con su propia contraseña (para poder revocarle el acceso a
+  // alguien sin tener que cambiarle la contraseña a todos los demás), sin romper la
+  // configuración de un solo admin que ya existía:
+  //   - ADMIN_PASSWORD (ya existente): sigue funcionando como el usuario "admin".
+  //   - ADMIN_USERS (opcional, nuevo): lista "usuario:contraseña,usuario2:contraseña2" para
+  //     agregar más personas -- cada una entra con su propio usuario/contraseña por HTTP
+  //     Basic Auth (el navegador pide "usuario" y "contraseña" por separado).
+  const credencialesValidas = new Set<string>();
   const adminPassword = process.env.ADMIN_PASSWORD;
-  // Si no se configuró la variable de entorno, no bloqueamos el acceso (evita dejar el editor
-  // inaccesible por un olvido de configuración) -- pero esto no debería pasar en producción.
-  if (!adminPassword) {
+  if (adminPassword) {
+    credencialesValidas.add("Basic " + btoa(`admin:${adminPassword}`));
+  }
+  const adminUsers = process.env.ADMIN_USERS;
+  if (adminUsers) {
+    for (const par of adminUsers.split(",")) {
+      const [usuario, password] = par.split(":");
+      if (usuario && password) {
+        credencialesValidas.add("Basic " + btoa(`${usuario.trim()}:${password.trim()}`));
+      }
+    }
+  }
+
+  // Si no se configuró ninguna variable de entorno, no bloqueamos el acceso (evita dejar el
+  // editor inaccesible por un olvido de configuración) -- pero esto no debería pasar en producción.
+  if (credencialesValidas.size === 0) {
     return;
   }
 
   const authHeader = request.headers.get("authorization");
-  const esperado = "Basic " + btoa(`admin:${adminPassword}`);
 
-  if (authHeader !== esperado) {
+  if (!authHeader || !credencialesValidas.has(authHeader)) {
     return new Response("Acceso restringido", {
       status: 401,
       headers: {
