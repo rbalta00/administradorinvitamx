@@ -1312,12 +1312,15 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
       if (isPlaying) {
         audioPlayer.pause();
         isPlaying = false;
+        actualizarIconoAltavoz();
       } else {
         audioPlayer.play().then(() => {
           isPlaying = true;
+          actualizarIconoAltavoz();
+        }).catch(err => {
+          console.log("No se pudo reanudar la música: ", err);
         });
       }
-      actualizarIconoAltavoz();
     }
 
     function actualizarIconoAltavoz() {
