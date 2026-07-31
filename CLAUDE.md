@@ -121,3 +121,48 @@ Sections (e.g. `ceremonia`, `galeria`, `regalos`) are plain string ids listed pe
   - **Turnaround:** 24–48 hours after receiving all the client's data (photos, text, dates, etc.) — faster than the ~72h competitors advertise, worth using as a selling point.
   - **Post-delivery edits:** first 2 rounds of adjustments are free within 7 days of delivery; after that window or after 2 rounds, each additional edit costs $99–150 MXN.
   - These three numbers are also baked into `ventas/plantillas-whatsapp.txt` (objection-handling templates) — if any of them change, update both places.
+
+## Lista de funcionalidades para copy de venta / landing page (2026-07-31)
+
+Referencia rápida de TODO lo que el producto hace hoy, para escribir/actualizar copy en `invitacionmx-landing` u otro material de venta sin tener que releer el código. Organizado por lo que le importa a quien compra (la familia de la quinceañera), no por arquitectura técnica.
+
+### La invitación digital en sí (lo que ve el invitado)
+
+- **12 temas de diseño listos**, cada uno con tipografía, paleta y decoración propia: Dorado Clásico, Vuelo de Mariposas, Floral Acuarela, Místico Celestial (tema noche), Eucalipto Botánico, Glam Rose Oro, Rustique Boho Chic, Princesa Elegante (gala), Mármol & Oro Geométrico, Ciber Cyber Neon (glow), XV Coquette Listones Rose, XV Coquette Luxe. Buen ángulo: "hay un diseño para cada estilo de quinceañera, del clásico elegante al neón moderno".
+- **+ 1 tema "Personalizado" (A Medida)**: para quien quiere colores/tipografía/estilo de apertura 100% a su gusto en vez de un catálogo fijo — ángulo de venta premium/exclusividad.
+- **3 estilos de apertura animada**: tarjeta con botón, sobre con sello de cera que se abre, o cortina/telón que se descorre — se puede elegir independiente del tema.
+- **Efecto de "lluvia" decorativa animada** (pétalos, mariposas, listones, estrellas, etc. según el tema) cayendo sobre la pantalla — detalle visual que compite con invitaciones impresas de gama alta.
+- **Cuenta regresiva en vivo** para el evento.
+- **Mensaje de bienvenida personalizado**.
+- **Ubicación de ceremonia y recepción** con dirección y botón directo a Google Maps.
+- **Itinerario/programa del evento** (hora por hora).
+- **Código de vestimenta**.
+- **Sección de padres y padrinos**.
+- **Mesa de regalos y datos bancarios** con botón de "copiar" para que el invitado no batalle transcribiendo la CLABE.
+- **Galería de fotos con carrusel/lightbox** (toca una foto y se abre en grande).
+- **Hashtag de Instagram** del evento.
+- **Botón "Agregar a mi calendario"**.
+- **Pases de entrada personalizados por invitado/familia** — cada familia puede tener su propio link con su nombre y número de pases asignados (control de quién entra).
+- **Confirmación de asistencia (RSVP) integrada**: el invitado confirma directo desde la invitación (nombre, sí/no, número de personas) y le llega por WhatsApp a la familia — **ya no depende de que la familia lleve la cuenta a mano**: también hay un resumen en vivo ("van 12 personas confirmadas") visible para la familia en su propio link.
+- **Reproductor de música de fondo** (la canción que el cliente elija).
+- **100% optimizada para celular** — se siente como una app, no como una página web genérica.
+- **Descarga en PDF** como recuerdo de regalo, además del link interactivo.
+- Todo el link vive en un solo mensaje de WhatsApp — no requiere que el invitado descargue nada ni cree una cuenta.
+
+### La experiencia de compra / servicio (ángulos de "por qué comprar con nosotros")
+
+- **Entrega en 24–48 horas** una vez que el cliente manda sus datos — más rápido que el ~72h que anuncia la competencia.
+- **El cliente ya no tiene que escribirle todo por WhatsApp a mano**: recibe un link propio (sin necesidad de crear cuenta ni contraseña) donde captura fecha, ceremonia, recepción, itinerario, padrinos, mesa de regalos y sube sus propias fotos directo — puede volver a ese mismo link después si le falta algo o quiere corregir.
+- **Vista de muestra antes de pagar**: se le puede mandar al cliente potencial una "muestra" de cómo se vería su invitación real (con sus datos), vigente por 5 días, antes de comprometerse a comprar.
+- **Anticipo del 50%** para apartar la fecha, resto contra entrega del link final.
+- **2 rondas de ajustes gratis** dentro de los primeros 7 días de la entrega.
+- **3 paquetes según necesidad y presupuesto**: Básico $499 MXN (4 fotos), Premium $799 MXN (8 fotos + secciones de familia/regalos/hashtag/calendario), Deluxe $1,199–1,499 MXN (14 fotos, pases y PDF incluidos sin costo extra).
+- **Pases personalizados por familia** disponibles en cualquier paquete (incluidos en Deluxe, complemento pagado en Básico/Premium) — útil para bodas/XV con lista de invitados controlada.
+
+### Lo que NO se debe prometer en copy (para no generar expectativas falsas)
+
+- No hay pasarela de pago en línea (el cliente no "compra solo" con tarjeta en un carrito) — el proceso de venta y cobro sigue siendo manual (WhatsApp, transferencia, o un link de pago que genera el administrador a mano en Mercado Pago/PayPal).
+- No hay una "app" descargable ni notificaciones push — todo es un link web.
+- El envío de RSVP depende de que el invitado tenga WhatsApp; no hay confirmación por SMS/email.
+
+Cuando el código cambie de forma que afecte esta lista (nueva sección, nuevo tema, cambio de paquete/precio), actualizar esta sección también.
