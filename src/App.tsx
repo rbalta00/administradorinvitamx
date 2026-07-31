@@ -1649,6 +1649,32 @@ export default function App() {
     return problemas;
   };
 
+  // Validaciones básicas antes de compartir/guardar: nada de esto bloquea al admin (sigue
+  // siendo su decisión), solo evita que un link roto o con datos incompletos salga sin que se
+  // note -- antes no había ningún aviso de campo obligatorio, teléfono mal escrito, o fecha ya
+  // pasada.
+  const validarInvitacion = (): string[] => {
+    const problemas: string[] = [];
+    if (!datos.nombre?.trim()) {
+      problemas.push("Falta el nombre de la quinceañera");
+    }
+    const soloDigitos = (datos.whatsappConfirmacion || "").replace(/[^0-9]/g, "");
+    if (!soloDigitos) {
+      problemas.push("Falta el número de WhatsApp de confirmación");
+    } else if (soloDigitos.length < 10 || soloDigitos.length > 13) {
+      problemas.push(`El número de WhatsApp de confirmación (${soloDigitos.length} dígitos) no parece válido — revisa que tenga código de país + 10 dígitos`);
+    }
+    if (!datos.fecha) {
+      problemas.push("Falta la fecha del evento");
+    } else {
+      const fechaEvento = new Date(datos.fecha);
+      if (!isNaN(fechaEvento.getTime()) && fechaEvento.getTime() < Date.now()) {
+        problemas.push("La fecha del evento ya pasó");
+      }
+    }
+    return problemas;
+  };
+
   const getShareUrl = (invitadoIndex = selectedInvitadoIndex) => {
     const appUrl = window.location.origin + "/";
     const invitadoObjetivo =
@@ -2980,6 +3006,15 @@ export default function App() {
                           </p>
                         )}
                       </div>
+
+                      {validarInvitacion().length > 0 && (
+                        <div className="p-2.5 bg-rose-50 border border-rose-300 rounded-lg">
+                          <p className="text-[11px] font-bold text-rose-800">🚩 Revisa esto antes de compartir:</p>
+                          <ul className="text-[10px] text-rose-700 list-disc list-inside mt-1">
+                            {validarInvitacion().map((problema, i) => <li key={i}>{problema}</li>)}
+                          </ul>
+                        </div>
+                      )}
 
                       {detectarFotosLocalesSinSubir().length > 0 && (
                         <div className="p-2.5 bg-amber-50 border border-amber-300 rounded-lg">
