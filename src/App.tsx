@@ -517,6 +517,12 @@ const tipoAperturaPorDefectoDelTema = (temaId: string): "sobre" | "cortina" | "t
 
 // Paletas de la lluvia decorativa ("Efecto de Animación de Caída"): conjuntos de emojis
 // coordinados por estética, en vez de dejar elegir emoji por emoji.
+const ESTILOS_CAJAS_SECCIONES: { id: "normal" | "sin_cajon" | "solo_borde"; nombre: string; desc: string }[] = [
+  { id: "normal", nombre: "Con cajón", desc: "Fondo sólido/translúcido detrás del texto (como hoy)" },
+  { id: "sin_cajon", nombre: "Sin cajón", desc: "El texto flota directo sobre el fondo del tema" },
+  { id: "solo_borde", nombre: "Solo borde", desc: "Quita el relleno pero deja un marco delgado" }
+];
+
 const PALETAS_ANIMACION: { id: string; nombre: string; simbolos: string[] }[] = [
   { id: "elegante", nombre: "Elegante ✨", simbolos: ["✨", "🌟", "🪙", "✨"] },
   { id: "floral", nombre: "Floral 🌸", simbolos: ["🌸", "🌹", "🍃", "💮"] },
@@ -1789,6 +1795,11 @@ export default function App() {
 
   // Tema seleccionado real
   const temaActual = temas.find(t => t.id === selectedTemaId) || temas[0];
+
+  // Estilo efectivo de los cajones de sección: si ya se eligió explícitamente con los botones
+  // nuevos, se respeta; si no, se deriva del boolean legacy `mostrarCajasSecciones` para no
+  // cambiarle el look a invitaciones guardadas antes de este cambio (ver generarHTMLFinal).
+  const estiloCajasEfectivo = datos.estiloCajasSecciones || (datos.mostrarCajasSecciones === false ? "sin_cajon" : "normal");
 
   // Estado para saber si el tema actual tiene un diseño guardado en el catálogo
   const [tieneDiseñoGuardado, setTieneDiseñoGuardado] = useState<boolean>(false);
@@ -3841,27 +3852,25 @@ export default function App() {
                     Estilo de Contenedores de Sección
                   </h3>
                   <div className="p-4 bg-rose-50/20 border border-pink-100 rounded-xl space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="pr-3">
-                        <span className="block text-xs font-bold text-slate-800">
-                          Cajas de fondo en textos de secciones
-                        </span>
-                        <span className="block text-[11px] text-slate-500 leading-normal mt-0.5">
-                          Apaga o enciende los cajones/tarjetas blancas y translúcidas donde se presentan los textos principales (iglesia, salón, mesa de regalos, etc.). Si los apagas, los textos se mostrarán directamente sobre el fondo general.
-                        </span>
+                    <div>
+                      <span className="block text-xs font-bold text-slate-800">
+                        Cajas de fondo en textos de secciones
+                      </span>
+                      <span className="block text-[11px] text-slate-500 leading-normal mt-0.5 mb-2">
+                        Elige cómo se presentan los cajones/tarjetas donde va el texto de cada sección (iglesia, salón, mesa de regalos, etc.).
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {ESTILOS_CAJAS_SECCIONES.map(e => (
+                          <button
+                            key={e.id}
+                            onClick={() => setDatos(prev => ({ ...prev, estiloCajasSecciones: e.id }))}
+                            className={`text-left p-3 rounded-xl border-2 transition cursor-pointer ${estiloCajasEfectivo === e.id ? "border-pink-500 bg-pink-50/40" : "border-slate-200 bg-white hover:border-slate-300"}`}
+                          >
+                            <span className="block text-xs font-bold text-slate-700">{e.nombre}</span>
+                            <span className="block text-[10px] text-slate-500 mt-0.5">{e.desc}</span>
+                          </button>
+                        ))}
                       </div>
-                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                        <input
-                          type="checkbox"
-                          checked={datos.mostrarCajasSecciones !== false}
-                          onChange={(e) => setDatos({ ...datos, mostrarCajasSecciones: e.target.checked })}
-                          className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-550"></div>
-                        <span className="ml-2 text-xs font-bold text-pink-700 w-12 text-right uppercase">
-                          {datos.mostrarCajasSecciones !== false ? "ON" : "OFF"}
-                        </span>
-                      </label>
                     </div>
 
                     <div className="flex items-center justify-between border-t border-pink-100/60 pt-3">

@@ -177,6 +177,12 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
           ? "cortina"
           : "tarjeta";
 
+  // Estilo de los cajones/tarjetas de sección: si ya se eligió con los botones nuevos, se
+  // respeta; si no, se deriva del boolean legacy `mostrarCajasSecciones` para no cambiarle el
+  // look a invitaciones guardadas antes de este campo.
+  const estiloCajasEfectivo: "normal" | "sin_cajon" | "solo_borde" =
+    datos.estiloCajasSecciones || (datos.mostrarCajasSecciones === false ? "sin_cajon" : "normal");
+
   let aperturaHTML = "";
   if (isSectionActive("apertura")) {
     if (tipoAperturaEfectivo === "sobre") {
@@ -959,9 +965,9 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
     ` : ""}
 
     /* Ocultar/Apagar cajas del fondo de los textos de las secciones si el cliente lo prefiere */
-    ${datos.mostrarCajasSecciones === false ? `
+    ${estiloCajasEfectivo !== "normal" ? `
     /* Transparentar contenedores y tarjetas internas p/integrar con el fondo original */
-    .theme-container .bg-white.rounded-3xl, 
+    .theme-container .bg-white.rounded-3xl,
     .theme-container .gold-card,
     .theme-container [data-section] > .bg-white,
     .theme-container [data-section] > .rounded-3xl,
@@ -979,8 +985,8 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
       background: transparent !important;
       backdrop-filter: none !important;
       -webkit-backdrop-filter: none !important;
-      border: none !important;
       box-shadow: none !important;
+      ${estiloCajasEfectivo === "sin_cajon" ? "border: none !important;" : ""}
     }
 
     /* Respetar color de acento y colores específicos legibles en el fondo natural */

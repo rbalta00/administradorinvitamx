@@ -31,6 +31,10 @@ export interface InvitacionDatos {
   fotoPortada?: string;
   mostrarFotoPortada?: boolean;
   mostrarCajasSecciones?: boolean;
+  /** Reemplaza a mostrarCajasSecciones con una tercera opción ("solo_borde"). Si no está
+   *  definido, se deriva de mostrarCajasSecciones (ver App.tsx/generarHTMLFinal) para no
+   *  cambiarle el look a invitaciones guardadas antes de este campo. */
+  estiloCajasSecciones?: "normal" | "sin_cajon" | "solo_borde";
   hashtag: string;
   whatsappConfirmacion: string;
   cancion: string;
