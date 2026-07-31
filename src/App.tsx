@@ -670,6 +670,10 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
   const [subiendoFoto, setSubiendoFoto] = useState<string | null>(null);
   const [nombreQuinceanera, setNombreQuinceanera] = useState("");
   const [maxFotos, setMaxFotos] = useState(4);
+  // Resumen de confirmaciones (RSVP) de SUS invitados -- de solo lectura, para que el cliente
+  // pueda ver quién ya confirmó sin depender de llevar la cuenta a mano leyendo WhatsApps
+  // sueltos. Se recarga cada vez que abre este mismo link.
+  const [confirmaciones, setConfirmaciones] = useState<ConfirmacionRSVP[] | null>(null);
 
   const [form, setForm] = useState({
     fecha: "",
@@ -740,6 +744,19 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
       }
     };
     cargar();
+  }, [invitacionId]);
+
+  useEffect(() => {
+    const cargarConfirmaciones = async () => {
+      if (!invitacionId || !window.supabaseClient) return;
+      const { data, error: err } = await window.supabaseClient
+        .from("confirmaciones")
+        .select("id, nombre_invitado, asistencia, num_personas, creado_en")
+        .eq("invitacion_id", invitacionId)
+        .order("creado_en", { ascending: false });
+      if (!err) setConfirmaciones((data || []) as ConfirmacionRSVP[]);
+    };
+    cargarConfirmaciones();
   }, [invitacionId]);
 
   const actualizar = (campo: keyof typeof form, valor: any) => setForm(prev => ({ ...prev, [campo]: valor }));
@@ -877,6 +894,29 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
         {error && (
           <div className="mb-4 p-2.5 bg-rose-50 border border-rose-300 rounded-lg text-[11px] text-rose-700 font-semibold">{error}</div>
         )}
+
+        {confirmaciones !== null && confirmaciones.length > 0 && (() => {
+          const siConfirman = confirmaciones.filter(c => c.asistencia === "si");
+          const totalPersonas = siConfirman.reduce((acc, c) => acc + (c.num_personas || 1), 0);
+          return (
+            <div className="mb-6 p-4 bg-indigo-50/60 border border-indigo-200 rounded-2xl">
+              <h3 className="text-xs font-extrabold text-indigo-900 uppercase tracking-wide mb-1">👥 Confirmaciones de tus invitados</h3>
+              <p className="text-[11px] font-bold text-indigo-800 mb-3">
+                ✅ {siConfirman.length} familia(s) confirmaron ({totalPersonas} personas) · ❌ {confirmaciones.length - siConfirman.length} no van
+              </p>
+              <div className="space-y-1 max-h-48 overflow-y-auto">
+                {confirmaciones.map(c => (
+                  <div key={c.id} className="flex items-center justify-between text-[11px] bg-white border border-indigo-100 rounded-lg px-2.5 py-1.5">
+                    <span className="font-semibold text-slate-800">{c.nombre_invitado}</span>
+                    <span className={c.asistencia === "si" ? "text-emerald-600 font-bold" : "text-rose-500 font-bold"}>
+                      {c.asistencia === "si" ? `✅ ${c.num_personas} persona(s)` : "❌ No asiste"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         <div className="space-y-5">
           <div>
