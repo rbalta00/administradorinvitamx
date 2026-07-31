@@ -1528,6 +1528,10 @@ export default function App() {
   // usa siempre el mismo tema de referencia para que la única diferencia visible sea el cajón.
   const [selectedEstiloCajasDemo, setSelectedEstiloCajasDemo] = useState<"normal" | "sin_cajon" | "solo_borde" | null>(null);
   const TEMA_DEMO_ESTILO_CAJAS = "dorado-clasico";
+  // Estilo de cajón elegido dentro de la demo de un tema específico del catálogo (independiente
+  // de la sección comparativa "Estilos de Presentación") -- se resetea a "normal" cada vez que
+  // se abre la demo de un tema distinto, para no dejar un estado raro pegado entre temas.
+  const [catalogDemoEstiloCajas, setCatalogDemoEstiloCajas] = useState<"normal" | "sin_cajon" | "solo_borde">("normal");
 
   // Guarda UN fondo de tema en Supabase sin arriesgar los demás. Antes, handleBgImageUpload y
   // handleGuardarEnlaceCloudinary armaban el objeto completo a partir de localStorage y lo
@@ -3198,13 +3202,28 @@ export default function App() {
               />
             </div>
           ) : selectedCatalogTemaId ? (
-            /* Render del Demo en vivo dentro de un iframe interactivo */
-            <div className="w-full h-[calc(100vh-140px)] rounded-2xl border border-slate-200 overflow-hidden shadow-xl bg-white">
-              <iframe
-                srcDoc={generarHTMLFinal({ ...getDatosVisualizacionCatalog(temas.find(t => t.id === selectedCatalogTemaId) || temas[0], datos), seccionesExcluidas: ["apertura"] }, temas.find(t => t.id === selectedCatalogTemaId) || temas[0])}
-                className="w-full h-full border-0"
-                title="Invitación Demo en Vivo"
-              />
+            /* Render del Demo en vivo dentro de un iframe interactivo, con selector de estilo
+               de cajón para poder combinar este tema con cualquiera de las 3 opciones */
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-center gap-2 bg-white border border-slate-200 rounded-xl p-2.5 shadow-sm">
+                <span className="text-[11px] font-bold text-slate-500 px-1">Estilo de cajón:</span>
+                {ESTILOS_CAJAS_SECCIONES.map(e => (
+                  <button
+                    key={e.id}
+                    onClick={() => setCatalogDemoEstiloCajas(e.id)}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border-2 transition cursor-pointer ${catalogDemoEstiloCajas === e.id ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"}`}
+                  >
+                    {e.nombre}
+                  </button>
+                ))}
+              </div>
+              <div className="w-full h-[calc(100vh-200px)] rounded-2xl border border-slate-200 overflow-hidden shadow-xl bg-white">
+                <iframe
+                  srcDoc={generarHTMLFinal({ ...getDatosVisualizacionCatalog(temas.find(t => t.id === selectedCatalogTemaId) || temas[0], datos), seccionesExcluidas: ["apertura"], estiloCajasSecciones: catalogDemoEstiloCajas }, temas.find(t => t.id === selectedCatalogTemaId) || temas[0])}
+                  className="w-full h-full border-0"
+                  title="Invitación Demo en Vivo"
+                />
+              </div>
             </div>
           ) : (
             /* Listado de tarjetas de catálogo de todos los temas */
@@ -3378,7 +3397,7 @@ export default function App() {
                         {/* Botones de acción */}
                         <div className="pt-2 flex flex-col gap-2">
                           <button
-                            onClick={() => setSelectedCatalogTemaId(t.id)}
+                            onClick={() => { setSelectedCatalogTemaId(t.id); setCatalogDemoEstiloCajas("normal"); }}
                             className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all duration-200 active:scale-95 cursor-pointer text-center shadow-md flex items-center justify-center gap-1.5"
                           >
                             Ver Demo en Vivo 👁️✨
