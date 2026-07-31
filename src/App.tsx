@@ -3209,6 +3209,13 @@ export default function App() {
           ) : (
             /* Listado de tarjetas de catálogo de todos los temas */
             <div className="space-y-6">
+              {/* Aviso arriba de todo para que no se descubra hasta el final del scroll */}
+              <a
+                href="#estilos-presentacion"
+                className="block text-center text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-xl py-2.5 px-4 hover:bg-indigo-100 transition cursor-pointer"
+              >
+                ✨ También puedes elegir cómo se presentan tus textos — ver Estilos de Presentación ↓
+              </a>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {temas.filter(t => !t.oculto).map((t, idx) => {
                   const isDarkTheme = t.id === "celestial" || t.id === "princesa-elegante" || t.id === "neon";
@@ -3394,7 +3401,7 @@ export default function App() {
               {/* ESTILOS DE PRESENTACIÓN: muestra las 3 opciones de "cajón" de sección con el
                   mismo tema de referencia, para comparar el efecto sin mezclarlo con la elección
                   de tema/diseño de arriba. */}
-              <div className="pt-4 border-t border-slate-200">
+              <div id="estilos-presentacion" className="pt-4 border-t border-slate-200 scroll-mt-4">
                 <div className="max-w-2xl mx-auto text-center mb-5">
                   <h2 className="text-xl font-extrabold text-slate-800">Estilos de Presentación</h2>
                   <p className="text-xs text-slate-500 mt-1">
