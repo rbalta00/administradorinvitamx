@@ -5930,6 +5930,17 @@ export default function App() {
                                   Enviar
                                 </button>
                               </div>
+                              {!!row.link_pago?.trim() && falta <= 0 && (
+                                <p className="text-[10px] font-bold text-amber-700 mt-1 flex items-center gap-1.5 flex-wrap">
+                                  ⚠️ Ya no aplica: el saldo está en $0. Bórralo para no confundir al cliente si vuelve a este link.
+                                  <button
+                                    onClick={() => handleActualizarCampoInvitacion(row, "link_pago", null)}
+                                    className="underline hover:text-amber-900"
+                                  >
+                                    Borrar link
+                                  </button>
+                                </p>
+                              )}
                             </div>
 
                             <div>
