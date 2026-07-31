@@ -1400,6 +1400,18 @@ export default function App() {
       const overlaySobre = iframeDoc.getElementById("pantalla-apertura");
       if (overlaySobre) overlaySobre.style.display = "none";
 
+      // body y main traen "min-h-screen" (min-height:100vh) para que la invitación real ocupe
+      // toda la pantalla del celular del invitado. Pero el iframe de captura mide 800px fijos
+      // (necesario para que secciones con vh, como la portada, se vean como "una pantalla" y no
+      // como % de todo el documento) — en invitaciones cortas (pocas secciones/paquete Básico)
+      // cuyo contenido real mide menos de 800px, ese min-height de todas formas fuerza el body a
+      // 800px, dejando un espacio en blanco al final del PDF. Invitaciones largas no lo notan
+      // porque su contenido ya supera los 800px por sí solo. Se neutraliza solo para esta
+      // captura (con estilo inline, que gana sobre la clase) — no afecta el HTML final real.
+      iframeDoc.body.style.minHeight = "0";
+      const mainEl = iframeDoc.querySelector("main");
+      if (mainEl) (mainEl as HTMLElement).style.minHeight = "0";
+
       // Esperamos a que las fuentes de Google Fonts y las imágenes terminen de cargar antes
       // de capturar. Antes había solo un timeout fijo de 600ms, que en conexiones lentas no
       // alcanza y html2canvas termina tomando la foto con la fuente de reemplazo del sistema.
