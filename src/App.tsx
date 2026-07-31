@@ -491,11 +491,20 @@ const PALETAS_ANIMACION: { id: string; nombre: string; simbolos: string[] }[] = 
 
 // Lista de toggles de secciones habilitadas/deshabilitadas, memoizada para no recalcularse
 // cuando cambia un estado de la app no relacionado (ej. abrir un modal).
-const SeccionesToggleList = memo(({ secciones, seccionesExcluidas, onToggle, onMover }: {
+// Política de precios de "pases" por paquete (ver CLAUDE.md, sección "Pases personalizados").
+// Deluxe lo incluye sin costo extra; en Básico/Premium es a la carte con su propio precio.
+const POLITICA_PASES: Record<"basico" | "premium" | "deluxe", string> = {
+  basico: "A la carte +$150 MXN",
+  premium: "A la carte +$180 MXN",
+  deluxe: "Incluido sin costo"
+};
+
+const SeccionesToggleList = memo(({ secciones, seccionesExcluidas, onToggle, onMover, paquete }: {
   secciones: string[];
   seccionesExcluidas: string[];
   onToggle: (secName: string) => void;
   onMover: (secName: string, direccion: 1 | -1) => void;
+  paquete: "basico" | "premium" | "deluxe";
 }) => {
   // "apertura" y "cierre" quedan fijas al inicio/final: no muestran flechas de reordenar.
   const movibles = secciones.filter(s => s !== "apertura" && s !== "cierre");
@@ -513,8 +522,15 @@ const SeccionesToggleList = memo(({ secciones, seccionesExcluidas, onToggle, onM
             onClick={() => onToggle(secName)}
             className={`flex items-center justify-between p-2 rounded-lg border transition cursor-pointer select-none ${isEnabled ? 'bg-emerald-50/50 border-emerald-200 hover:bg-emerald-50' : 'bg-slate-100/50 border-slate-200 opacity-60 hover:bg-slate-100'}`}
           >
-            <span className={`text-[11px] font-bold truncate ${isEnabled ? 'text-emerald-900' : 'text-slate-500'}`}>
-              {label}
+            <span className="flex items-center gap-1.5 min-w-0">
+              <span className={`text-[11px] font-bold truncate ${isEnabled ? 'text-emerald-900' : 'text-slate-500'}`}>
+                {label}
+              </span>
+              {secName === "pases" && (
+                <span className={`shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${paquete === "deluxe" ? "bg-emerald-600 text-white" : "bg-amber-100 text-amber-700"}`}>
+                  {POLITICA_PASES[paquete]}
+                </span>
+              )}
             </span>
             <div className="flex items-center gap-1.5 flex-shrink-0">
               {esMovible && (
@@ -2406,10 +2422,14 @@ export default function App() {
           <button
             onClick={handleDescargarPDF}
             disabled={generandoPDF}
+            title={datos.paquete === "deluxe" ? "Incluido sin costo extra en el paquete Deluxe" : "Complemento a la carta en este paquete — confirma que el cliente ya lo pagó antes de entregarlo"}
             className="px-5 py-2 bg-rose-500 hover:bg-rose-600 disabled:bg-rose-300 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-sm transition cursor-pointer transform active:scale-95"
           >
             <FileText className="w-4 h-4 text-white" />
             <span>{generandoPDF ? "Generando PDF..." : "🎁 Descargar PDF de Regalo"}</span>
+            <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${datos.paquete === "deluxe" ? "bg-white/25" : "bg-black/20"}`}>
+              {datos.paquete === "deluxe" ? "Incluido" : "A la carte"}
+            </span>
           </button>
         </div>
       </header>
@@ -2543,6 +2563,7 @@ export default function App() {
                       seccionesExcluidas={datos.seccionesExcluidas || []}
                       onToggle={toggleSeccion}
                       onMover={moverSeccion}
+                      paquete={datos.paquete}
                     />
                   </div>
                 </div>
