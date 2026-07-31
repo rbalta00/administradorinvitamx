@@ -1524,6 +1524,10 @@ export default function App() {
   // Estados para el catálogo de demostración de temas
   const [isCatalogMode, setIsCatalogMode] = useState<boolean>(isCatalogInitial);
   const [selectedCatalogTemaId, setSelectedCatalogTemaId] = useState<string | null>(initialCatalogTemaId);
+  // Demo comparativa de "Estilos de Contenedores de Sección" (Con cajón/Sin cajón/Solo borde):
+  // usa siempre el mismo tema de referencia para que la única diferencia visible sea el cajón.
+  const [selectedEstiloCajasDemo, setSelectedEstiloCajasDemo] = useState<"normal" | "sin_cajon" | "solo_borde" | null>(null);
+  const TEMA_DEMO_ESTILO_CAJAS = "dorado-clasico";
 
   // Guarda UN fondo de tema en Supabase sin arriesgar los demás. Antes, handleBgImageUpload y
   // handleGuardarEnlaceCloudinary armaban el objeto completo a partir de localStorage y lo
@@ -3130,19 +3134,23 @@ export default function App() {
     return (
       <div className="min-h-screen bg-slate-50 font-sans text-slate-800 flex flex-col animate-fadeIn">
         {/* ENCABEZADO DENTRO DE VISTA CATALOGO */}
-        {selectedCatalogTemaId ? (
+        {selectedCatalogTemaId || selectedEstiloCajasDemo ? (
           <div className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shadow-xs sticky top-0 z-50">
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setSelectedCatalogTemaId(null)}
+                onClick={() => { setSelectedCatalogTemaId(null); setSelectedEstiloCajasDemo(null); }}
                 className="p-1 px-3 bg-slate-100 hover:bg-slate-200 text-slate-705 text-xs font-bold rounded-lg transition active:scale-95 cursor-pointer"
               >
                 ← Volver al Catálogo
               </button>
               <div>
-                <h2 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Visualizando Demo Interactiva</h2>
+                <h2 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                  {selectedEstiloCajasDemo ? "Comparando Estilo de Contenedores" : "Visualizando Demo Interactiva"}
+                </h2>
                 <p className="text-xs font-extrabold text-indigo-600 flex items-center gap-1">
-                  {temas.find(t => t.id === selectedCatalogTemaId)?.nombre || "Tema Elegido"}
+                  {selectedEstiloCajasDemo
+                    ? ESTILOS_CAJAS_SECCIONES.find(e => e.id === selectedEstiloCajasDemo)?.nombre
+                    : temas.find(t => t.id === selectedCatalogTemaId)?.nombre || "Tema Elegido"}
                 </p>
               </div>
             </div>
@@ -3179,7 +3187,17 @@ export default function App() {
 
         {/* CONTAINER DEL CONTENIDO */}
         <div className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-6">
-          {selectedCatalogTemaId ? (
+          {selectedEstiloCajasDemo ? (
+            /* Render del Demo en vivo del estilo de cajones elegido, siempre con el mismo tema
+               de referencia para que la única diferencia visible sea el cajón */
+            <div className="w-full h-[calc(100vh-140px)] rounded-2xl border border-slate-200 overflow-hidden shadow-xl bg-white">
+              <iframe
+                srcDoc={generarHTMLFinal({ ...getDatosVisualizacionCatalog(temas.find(t => t.id === TEMA_DEMO_ESTILO_CAJAS) || temas[0], datos), seccionesExcluidas: ["apertura"], estiloCajasSecciones: selectedEstiloCajasDemo }, temas.find(t => t.id === TEMA_DEMO_ESTILO_CAJAS) || temas[0])}
+                className="w-full h-full border-0"
+                title="Demo de Estilo de Contenedores"
+              />
+            </div>
+          ) : selectedCatalogTemaId ? (
             /* Render del Demo en vivo dentro de un iframe interactivo */
             <div className="w-full h-[calc(100vh-140px)] rounded-2xl border border-slate-200 overflow-hidden shadow-xl bg-white">
               <iframe
@@ -3371,6 +3389,34 @@ export default function App() {
                     </div>
                   );
                 })}
+              </div>
+
+              {/* ESTILOS DE PRESENTACIÓN: muestra las 3 opciones de "cajón" de sección con el
+                  mismo tema de referencia, para comparar el efecto sin mezclarlo con la elección
+                  de tema/diseño de arriba. */}
+              <div className="pt-4 border-t border-slate-200">
+                <div className="max-w-2xl mx-auto text-center mb-5">
+                  <h2 className="text-xl font-extrabold text-slate-800">Estilos de Presentación</h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Además del tema, puedes elegir cómo se presenta el texto de cada sección. Estas 3 demos usan el mismo tema ("{temas.find(t => t.id === TEMA_DEMO_ESTILO_CAJAS)?.nombre}") para que la única diferencia sea el estilo del cajón.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {ESTILOS_CAJAS_SECCIONES.map(e => (
+                    <div key={e.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col gap-3">
+                      <div>
+                        <span className="block text-sm font-extrabold text-slate-800">{e.nombre}</span>
+                        <span className="block text-[11px] text-slate-500 mt-0.5">{e.desc}</span>
+                      </div>
+                      <button
+                        onClick={() => setSelectedEstiloCajasDemo(e.id)}
+                        className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all duration-200 active:scale-95 cursor-pointer text-center shadow-md flex items-center justify-center gap-1.5"
+                      >
+                        Ver Demo en Vivo 👁️✨
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
