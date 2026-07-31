@@ -677,6 +677,10 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
   // Estatus del pedido y avance de pago -- de solo lectura, así el cliente sabe en qué va su
   // invitación y cuánto lleva pagado sin tener que preguntarte por WhatsApp.
   const [pedidoInfo, setPedidoInfo] = useState<{ estado: string | null; precioTotal: number | null; precioPagado: number | null } | null>(null);
+  // Invitados con pases asignados (solo lectura aquí -- esa lista la administra el admin,
+  // no este formulario) -- se usa para saber quién de la lista de pases todavía no ha
+  // confirmado por RSVP, y poder copiarle un recordatorio.
+  const [invitadosAsignados, setInvitadosAsignados] = useState<{ nombre: string; pases: number }[]>([]);
 
   const [form, setForm] = useState({
     fecha: "",
@@ -718,6 +722,7 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
         setPedidoInfo({ estado: data.estado || null, precioTotal: data.precio_total ?? null, precioPagado: data.precio_pagado ?? null });
         const dc: Partial<InvitacionDatos> = data.datos_completos || {};
         setMaxFotos(paquetes[(dc.paquete as "basico" | "premium" | "deluxe") || "basico"]?.maxFotos || 4);
+        setInvitadosAsignados(dc.invitados || []);
         setForm(prev => ({
           ...prev,
           fecha: dc.fecha || "",
@@ -916,25 +921,57 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
           );
         })()}
 
-        {confirmaciones !== null && confirmaciones.length > 0 && (() => {
+        {confirmaciones !== null && (confirmaciones.length > 0 || invitadosAsignados.length > 0) && (() => {
           const siConfirman = confirmaciones.filter(c => c.asistencia === "si");
           const totalPersonas = siConfirman.reduce((acc, c) => acc + (c.num_personas || 1), 0);
+          // Reconciliación aproximada por nombre (coincidencia exacta, sin mayúsculas/espacios):
+          // familias con pases asignados que todavía no aparecen en la tabla de confirmaciones.
+          const sinConfirmar = invitadosAsignados.filter(inv =>
+            !confirmaciones.some(c => c.nombre_invitado.trim().toLowerCase() === inv.nombre.trim().toLowerCase())
+          );
+          const copiarRecordatorio = (nombreInvitado: string) => {
+            const msg = `¡Hola ${nombreInvitado}! 🌸 Nos encantaría contar con tu confirmación de asistencia a los XV años de ${nombreQuinceanera || "nuestra fiesta"}. ¿Nos confirmas cuando puedas? ¡Gracias!`;
+            navigator.clipboard.writeText(msg).catch(() => {});
+          };
           return (
             <div className="mb-6 p-4 bg-indigo-50/60 border border-indigo-200 rounded-2xl">
               <h3 className="text-xs font-extrabold text-indigo-900 uppercase tracking-wide mb-1">👥 Confirmaciones de tus invitados</h3>
-              <p className="text-[11px] font-bold text-indigo-800 mb-3">
-                ✅ {siConfirman.length} familia(s) confirmaron ({totalPersonas} personas) · ❌ {confirmaciones.length - siConfirman.length} no van
-              </p>
-              <div className="space-y-1 max-h-48 overflow-y-auto">
-                {confirmaciones.map(c => (
-                  <div key={c.id} className="flex items-center justify-between text-[11px] bg-white border border-indigo-100 rounded-lg px-2.5 py-1.5">
-                    <span className="font-semibold text-slate-800">{c.nombre_invitado}</span>
-                    <span className={c.asistencia === "si" ? "text-emerald-600 font-bold" : "text-rose-500 font-bold"}>
-                      {c.asistencia === "si" ? `✅ ${c.num_personas} persona(s)` : "❌ No asiste"}
-                    </span>
+              {confirmaciones.length > 0 && (
+                <>
+                  <p className="text-[11px] font-bold text-indigo-800 mb-3">
+                    ✅ {siConfirman.length} familia(s) confirmaron ({totalPersonas} personas) · ❌ {confirmaciones.length - siConfirman.length} no van
+                  </p>
+                  <div className="space-y-1 max-h-48 overflow-y-auto mb-3">
+                    {confirmaciones.map(c => (
+                      <div key={c.id} className="flex items-center justify-between text-[11px] bg-white border border-indigo-100 rounded-lg px-2.5 py-1.5">
+                        <span className="font-semibold text-slate-800">{c.nombre_invitado}</span>
+                        <span className={c.asistencia === "si" ? "text-emerald-600 font-bold" : "text-rose-500 font-bold"}>
+                          {c.asistencia === "si" ? `✅ ${c.num_personas} persona(s)` : "❌ No asiste"}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </>
+              )}
+              {sinConfirmar.length > 0 && (
+                <div className="border-t border-indigo-200 pt-3">
+                  <p className="text-[11px] font-bold text-amber-700 mb-2">⏳ {sinConfirmar.length} familia(s) con pases asignados que aún no responden:</p>
+                  <div className="space-y-1 max-h-40 overflow-y-auto">
+                    {sinConfirmar.map((inv, i) => (
+                      <div key={i} className="flex items-center justify-between gap-2 text-[11px] bg-white border border-amber-200 rounded-lg px-2.5 py-1.5">
+                        <span className="font-semibold text-slate-800 truncate">{inv.nombre} <span className="text-slate-400 font-normal">({inv.pases} pase(s))</span></span>
+                        <button
+                          onClick={() => copiarRecordatorio(inv.nombre)}
+                          className="shrink-0 text-[10px] font-bold text-indigo-600 hover:text-indigo-800"
+                        >
+                          📋 Copiar recordatorio
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[9px] text-slate-400 mt-1.5">Copia el mensaje y mándaselo por el medio que uses con ellos (WhatsApp, mensaje directo, etc.).</p>
+                </div>
+              )}
             </div>
           );
         })()}
@@ -5569,56 +5606,80 @@ export default function App() {
                         <div className="mt-3 pt-3 border-t border-slate-200/60">
                           {cargandoConfirmaciones && !confirmacionesPorInvitacion[row.id] ? (
                             <p className="text-[11px] text-slate-500">Cargando confirmaciones...</p>
-                          ) : !confirmacionesPorInvitacion[row.id] || confirmacionesPorInvitacion[row.id].length === 0 ? (
-                            <p className="text-[11px] text-slate-500">Nadie ha confirmado todavía desde el formulario de RSVP de esta invitación.</p>
-                          ) : (
-                            <>
-                              {(() => {
-                                const confs = confirmacionesPorInvitacion[row.id];
-                                const siCount = confs.filter(c => c.asistencia === "si");
-                                const totalPersonas = siCount.reduce((acc, c) => acc + (c.num_personas || 1), 0);
-                                return (
-                                  <p className="text-[11px] font-bold text-slate-700 mb-2">
-                                    ✅ {siCount.length} confirmaron ({totalPersonas} personas) · ❌ {confs.length - siCount.length} no van
-                                  </p>
-                                );
-                              })()}
-                              <div className="space-y-1 max-h-52 overflow-y-auto">
-                                {confirmacionesPorInvitacion[row.id].map(c => (
-                                  <div key={c.id} className="flex items-center justify-between gap-2 text-[11px] bg-white border border-slate-200 rounded-lg px-2.5 py-1.5">
-                                    <span className="font-semibold text-slate-800 truncate">{c.nombre_invitado}</span>
-                                    <div className="flex items-center gap-1.5 shrink-0">
-                                      {c.asistencia === "si" ? (
-                                        <>
-                                          <span className="text-emerald-600 font-bold">✅</span>
-                                          <input
-                                            type="number"
-                                            min={1}
-                                            defaultValue={c.num_personas}
-                                            onBlur={(e) => {
-                                              const valor = Number(e.target.value) || 1;
-                                              if (valor !== c.num_personas) handleActualizarPersonasConfirmacion(row.id, c.id, valor);
-                                            }}
-                                            className="w-12 px-1 py-0.5 bg-slate-50 border border-slate-200 rounded text-center outline-none focus:border-indigo-500"
-                                          />
-                                          <span className="text-slate-500">persona(s)</span>
-                                        </>
-                                      ) : (
-                                        <span className="text-rose-500 font-bold">❌ No asiste</span>
-                                      )}
-                                      <button
-                                        onClick={() => handleEliminarConfirmacion(row.id, c.id)}
-                                        title="Eliminar esta confirmación"
-                                        className="text-slate-300 hover:text-rose-500 transition"
-                                      >
-                                        <Trash2 className="w-3 h-3" />
-                                      </button>
+                          ) : (() => {
+                            const confs = confirmacionesPorInvitacion[row.id] || [];
+                            const invitadosAsignados = row.datos_completos?.invitados || [];
+                            const sinConfirmar = invitadosAsignados.filter(inv =>
+                              !confs.some(c => c.nombre_invitado.trim().toLowerCase() === inv.nombre.trim().toLowerCase())
+                            );
+                            if (confs.length === 0 && sinConfirmar.length === 0) {
+                              return <p className="text-[11px] text-slate-500">Nadie ha confirmado todavía desde el formulario de RSVP de esta invitación.</p>;
+                            }
+                            const siCount = confs.filter(c => c.asistencia === "si");
+                            const totalPersonas = siCount.reduce((acc, c) => acc + (c.num_personas || 1), 0);
+                            const copiarRecordatorio = (nombreInvitado: string) => {
+                              const msg = `¡Hola ${nombreInvitado}! 🌸 Nos encantaría contar con tu confirmación de asistencia a los XV años de ${row.nombre_quinceanera || "nuestra fiesta"}. ¿Nos confirmas cuando puedas? ¡Gracias!`;
+                              navigator.clipboard.writeText(msg).then(() => mostrarToast("Mensaje copiado", "success")).catch(() => {});
+                            };
+                            return (
+                              <>
+                                {confs.length > 0 && (
+                                  <>
+                                    <p className="text-[11px] font-bold text-slate-700 mb-2">
+                                      ✅ {siCount.length} confirmaron ({totalPersonas} personas) · ❌ {confs.length - siCount.length} no van
+                                    </p>
+                                    <div className="space-y-1 max-h-52 overflow-y-auto mb-2">
+                                      {confs.map(c => (
+                                        <div key={c.id} className="flex items-center justify-between gap-2 text-[11px] bg-white border border-slate-200 rounded-lg px-2.5 py-1.5">
+                                          <span className="font-semibold text-slate-800 truncate">{c.nombre_invitado}</span>
+                                          <div className="flex items-center gap-1.5 shrink-0">
+                                            {c.asistencia === "si" ? (
+                                              <>
+                                                <span className="text-emerald-600 font-bold">✅</span>
+                                                <input
+                                                  type="number"
+                                                  min={1}
+                                                  defaultValue={c.num_personas}
+                                                  onBlur={(e) => {
+                                                    const valor = Number(e.target.value) || 1;
+                                                    if (valor !== c.num_personas) handleActualizarPersonasConfirmacion(row.id, c.id, valor);
+                                                  }}
+                                                  className="w-12 px-1 py-0.5 bg-slate-50 border border-slate-200 rounded text-center outline-none focus:border-indigo-500"
+                                                />
+                                                <span className="text-slate-500">persona(s)</span>
+                                              </>
+                                            ) : (
+                                              <span className="text-rose-500 font-bold">❌ No asiste</span>
+                                            )}
+                                            <button
+                                              onClick={() => handleEliminarConfirmacion(row.id, c.id)}
+                                              title="Eliminar esta confirmación"
+                                              className="text-slate-300 hover:text-rose-500 transition"
+                                            >
+                                              <Trash2 className="w-3 h-3" />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </>
+                                )}
+                                {sinConfirmar.length > 0 && (
+                                  <div className="border-t border-slate-200/60 pt-2">
+                                    <p className="text-[11px] font-bold text-amber-700 mb-1.5">⏳ {sinConfirmar.length} familia(s) con pases asignados que aún no responden:</p>
+                                    <div className="space-y-1 max-h-40 overflow-y-auto">
+                                      {sinConfirmar.map((inv, i) => (
+                                        <div key={i} className="flex items-center justify-between gap-2 text-[11px] bg-white border border-amber-200 rounded-lg px-2.5 py-1.5">
+                                          <span className="font-semibold text-slate-800 truncate">{inv.nombre} <span className="text-slate-400 font-normal">({inv.pases} pase(s))</span></span>
+                                          <button onClick={() => copiarRecordatorio(inv.nombre)} className="shrink-0 text-[10px] font-bold text-indigo-600 hover:text-indigo-800">📋 Copiar recordatorio</button>
+                                        </div>
+                                      ))}
                                     </div>
                                   </div>
-                                ))}
-                              </div>
-                            </>
-                          )}
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
                       )}
                     </div>
