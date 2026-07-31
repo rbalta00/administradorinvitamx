@@ -3380,6 +3380,13 @@ export default function App() {
   const invitacionesProximas = listaInvitaciones.filter(invitacionEsProxima);
   const invitacionesUrgentes = listaInvitaciones.filter(row => invitacionEsProxima(row) && invitacionTienePendiente(row));
 
+  // Avisa (sin bloquear) si el celular capturado en "Nuevo Cliente" ya pertenece a otra
+  // invitación guardada -- suele pasar cuando ya se dio de alta por error o desde otra pantalla.
+  const nuevoClienteDigitos = nuevoClienteTelefono.replace(/[^0-9]/g, "");
+  const nuevoClienteDuplicado = nuevoClienteDigitos.length >= 10
+    ? listaInvitaciones.find(r => (r.telefono_whatsapp || "").replace(/[^0-9]/g, "") === nuevoClienteDigitos)
+    : null;
+
   // Filtro del panel "Mis Invitaciones" por nombre de la quinceañera/tema, estatus, y el chip
   // rápido de "con saldo pendiente" / "evento próximo" que se activa desde el resumen de arriba.
   const invitacionesFiltradas = (() => {
@@ -6111,6 +6118,12 @@ export default function App() {
                   placeholder="Ej. 5212345678"
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 outline-none focus:border-indigo-500 font-mono"
                 />
+                {nuevoClienteDuplicado && (
+                  <p className="text-[11px] font-bold text-amber-700 mt-1">
+                    ⚠️ Ya existe un cliente con este número: {nuevoClienteDuplicado.nombre_quinceanera || "sin nombre"}
+                    {nuevoClienteDuplicado.fecha_fiesta ? ` (${nuevoClienteDuplicado.fecha_fiesta})` : ""}. Puedes continuar si de verdad es otra invitación.
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Paquete</label>
