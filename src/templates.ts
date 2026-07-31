@@ -1405,7 +1405,9 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
       return false;
     }
 
-    // 5. RSVP por WhatsApp
+    // 5. RSVP por WhatsApp (+ registro silencioso en Supabase si la invitación ya se guardó)
+    const SUPABASE_URL_RSVP = "${escDoubleQuote(import.meta.env.VITE_SUPABASE_URL || "")}";
+    const SUPABASE_ANON_KEY_RSVP = "${escDoubleQuote(import.meta.env.VITE_SUPABASE_ANON_KEY || "")}";
     function enviarRSVPWhatsApp() {
       const nombre = document.getElementById('rsvp-nombre').value.trim();
       const asistencia = document.getElementById('rsvp-asistencia').value;
@@ -1416,8 +1418,34 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
         return;
       }
 
-      const txtAsistira = asistencia === 'si' 
-        ? "¡CONFIRMO con agrado mi asistencia!" 
+      // Registro silencioso en Supabase (mejor esfuerzo, no bloquea nada): asocia esta
+      // respuesta con la fila de "Mis Invitaciones" via el parámetro ?iid= del link (ver
+      // getShareUrl en App.tsx). Si el link no lleva iid (invitación nunca guardada) o falla
+      // la escritura, el RSVP real sigue siendo el mensaje de WhatsApp de abajo -- esto es solo
+      // para que el admin pueda ver un conteo de confirmaciones sin depender de leer WhatsApp.
+      try {
+        const iid = new URLSearchParams(window.location.search).get('iid');
+        if (iid && SUPABASE_URL_RSVP && SUPABASE_ANON_KEY_RSVP) {
+          fetch(SUPABASE_URL_RSVP + '/rest/v1/confirmaciones', {
+            method: 'POST',
+            headers: {
+              'apikey': SUPABASE_ANON_KEY_RSVP,
+              'Authorization': 'Bearer ' + SUPABASE_ANON_KEY_RSVP,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify({
+              invitacion_id: iid,
+              nombre_invitado: nombre,
+              asistencia: asistencia,
+              num_personas: parseInt(pases, 10) || 1
+            })
+          }).catch(() => {});
+        }
+      } catch (e) { /* nunca debe impedir que el RSVP por WhatsApp funcione */ }
+
+      const txtAsistira = asistencia === 'si'
+        ? "¡CONFIRMO con agrado mi asistencia!"
         : "Lamentablemente NO podré asistir en esta ocasión.";
 
       const cantPasesMsg = asistencia === 'si'

@@ -62,6 +62,15 @@ interface InvitacionGuardadaRow {
   datos_completos: InvitacionDatos | null;
 }
 
+// Una respuesta del formulario de RSVP dentro de una invitación (tabla `confirmaciones`)
+interface ConfirmacionRSVP {
+  id: string;
+  nombre_invitado: string;
+  asistencia: "si" | "no";
+  num_personas: number;
+  creado_en: string;
+}
+
 // Helper functions for UTF-8 safe and compact Base64 encoding/decoding of state in URLs
 const KEY_MAP: Record<string, string> = {
   paquete: "p",
@@ -1063,6 +1072,11 @@ export default function App() {
   const [mostrarMisInvitaciones, setMostrarMisInvitaciones] = useState(false);
   const [cargandoMisInvitaciones, setCargandoMisInvitaciones] = useState(false);
   const [listaInvitaciones, setListaInvitaciones] = useState<InvitacionGuardadaRow[]>([]);
+  // Confirmaciones (RSVP) por invitación, cargadas bajo demanda al expandir una fila en el
+  // panel (evita N+1 queries al abrir la lista si hay muchas invitaciones guardadas).
+  const [confirmacionesPorInvitacion, setConfirmacionesPorInvitacion] = useState<Record<string, ConfirmacionRSVP[]>>({});
+  const [invitacionExpandidaId, setInvitacionExpandidaId] = useState<string | null>(null);
+  const [cargandoConfirmaciones, setCargandoConfirmaciones] = useState(false);
 
   // Optimizaciones de PC: Dispositivo de vista previa y escala de zoom
   const [previewDevice, setPreviewDevice] = useState<"mobile" | "tablet" | "desktop">("mobile");
@@ -1285,6 +1299,31 @@ export default function App() {
       mostrarToast("Error al cargar invitaciones: " + err.message, "error");
     } finally {
       setCargandoMisInvitaciones(false);
+    }
+  };
+
+  // Muestra/oculta las confirmaciones (RSVP) de una fila en el panel "Mis Invitaciones",
+  // cargándolas de Supabase la primera vez que se expande (luego quedan en caché en el estado).
+  const toggleConfirmacionesInvitacion = async (row: InvitacionGuardadaRow) => {
+    if (invitacionExpandidaId === row.id) {
+      setInvitacionExpandidaId(null);
+      return;
+    }
+    setInvitacionExpandidaId(row.id);
+    if (confirmacionesPorInvitacion[row.id] || !window.supabaseClient) return;
+    setCargandoConfirmaciones(true);
+    try {
+      const { data, error } = await window.supabaseClient
+        .from("confirmaciones")
+        .select("id, nombre_invitado, asistencia, num_personas, creado_en")
+        .eq("invitacion_id", row.id)
+        .order("creado_en", { ascending: false });
+      if (error) throw error;
+      setConfirmacionesPorInvitacion(prev => ({ ...prev, [row.id]: (data || []) as ConfirmacionRSVP[] }));
+    } catch (err: any) {
+      mostrarToast("Error al cargar confirmaciones: " + err.message, "error");
+    } finally {
+      setCargandoConfirmaciones(false);
     }
   };
 
@@ -1567,6 +1606,13 @@ export default function App() {
     let url = `${appUrl}?v=1&d=${encodeState(datosListos)}`;
     if (invitadoObjetivo) {
       url += `&g=${encodeURIComponent(invitadoObjetivo.nombre)}`;
+    }
+    // Si esta invitación ya se guardó en Supabase, incluimos su id (`iid`) en el link para que
+    // el formulario de RSVP dentro de la invitación pueda asociar cada confirmación a esta fila
+    // (ver "Mis Invitaciones" → confirmaciones). Si nunca se guardó, el RSVP sigue funcionando
+    // igual por WhatsApp, solo que no queda registrado en ningún lado para verlo después.
+    if (supabaseRowId) {
+      url += `&iid=${encodeURIComponent(supabaseRowId)}`;
     }
     return url;
   };
@@ -4496,7 +4542,49 @@ export default function App() {
                             Quitar fecha
                           </button>
                         )}
+                        <button
+                          onClick={() => toggleConfirmacionesInvitacion(row)}
+                          className="ml-auto text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                        >
+                          👥 {invitacionExpandidaId === row.id ? "Ocultar confirmaciones" : "Ver confirmaciones"}
+                          {confirmacionesPorInvitacion[row.id] && (
+                            <span className="px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700">{confirmacionesPorInvitacion[row.id].length}</span>
+                          )}
+                        </button>
                       </div>
+
+                      {invitacionExpandidaId === row.id && (
+                        <div className="mt-3 pt-3 border-t border-slate-200/60">
+                          {cargandoConfirmaciones && !confirmacionesPorInvitacion[row.id] ? (
+                            <p className="text-[11px] text-slate-500">Cargando confirmaciones...</p>
+                          ) : !confirmacionesPorInvitacion[row.id] || confirmacionesPorInvitacion[row.id].length === 0 ? (
+                            <p className="text-[11px] text-slate-500">Nadie ha confirmado todavía desde el formulario de RSVP de esta invitación.</p>
+                          ) : (
+                            <>
+                              {(() => {
+                                const confs = confirmacionesPorInvitacion[row.id];
+                                const siCount = confs.filter(c => c.asistencia === "si");
+                                const totalPersonas = siCount.reduce((acc, c) => acc + (c.num_personas || 1), 0);
+                                return (
+                                  <p className="text-[11px] font-bold text-slate-700 mb-2">
+                                    ✅ {siCount.length} confirmaron ({totalPersonas} personas) · ❌ {confs.length - siCount.length} no van
+                                  </p>
+                                );
+                              })()}
+                              <div className="space-y-1 max-h-40 overflow-y-auto">
+                                {confirmacionesPorInvitacion[row.id].map(c => (
+                                  <div key={c.id} className="flex items-center justify-between text-[11px] bg-white border border-slate-200 rounded-lg px-2.5 py-1.5">
+                                    <span className="font-semibold text-slate-800">{c.nombre_invitado}</span>
+                                    <span className={c.asistencia === "si" ? "text-emerald-600 font-bold" : "text-rose-500 font-bold"}>
+                                      {c.asistencia === "si" ? `✅ ${c.num_personas} persona(s)` : "❌ No asiste"}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
