@@ -89,6 +89,15 @@ interface ConfirmacionRSVP {
   creado_en: string;
 }
 
+// Un pago individual registrado para una invitación (tabla `abonos`) -- el detalle auditable
+// detrás del número acumulado en invitaciones.precio_pagado.
+interface Abono {
+  id: string;
+  monto: number;
+  nota: string | null;
+  creado_en: string;
+}
+
 // Helper functions for UTF-8 safe and compact Base64 encoding/decoding of state in URLs
 const KEY_MAP: Record<string, string> = {
   paquete: "p",
@@ -1602,6 +1611,13 @@ export default function App() {
   const [confirmacionesPorInvitacion, setConfirmacionesPorInvitacion] = useState<Record<string, ConfirmacionRSVP[]>>({});
   const [invitacionExpandidaId, setInvitacionExpandidaId] = useState<string | null>(null);
   const [invitacionPagosExpandidaId, setInvitacionPagosExpandidaId] = useState<string | null>(null);
+  // Historial de abonos por invitación (tabla `abonos`), cargado bajo demanda al ver el
+  // historial en el panel de Pagos y estatus.
+  const [abonosPorInvitacion, setAbonosPorInvitacion] = useState<Record<string, Abono[]>>({});
+  const [historialAbonosExpandidoId, setHistorialAbonosExpandidoId] = useState<string | null>(null);
+  const [cargandoAbonos, setCargandoAbonos] = useState(false);
+  const [montoNuevoAbono, setMontoNuevoAbono] = useState<Record<string, string>>({});
+  const [notaNuevoAbono, setNotaNuevoAbono] = useState<Record<string, string>>({});
   const [busquedaInvitaciones, setBusquedaInvitaciones] = useState("");
   const [filtroEstatusInvitaciones, setFiltroEstatusInvitaciones] = useState("todos");
   const [filtroRapidoInvitaciones, setFiltroRapidoInvitaciones] = useState<"ninguno" | "pendientes" | "proximos">("ninguno");
@@ -2034,6 +2050,71 @@ export default function App() {
       setListaInvitaciones(prev => prev.map(r => r.id === row.id ? { ...r, [campo]: valor } : r));
     } catch (err: any) {
       mostrarToast("Error al guardar: " + err.message, "error");
+    }
+  };
+
+  // Muestra/oculta el historial de abonos de una invitación, cargándolo la primera vez.
+  const toggleHistorialAbonos = async (row: InvitacionGuardadaRow) => {
+    if (historialAbonosExpandidoId === row.id) {
+      setHistorialAbonosExpandidoId(null);
+      return;
+    }
+    setHistorialAbonosExpandidoId(row.id);
+    if (abonosPorInvitacion[row.id] || !window.supabaseClient) return;
+    setCargandoAbonos(true);
+    try {
+      const { data, error } = await window.supabaseClient
+        .from("abonos")
+        .select("id, monto, nota, creado_en")
+        .eq("invitacion_id", row.id)
+        .order("creado_en", { ascending: false });
+      if (error) throw error;
+      setAbonosPorInvitacion(prev => ({ ...prev, [row.id]: (data || []) as Abono[] }));
+    } catch (err: any) {
+      mostrarToast("Error al cargar historial de abonos: " + err.message, "error");
+    } finally {
+      setCargandoAbonos(false);
+    }
+  };
+
+  // Registra un abono nuevo: lo agrega al historial (tabla `abonos`) Y suma el monto al
+  // precio_pagado acumulado de la invitación (lee el valor actual justo antes de sumar, para
+  // no pisar un cambio que se haya hecho desde otro lado un segundo antes).
+  const handleRegistrarAbono = async (row: InvitacionGuardadaRow, monto: number, nota: string) => {
+    if (!window.supabaseClient || !monto || monto <= 0) {
+      mostrarToast("Ingresa un monto válido", "error");
+      return;
+    }
+    try {
+      const { error: errInsert } = await window.supabaseClient
+        .from("abonos")
+        .insert([{ invitacion_id: row.id, monto, nota: nota.trim() || null }]);
+      if (errInsert) throw errInsert;
+
+      const { data: actual, error: errLectura } = await window.supabaseClient
+        .from("invitaciones")
+        .select("precio_pagado")
+        .eq("id", row.id)
+        .maybeSingle();
+      if (errLectura) throw errLectura;
+      const nuevoPagado = (actual?.precio_pagado || 0) + monto;
+
+      const { error: errUpdate } = await window.supabaseClient
+        .from("invitaciones")
+        .update({ precio_pagado: nuevoPagado })
+        .eq("id", row.id);
+      if (errUpdate) throw errUpdate;
+
+      setListaInvitaciones(prev => prev.map(r => r.id === row.id ? { ...r, precio_pagado: nuevoPagado } : r));
+      if (abonosPorInvitacion[row.id]) {
+        setAbonosPorInvitacion(prev => ({
+          ...prev,
+          [row.id]: [{ id: crypto.randomUUID(), monto, nota: nota.trim() || null, creado_en: new Date().toISOString() }, ...prev[row.id]]
+        }));
+      }
+      mostrarToast(`Abono de $${monto.toLocaleString("es-MX")} registrado`, "success");
+    } catch (err: any) {
+      mostrarToast("Error al registrar abono: " + err.message, "error");
     }
   };
 
@@ -5550,6 +5631,7 @@ export default function App() {
                               <div>
                                 <label className="text-[10px] font-bold text-slate-600 block mb-1">Pagado hasta ahora ($ MXN)</label>
                                 <input
+                                  key={row.precio_pagado ?? "vacio"}
                                   type="number"
                                   defaultValue={row.precio_pagado ?? ""}
                                   onBlur={(e) => handleActualizarCampoInvitacion(row, "precio_pagado", e.target.value ? Number(e.target.value) : null)}
@@ -5562,6 +5644,59 @@ export default function App() {
                                 {falta > 0 ? `Falta pagar: $${falta.toLocaleString("es-MX")} MXN` : "✅ Pagado por completo"}
                               </p>
                             )}
+
+                            <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
+                              <p className="text-[10px] font-bold text-slate-600">💵 Registrar abono (queda en el historial, además de sumarse a "Pagado hasta ahora")</p>
+                              <div className="flex gap-1.5">
+                                <input
+                                  type="number"
+                                  placeholder="Monto"
+                                  value={montoNuevoAbono[row.id] || ""}
+                                  onChange={(e) => setMontoNuevoAbono(prev => ({ ...prev, [row.id]: e.target.value }))}
+                                  className="w-24 px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 outline-none focus:border-indigo-500"
+                                />
+                                <input
+                                  type="text"
+                                  placeholder="Nota (opcional, ej. 'Anticipo')"
+                                  value={notaNuevoAbono[row.id] || ""}
+                                  onChange={(e) => setNotaNuevoAbono(prev => ({ ...prev, [row.id]: e.target.value }))}
+                                  className="flex-1 px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 outline-none focus:border-indigo-500"
+                                />
+                                <button
+                                  onClick={async () => {
+                                    const monto = Number(montoNuevoAbono[row.id]);
+                                    await handleRegistrarAbono(row, monto, notaNuevoAbono[row.id] || "");
+                                    setMontoNuevoAbono(prev => ({ ...prev, [row.id]: "" }));
+                                    setNotaNuevoAbono(prev => ({ ...prev, [row.id]: "" }));
+                                  }}
+                                  className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded-lg transition whitespace-nowrap"
+                                >
+                                  + Agregar
+                                </button>
+                              </div>
+                              <button
+                                onClick={() => toggleHistorialAbonos(row)}
+                                className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800"
+                              >
+                                {historialAbonosExpandidoId === row.id ? "Ocultar historial" : "Ver historial de abonos"}
+                              </button>
+                              {historialAbonosExpandidoId === row.id && (
+                                cargandoAbonos && !abonosPorInvitacion[row.id] ? (
+                                  <p className="text-[10px] text-slate-500">Cargando...</p>
+                                ) : !abonosPorInvitacion[row.id] || abonosPorInvitacion[row.id].length === 0 ? (
+                                  <p className="text-[10px] text-slate-500">Aún no hay abonos registrados.</p>
+                                ) : (
+                                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                                    {abonosPorInvitacion[row.id].map(a => (
+                                      <div key={a.id} className="flex items-center justify-between text-[10px] bg-white border border-slate-200 rounded px-2 py-1">
+                                        <span className="text-slate-500">{new Date(a.creado_en).toLocaleDateString("es-MX")}{a.nota ? ` · ${a.nota}` : ""}</span>
+                                        <span className="font-bold text-emerald-700">${a.monto.toLocaleString("es-MX")}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )
+                              )}
+                            </div>
 
                             <div className="flex items-center gap-4">
                               <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-700 cursor-pointer">
