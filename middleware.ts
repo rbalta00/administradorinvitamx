@@ -4,11 +4,12 @@
 // baja al navegador). Esto es justo lo que faltaba: antes cualquiera con la URL del deploy
 // llegaba directo al editor completo sin pedir nada.
 //
-// Los links que sí deben seguir siendo 100% públicos (invitados y clientes viendo el catálogo)
-// se dejan pasar sin pedir contraseña, detectando los mismos parámetros de URL que usa App.tsx
-// para decidir qué modo mostrar (ver getInitialState en App.tsx):
+// Los links que sí deben seguir siendo 100% públicos (invitados, clientes viendo el catálogo, o
+// llenando su formulario de datos) se dejan pasar sin pedir contraseña, detectando los mismos
+// parámetros de URL que usa App.tsx para decidir qué modo mostrar:
 //   - ?v=1 / ?view=true      -> vista de un invitado abriendo su invitación
 //   - ?catalog=true / ?catalogo=true -> catálogo de temas de demostración
+//   - ?intake=1              -> formulario público para que el cliente capture sus datos/fotos
 // Los archivos estáticos del build (/assets/*) también se dejan pasar siempre, si no el propio
 // navegador no podría ni cargar el JS/CSS para pintar la pantalla de login.
 
@@ -24,7 +25,8 @@ export default function middleware(request: Request) {
     params.has("v") ||
     params.get("view") === "true" ||
     params.get("catalog") === "true" ||
-    params.get("catalogo") === "true";
+    params.get("catalogo") === "true" ||
+    params.get("intake") === "1";
 
   if (esVistaPublica) {
     return;

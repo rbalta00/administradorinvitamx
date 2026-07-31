@@ -635,6 +635,388 @@ declare global {
     supabaseClient?: any;
   }
 }
+
+// Sube una imagen a Cloudinary sin depender de ningún estado del componente App -- usado por
+// IntakeForm, que se renderiza para clientes sin sesión de admin ni acceso al resto de la app.
+const subirImagenPublica = async (file: File): Promise<string> => {
+  const cloudName = "dswrrm5u1";
+  const uploadPreset = "invitaciones-xv";
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", uploadPreset);
+  const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+    method: "POST",
+    body: formData
+  });
+  if (!response.ok) {
+    const errJson = await response.json().catch(() => ({}));
+    throw new Error(errJson?.error?.message || "Ocurrió un error al subir la imagen.");
+  }
+  const resData = await response.json();
+  return resData.secure_url;
+};
+
+// Formulario público (sin login) para que el cliente capture sus propios datos y fotos, en vez
+// de que el admin tenga que escribirlo todo a mano. Se accede por ?intake=1&iid=<id de la fila
+// en la tabla `invitaciones`> -- el middleware.ts del proyecto deja pasar este modo sin pedir la
+// contraseña del editor. Lee y escribe DIRECTO esa fila de Supabase (no pasa por el blob `d` de
+// URL como el resto de los modos), por eso el link puede ser cortito.
+function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [enviado, setEnviado] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [subiendoFoto, setSubiendoFoto] = useState<string | null>(null);
+  const [nombreQuinceanera, setNombreQuinceanera] = useState("");
+  const [maxFotos, setMaxFotos] = useState(4);
+
+  const [form, setForm] = useState({
+    fecha: "",
+    mensajeBienvenida: "",
+    ceremoniaLugar: "", ceremoniaHora: "", ceremoniaDireccion: "", ceremoniaMaps: "",
+    recepcionLugar: "", recepcionHora: "", recepcionDireccion: "", recepcionMaps: "",
+    itinerario: [] as { hora: string; evento: string }[],
+    dressCode: "",
+    padres: ["", ""] as string[],
+    padrinos: [] as string[],
+    mesaRegalos: "",
+    datosBancarios: "",
+    hashtag: "",
+    cancion: "",
+    fotoPortada: "",
+    fotos: [] as string[]
+  });
+
+  useEffect(() => {
+    const cargar = async () => {
+      if (!invitacionId || !window.supabaseClient) {
+        setError("Este link no es válido.");
+        setCargando(false);
+        return;
+      }
+      try {
+        const { data, error: err } = await window.supabaseClient
+          .from("invitaciones")
+          .select("nombre_quinceanera, datos_completos")
+          .eq("id", invitacionId)
+          .maybeSingle();
+        if (err) throw err;
+        if (!data) {
+          setError("No encontramos tu invitación. Pídele el link correcto a quien te lo compartió.");
+          setCargando(false);
+          return;
+        }
+        setNombreQuinceanera(data.nombre_quinceanera || "");
+        const dc: Partial<InvitacionDatos> = data.datos_completos || {};
+        setMaxFotos(paquetes[(dc.paquete as "basico" | "premium" | "deluxe") || "basico"]?.maxFotos || 4);
+        setForm(prev => ({
+          ...prev,
+          fecha: dc.fecha || "",
+          mensajeBienvenida: dc.mensajeBienvenida || "",
+          ceremoniaLugar: dc.ceremonia?.lugar || "",
+          ceremoniaHora: dc.ceremonia?.hora || "",
+          ceremoniaDireccion: dc.ceremonia?.direccion || "",
+          ceremoniaMaps: dc.ceremonia?.maps || "",
+          recepcionLugar: dc.recepcion?.lugar || "",
+          recepcionHora: dc.recepcion?.hora || "",
+          recepcionDireccion: dc.recepcion?.direccion || "",
+          recepcionMaps: dc.recepcion?.maps || "",
+          itinerario: dc.itinerario?.length ? dc.itinerario : [],
+          dressCode: dc.dressCode || "",
+          padres: dc.padres?.length ? dc.padres : ["", ""],
+          padrinos: dc.padrinos || [],
+          mesaRegalos: dc.mesaRegalos || "",
+          datosBancarios: dc.datosBancarios || "",
+          hashtag: dc.hashtag || "",
+          cancion: dc.cancion || "",
+          fotoPortada: dc.fotoPortada || "",
+          fotos: dc.fotos || []
+        }));
+      } catch (e: any) {
+        setError("Ocurrió un error al cargar tu invitación: " + e.message);
+      } finally {
+        setCargando(false);
+      }
+    };
+    cargar();
+  }, [invitacionId]);
+
+  const actualizar = (campo: keyof typeof form, valor: any) => setForm(prev => ({ ...prev, [campo]: valor }));
+
+  const agregarItinerario = () => actualizar("itinerario", [...form.itinerario, { hora: "", evento: "" }]);
+  const quitarItinerario = (i: number) => actualizar("itinerario", form.itinerario.filter((_, idx) => idx !== i));
+  const actualizarItinerario = (i: number, campo: "hora" | "evento", valor: string) =>
+    actualizar("itinerario", form.itinerario.map((item, idx) => idx === i ? { ...item, [campo]: valor } : item));
+
+  const agregarPadrino = () => actualizar("padrinos", [...form.padrinos, ""]);
+  const quitarPadrino = (i: number) => actualizar("padrinos", form.padrinos.filter((_, idx) => idx !== i));
+  const actualizarPadrino = (i: number, valor: string) =>
+    actualizar("padrinos", form.padrinos.map((p, idx) => idx === i ? valor : p));
+
+  const handleSubirPortada = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSubiendoFoto("portada");
+    try {
+      const url = await subirImagenPublica(file);
+      actualizar("fotoPortada", url);
+    } catch (err: any) {
+      setError("Error al subir la foto de portada: " + err.message);
+    } finally {
+      setSubiendoFoto(null);
+    }
+  };
+
+  const handleSubirGaleria = async (e: ChangeEvent<HTMLInputElement>) => {
+    const files: File[] = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setSubiendoFoto("galeria");
+    try {
+      const espacioDisponible = maxFotos - form.fotos.length;
+      const aSubir = files.slice(0, Math.max(espacioDisponible, 0));
+      const urls: string[] = [];
+      for (const file of aSubir) {
+        urls.push(await subirImagenPublica(file));
+      }
+      actualizar("fotos", [...form.fotos, ...urls]);
+    } catch (err: any) {
+      setError("Error al subir fotos: " + err.message);
+    } finally {
+      setSubiendoFoto(null);
+    }
+  };
+
+  const handleEnviar = async () => {
+    if (!invitacionId || !window.supabaseClient) return;
+    setEnviando(true);
+    setError(null);
+    try {
+      const { data: actual, error: errLectura } = await window.supabaseClient
+        .from("invitaciones")
+        .select("datos_completos")
+        .eq("id", invitacionId)
+        .maybeSingle();
+      if (errLectura) throw errLectura;
+      const base: Partial<InvitacionDatos> = actual?.datos_completos || {};
+      const actualizado: Partial<InvitacionDatos> = {
+        ...base,
+        fecha: form.fecha,
+        mensajeBienvenida: form.mensajeBienvenida,
+        ceremonia: { lugar: form.ceremoniaLugar, hora: form.ceremoniaHora, direccion: form.ceremoniaDireccion, maps: form.ceremoniaMaps },
+        recepcion: { lugar: form.recepcionLugar, hora: form.recepcionHora, direccion: form.recepcionDireccion, maps: form.recepcionMaps },
+        itinerario: form.itinerario.filter(i => i.hora || i.evento),
+        dressCode: form.dressCode,
+        padres: form.padres.filter(p => p.trim()),
+        padrinos: form.padrinos.filter(p => p.trim()),
+        mesaRegalos: form.mesaRegalos,
+        datosBancarios: form.datosBancarios,
+        hashtag: form.hashtag,
+        cancion: form.cancion,
+        fotoPortada: form.fotoPortada,
+        fotos: form.fotos
+      };
+      const { error: errUpdate } = await window.supabaseClient
+        .from("invitaciones")
+        .update({
+          datos_completos: actualizado,
+          fecha_fiesta: form.fecha ? form.fecha.substring(0, 10) : null,
+          foto_portada_url: form.fotoPortada || "",
+          foto_galeria_urls: form.fotos
+        })
+        .eq("id", invitacionId);
+      if (errUpdate) throw errUpdate;
+      setEnviado(true);
+    } catch (e: any) {
+      setError("No se pudo guardar tu información: " + e.message);
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const inputClass = "w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 outline-none focus:border-indigo-500";
+  const labelClass = "block text-xs font-semibold text-slate-700 mb-1";
+
+  if (cargando) {
+    return (
+      <div className="w-screen h-screen fixed inset-0 flex flex-col items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-3"></div>
+        <p className="text-xs text-slate-500 font-medium font-sans">Cargando tu formulario...</p>
+      </div>
+    );
+  }
+
+  if (error && !nombreQuinceanera) {
+    return (
+      <div className="w-screen h-screen fixed inset-0 flex flex-col items-center justify-center bg-slate-50 px-6 text-center gap-2">
+        <span className="text-4xl mb-2">🌸</span>
+        <p className="text-sm font-semibold text-slate-700">{error}</p>
+      </div>
+    );
+  }
+
+  if (enviado) {
+    return (
+      <div className="w-screen h-screen fixed inset-0 flex flex-col items-center justify-center bg-slate-50 px-6 text-center gap-2">
+        <span className="text-4xl mb-2">🎉</span>
+        <p className="text-base font-bold text-slate-800">¡Gracias, {nombreQuinceanera}!</p>
+        <p className="text-sm text-slate-500 max-w-xs">Ya recibimos tu información. Nosotros seguimos con el diseño de tu invitación.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50 font-sans py-6 px-4">
+      <div className="max-w-xl mx-auto bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
+        <h1 className="text-lg font-extrabold text-slate-900 mb-1">🌸 Datos para tu invitación de XV</h1>
+        <p className="text-xs text-slate-500 mb-6">Hola{nombreQuinceanera ? `, ${nombreQuinceanera}` : ""} — llena lo que tengas listo y súbelo. Puedes volver a este mismo link después si te falta algo.</p>
+
+        {error && (
+          <div className="mb-4 p-2.5 bg-rose-50 border border-rose-300 rounded-lg text-[11px] text-rose-700 font-semibold">{error}</div>
+        )}
+
+        <div className="space-y-5">
+          <div>
+            <label className={labelClass}>Fecha y hora del evento</label>
+            <input type="datetime-local" value={form.fecha} onChange={(e) => actualizar("fecha", e.target.value)} className={inputClass} />
+          </div>
+
+          <div>
+            <label className={labelClass}>Mensaje de bienvenida (opcional)</label>
+            <textarea value={form.mensajeBienvenida} onChange={(e) => actualizar("mensajeBienvenida", e.target.value)} rows={2} placeholder="Ej. Hay momentos que son inolvidables..." className={inputClass + " resize-none"} />
+          </div>
+
+          <div className="border-t border-slate-100 pt-4">
+            <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide mb-2">💒 Ceremonia</h3>
+            <div className="space-y-2">
+              <input type="text" value={form.ceremoniaLugar} onChange={(e) => actualizar("ceremoniaLugar", e.target.value)} placeholder="Lugar" className={inputClass} />
+              <input type="time" value={form.ceremoniaHora} onChange={(e) => actualizar("ceremoniaHora", e.target.value)} className={inputClass} />
+              <input type="text" value={form.ceremoniaDireccion} onChange={(e) => actualizar("ceremoniaDireccion", e.target.value)} placeholder="Dirección" className={inputClass} />
+              <input type="text" value={form.ceremoniaMaps} onChange={(e) => actualizar("ceremoniaMaps", e.target.value)} placeholder="Link de Google Maps (opcional)" className={inputClass} />
+            </div>
+          </div>
+
+          <div className="border-t border-slate-100 pt-4">
+            <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide mb-2">🎉 Recepción</h3>
+            <div className="space-y-2">
+              <input type="text" value={form.recepcionLugar} onChange={(e) => actualizar("recepcionLugar", e.target.value)} placeholder="Lugar" className={inputClass} />
+              <input type="time" value={form.recepcionHora} onChange={(e) => actualizar("recepcionHora", e.target.value)} className={inputClass} />
+              <input type="text" value={form.recepcionDireccion} onChange={(e) => actualizar("recepcionDireccion", e.target.value)} placeholder="Dirección" className={inputClass} />
+              <input type="text" value={form.recepcionMaps} onChange={(e) => actualizar("recepcionMaps", e.target.value)} placeholder="Link de Google Maps (opcional)" className={inputClass} />
+            </div>
+          </div>
+
+          <div className="border-t border-slate-100 pt-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide">🗓️ Itinerario</h3>
+              <button type="button" onClick={agregarItinerario} className="text-[10px] font-bold text-indigo-600">+ Agregar</button>
+            </div>
+            <div className="space-y-2">
+              {form.itinerario.map((item, i) => (
+                <div key={i} className="flex gap-2">
+                  <input type="time" value={item.hora} onChange={(e) => actualizarItinerario(i, "hora", e.target.value)} className={inputClass + " w-28"} />
+                  <input type="text" value={item.evento} onChange={(e) => actualizarItinerario(i, "evento", e.target.value)} placeholder="Ej. Cena de gala" className={inputClass} />
+                  <button type="button" onClick={() => quitarItinerario(i)} className="text-rose-500 px-2">✕</button>
+                </div>
+              ))}
+              {form.itinerario.length === 0 && <p className="text-[11px] text-slate-400">Sin actividades todavía.</p>}
+            </div>
+          </div>
+
+          <div className="border-t border-slate-100 pt-4">
+            <label className={labelClass}>Código de vestimenta</label>
+            <input type="text" value={form.dressCode} onChange={(e) => actualizar("dressCode", e.target.value)} placeholder="Ej. Formal / Etiqueta" className={inputClass} />
+          </div>
+
+          <div className="border-t border-slate-100 pt-4">
+            <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide mb-2">👪 Padres</h3>
+            <div className="space-y-2">
+              <input type="text" value={form.padres[0] || ""} onChange={(e) => actualizar("padres", [e.target.value, form.padres[1] || ""])} placeholder="Nombre del papá" className={inputClass} />
+              <input type="text" value={form.padres[1] || ""} onChange={(e) => actualizar("padres", [form.padres[0] || "", e.target.value])} placeholder="Nombre de la mamá" className={inputClass} />
+            </div>
+          </div>
+
+          <div className="border-t border-slate-100 pt-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide">🤵👰 Padrinos</h3>
+              <button type="button" onClick={agregarPadrino} className="text-[10px] font-bold text-indigo-600">+ Agregar</button>
+            </div>
+            <div className="space-y-2">
+              {form.padrinos.map((p, i) => (
+                <div key={i} className="flex gap-2">
+                  <input type="text" value={p} onChange={(e) => actualizarPadrino(i, e.target.value)} placeholder="Nombre del padrino/madrina" className={inputClass} />
+                  <button type="button" onClick={() => quitarPadrino(i)} className="text-rose-500 px-2">✕</button>
+                </div>
+              ))}
+              {form.padrinos.length === 0 && <p className="text-[11px] text-slate-400">Sin padrinos todavía.</p>}
+            </div>
+          </div>
+
+          <div className="border-t border-slate-100 pt-4">
+            <label className={labelClass}>Mesa de regalos</label>
+            <textarea value={form.mesaRegalos} onChange={(e) => actualizar("mesaRegalos", e.target.value)} rows={2} placeholder="Ej. Liverpool No. Evento 12345" className={inputClass + " resize-none mb-3"} />
+            <label className={labelClass}>Datos bancarios (opcional)</label>
+            <textarea value={form.datosBancarios} onChange={(e) => actualizar("datosBancarios", e.target.value)} rows={2} placeholder="Banco, CLABE, beneficiario..." className={inputClass + " resize-none"} />
+          </div>
+
+          <div className="border-t border-slate-100 pt-4 grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass}>Hashtag (opcional)</label>
+              <input type="text" value={form.hashtag} onChange={(e) => actualizar("hashtag", e.target.value)} placeholder="#MisXV" className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Link de tu canción (opcional)</label>
+              <input type="text" value={form.cancion} onChange={(e) => actualizar("cancion", e.target.value)} placeholder="https://..." className={inputClass} />
+            </div>
+          </div>
+
+          <div className="border-t border-slate-100 pt-4">
+            <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide mb-2">📸 Fotos</h3>
+            <label className={labelClass}>Foto de portada</label>
+            {form.fotoPortada && (
+              <img src={form.fotoPortada} alt="Portada" className="w-full h-40 object-cover rounded-lg mb-2 border border-slate-200" referrerPolicy="no-referrer" />
+            )}
+            <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed border-indigo-200 rounded-lg cursor-pointer hover:bg-indigo-50/40 transition mb-4">
+              <span className="text-xs font-bold text-indigo-700">{subiendoFoto === "portada" ? "Subiendo..." : "Subir foto de portada"}</span>
+              <input type="file" accept="image/*" className="hidden" onChange={handleSubirPortada} disabled={!!subiendoFoto} />
+            </label>
+
+            <label className={labelClass}>Galería ({form.fotos.length}/{maxFotos})</label>
+            {form.fotos.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 mb-2">
+                {form.fotos.map((url, i) => (
+                  <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-slate-200">
+                    <img src={url} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    <button
+                      type="button"
+                      onClick={() => actualizar("fotos", form.fotos.filter((_, idx) => idx !== i))}
+                      className="absolute top-1 right-1 w-5 h-5 bg-black/60 text-white rounded-full text-[10px] flex items-center justify-center"
+                    >✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {form.fotos.length < maxFotos && (
+              <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed border-indigo-200 rounded-lg cursor-pointer hover:bg-indigo-50/40 transition">
+                <span className="text-xs font-bold text-indigo-700">{subiendoFoto === "galeria" ? "Subiendo..." : `Subir fotos (hasta ${maxFotos})`}</span>
+                <input type="file" accept="image/*" multiple className="hidden" onChange={handleSubirGaleria} disabled={!!subiendoFoto} />
+              </label>
+            )}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleEnviar}
+          disabled={enviando || !!subiendoFoto}
+          className="w-full mt-6 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white text-sm font-bold rounded-xl transition"
+        >
+          {enviando ? "Guardando..." : "Guardar mi información"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   // Cargar estado inicial desde la URL si existe o desde localStorage, o el editor precargado
   const getInitialState = (): { initialDatos: InvitacionDatos; initialTemaId: string; isView: boolean; isCatalog: boolean; initialCatalogTemaId: string | null; isEmbed: boolean } => {
@@ -744,6 +1126,14 @@ export default function App() {
   // Detectar parámetro ?catalog=true para mostrar el catálogo
   const queryParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
   const isCatalogMode_url = queryParams.get('catalog') === 'true';
+
+  // Modo "formulario de datos del cliente" (?intake=1&iid=<id de la fila en Supabase>): un link
+  // público (sin login) que el admin le manda al cliente desde "Mis Invitaciones" en cuanto
+  // sabe su paquete, para que el cliente mismo capture sus datos y suba sus fotos -- en vez de
+  // que el admin tenga que escribir todo a mano. No usa el blob `d` de la URL como el resto de
+  // los modos: lee y escribe directo la fila de Supabase por su id, así el link es cortito.
+  const isIntakeMode = queryParams.get('intake') === '1';
+  const intakeInvitacionId = queryParams.get('iid');
 
   // Estado principal de los datos de la invitación
   const [datos, setDatos] = useState<InvitacionDatos>(initialDatos);
@@ -1561,6 +1951,19 @@ export default function App() {
     window.open(`https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(msg)}`, "_blank");
   };
 
+  // Manda por WhatsApp el link público (?intake=1&iid=<id>) del formulario de datos/fotos para
+  // que el cliente lo llene él mismo, en vez de que el admin capture todo a mano.
+  const handleEnviarFormularioDatos = (row: InvitacionGuardadaRow) => {
+    if (!row.telefono_whatsapp?.trim()) {
+      mostrarToast("Esta invitación no tiene un número de WhatsApp guardado", "error");
+      return;
+    }
+    const numeroLimpio = row.telefono_whatsapp.replace(/[^0-9]/g, "");
+    const urlFormulario = `${window.location.origin}/?intake=1&iid=${row.id}`;
+    const msg = `¡Hola! 🌸 Para seguir con tu invitación de XV Años de *${row.nombre_quinceanera || "tu evento"}*, por favor llena tus datos y sube tus fotos en este link:\n${urlFormulario}`;
+    window.open(`https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(msg)}`, "_blank");
+  };
+
   // Descargar el archivo index.html standalone
   const handleDescargarHTML = () => {
     const htmlCompleto = generarHTMLFinal(datos, temaActual);
@@ -2240,6 +2643,10 @@ export default function App() {
 
   if (isEmbedMode) {
     return <div className="w-screen h-screen fixed inset-0 bg-white" />;
+  }
+
+  if (isIntakeMode) {
+    return <IntakeForm invitacionId={intakeInvitacionId} />;
   }
 
   if (isCatalogMode) {
@@ -4916,6 +5323,16 @@ export default function App() {
                                   Enviar
                                 </button>
                               </div>
+                            </div>
+
+                            <div>
+                              <button
+                                onClick={() => handleEnviarFormularioDatos(row)}
+                                className="w-full flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 rounded-lg text-[11px] font-bold transition"
+                              >
+                                📋 Enviar formulario de datos y fotos al cliente
+                              </button>
+                              <p className="text-[9px] text-slate-400 mt-1">El cliente llena fecha, ceremonia/recepción, itinerario, padrinos y sube sus fotos directamente — se guarda solo en esta invitación.</p>
                             </div>
 
                             <div>
