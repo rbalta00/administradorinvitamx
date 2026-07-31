@@ -674,6 +674,9 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
   // pueda ver quién ya confirmó sin depender de llevar la cuenta a mano leyendo WhatsApps
   // sueltos. Se recarga cada vez que abre este mismo link.
   const [confirmaciones, setConfirmaciones] = useState<ConfirmacionRSVP[] | null>(null);
+  // Estatus del pedido y avance de pago -- de solo lectura, así el cliente sabe en qué va su
+  // invitación y cuánto lleva pagado sin tener que preguntarte por WhatsApp.
+  const [pedidoInfo, setPedidoInfo] = useState<{ estado: string | null; precioTotal: number | null; precioPagado: number | null } | null>(null);
 
   const [form, setForm] = useState({
     fecha: "",
@@ -702,7 +705,7 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
       try {
         const { data, error: err } = await window.supabaseClient
           .from("invitaciones")
-          .select("nombre_quinceanera, datos_completos")
+          .select("nombre_quinceanera, datos_completos, estado, precio_total, precio_pagado")
           .eq("id", invitacionId)
           .maybeSingle();
         if (err) throw err;
@@ -712,6 +715,7 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
           return;
         }
         setNombreQuinceanera(data.nombre_quinceanera || "");
+        setPedidoInfo({ estado: data.estado || null, precioTotal: data.precio_total ?? null, precioPagado: data.precio_pagado ?? null });
         const dc: Partial<InvitacionDatos> = data.datos_completos || {};
         setMaxFotos(paquetes[(dc.paquete as "basico" | "premium" | "deluxe") || "basico"]?.maxFotos || 4);
         setForm(prev => ({
@@ -894,6 +898,23 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
         {error && (
           <div className="mb-4 p-2.5 bg-rose-50 border border-rose-300 rounded-lg text-[11px] text-rose-700 font-semibold">{error}</div>
         )}
+
+        {pedidoInfo && (pedidoInfo.estado || pedidoInfo.precioTotal) && (() => {
+          const estatusLabel = ESTATUS_PEDIDO.find(e => e.id === (pedidoInfo.estado || "cotizacion"))?.label || "🗨️ Cotización";
+          const falta = pedidoInfo.precioTotal != null ? pedidoInfo.precioTotal - (pedidoInfo.precioPagado || 0) : null;
+          return (
+            <div className="mb-6 p-4 bg-emerald-50/60 border border-emerald-200 rounded-2xl">
+              <h3 className="text-xs font-extrabold text-emerald-900 uppercase tracking-wide mb-1">📌 Estado de tu invitación</h3>
+              <p className="text-[13px] font-bold text-emerald-800 mb-1">{estatusLabel}</p>
+              {pedidoInfo.precioTotal != null && (
+                <p className="text-[11px] text-emerald-700">
+                  Pagado: ${(pedidoInfo.precioPagado || 0).toLocaleString("es-MX")} de ${pedidoInfo.precioTotal.toLocaleString("es-MX")} MXN
+                  {falta && falta > 0 ? ` · Falta: $${falta.toLocaleString("es-MX")} MXN` : " · ✅ Pagado por completo"}
+                </p>
+              )}
+            </div>
+          );
+        })()}
 
         {confirmaciones !== null && confirmaciones.length > 0 && (() => {
           const siConfirman = confirmaciones.filter(c => c.asistencia === "si");
