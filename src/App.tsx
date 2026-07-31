@@ -98,6 +98,16 @@ interface Abono {
   creado_en: string;
 }
 
+// Un aviso de pago mandado por el CLIENTE desde su propio link (tabla `avisos_pago`) -- todavía
+// sin revisar/aprobar por el admin, no confundir con un Abono ya confirmado.
+interface AvisoPago {
+  id: string;
+  monto: number | null;
+  comprobante_url: string | null;
+  nota: string | null;
+  creado_en: string;
+}
+
 // Helper functions for UTF-8 safe and compact Base64 encoding/decoding of state in URLs
 const KEY_MAP: Record<string, string> = {
   paquete: "p",
@@ -686,6 +696,16 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
   // Estatus del pedido y avance de pago -- de solo lectura, así el cliente sabe en qué va su
   // invitación y cuánto lleva pagado sin tener que preguntarte por WhatsApp.
   const [pedidoInfo, setPedidoInfo] = useState<{ estado: string | null; precioTotal: number | null; precioPagado: number | null } | null>(null);
+  // Aviso de pago del cliente: le permite decir "ya pagué" y subir su comprobante, sin tener
+  // que escribirle al admin por WhatsApp. El admin lo revisa y decide si lo registra como
+  // abono real -- esto NO actualiza precio_pagado directamente.
+  const [mostrarFormPago, setMostrarFormPago] = useState(false);
+  const [montoAvisoPago, setMontoAvisoPago] = useState("");
+  const [notaAvisoPago, setNotaAvisoPago] = useState("");
+  const [comprobantePagoUrl, setComprobantePagoUrl] = useState("");
+  const [subiendoComprobante, setSubiendoComprobante] = useState(false);
+  const [avisoPagoEnviado, setAvisoPagoEnviado] = useState(false);
+  const [enviandoAvisoPago, setEnviandoAvisoPago] = useState(false);
   // Invitados con pases asignados (solo lectura aquí -- esa lista la administra el admin,
   // no este formulario) -- se usa para saber quién de la lista de pases todavía no ha
   // confirmado por RSVP, y poder copiarle un recordatorio.
@@ -822,6 +842,45 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
     }
   };
 
+  const handleSubirComprobante = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSubiendoComprobante(true);
+    try {
+      const url = await subirImagenPublica(file);
+      setComprobantePagoUrl(url);
+    } catch (err: any) {
+      setError("Error al subir el comprobante: " + err.message);
+    } finally {
+      setSubiendoComprobante(false);
+    }
+  };
+
+  const handleEnviarAvisoPago = async () => {
+    if (!invitacionId || !window.supabaseClient) return;
+    if (!montoAvisoPago && !comprobantePagoUrl) {
+      setError("Ingresa el monto que pagaste o sube tu comprobante.");
+      return;
+    }
+    setEnviandoAvisoPago(true);
+    setError(null);
+    try {
+      const { error: errInsert } = await window.supabaseClient.from("avisos_pago").insert([{
+        invitacion_id: invitacionId,
+        monto: montoAvisoPago ? Number(montoAvisoPago) : null,
+        comprobante_url: comprobantePagoUrl || null,
+        nota: notaAvisoPago.trim() || null
+      }]);
+      if (errInsert) throw errInsert;
+      setAvisoPagoEnviado(true);
+      setMostrarFormPago(false);
+    } catch (err: any) {
+      setError("No se pudo enviar tu aviso de pago: " + err.message);
+    } finally {
+      setEnviandoAvisoPago(false);
+    }
+  };
+
   const handleEnviar = async () => {
     if (!invitacionId || !window.supabaseClient) return;
     setEnviando(true);
@@ -921,10 +980,61 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
               <h3 className="text-xs font-extrabold text-emerald-900 uppercase tracking-wide mb-1">📌 Estado de tu invitación</h3>
               <p className="text-[13px] font-bold text-emerald-800 mb-1">{estatusLabel}</p>
               {pedidoInfo.precioTotal != null && (
-                <p className="text-[11px] text-emerald-700">
+                <p className="text-[11px] text-emerald-700 mb-2">
                   Pagado: ${(pedidoInfo.precioPagado || 0).toLocaleString("es-MX")} de ${pedidoInfo.precioTotal.toLocaleString("es-MX")} MXN
                   {falta && falta > 0 ? ` · Falta: $${falta.toLocaleString("es-MX")} MXN` : " · ✅ Pagado por completo"}
                 </p>
+              )}
+
+              {avisoPagoEnviado ? (
+                <p className="text-[11px] font-bold text-emerald-800 bg-white/70 border border-emerald-200 rounded-lg px-2.5 py-2">✅ ¡Gracias! Ya recibimos tu aviso de pago, lo vamos a revisar.</p>
+              ) : !mostrarFormPago ? (
+                <button
+                  onClick={() => setMostrarFormPago(true)}
+                  className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 underline"
+                >
+                  💳 Ya pagué, avisar
+                </button>
+              ) : (
+                <div className="bg-white/70 border border-emerald-200 rounded-lg p-3 space-y-2">
+                  <input
+                    type="number"
+                    placeholder="¿Cuánto pagaste? (opcional)"
+                    value={montoAvisoPago}
+                    onChange={(e) => setMontoAvisoPago(e.target.value)}
+                    className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-[11px] outline-none focus:border-emerald-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Nota (opcional, ej. 'Pagué por transferencia')"
+                    value={notaAvisoPago}
+                    onChange={(e) => setNotaAvisoPago(e.target.value)}
+                    className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-[11px] outline-none focus:border-emerald-500"
+                  />
+                  {comprobantePagoUrl ? (
+                    <img src={comprobantePagoUrl} alt="Comprobante" className="h-24 rounded-lg border border-slate-200" referrerPolicy="no-referrer" />
+                  ) : (
+                    <label className="flex items-center justify-center gap-2 p-2 border-2 border-dashed border-emerald-300 rounded-lg cursor-pointer hover:bg-emerald-50/60 transition">
+                      <span className="text-[11px] font-bold text-emerald-700">{subiendoComprobante ? "Subiendo..." : "📎 Subir foto de tu comprobante (opcional)"}</span>
+                      <input type="file" accept="image/*" className="hidden" onChange={handleSubirComprobante} disabled={subiendoComprobante} />
+                    </label>
+                  )}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setMostrarFormPago(false)}
+                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[11px] font-bold rounded-lg transition"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handleEnviarAvisoPago}
+                      disabled={enviandoAvisoPago || subiendoComprobante}
+                      className="flex-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white text-[11px] font-bold rounded-lg transition"
+                    >
+                      {enviandoAvisoPago ? "Enviando..." : "Enviar aviso de pago"}
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           );
@@ -1615,6 +1725,9 @@ export default function App() {
   // historial en el panel de Pagos y estatus.
   const [abonosPorInvitacion, setAbonosPorInvitacion] = useState<Record<string, Abono[]>>({});
   const [historialAbonosExpandidoId, setHistorialAbonosExpandidoId] = useState<string | null>(null);
+  // Avisos de pago del cliente pendientes de revisar, por invitación.
+  const [avisosPagoPorInvitacion, setAvisosPagoPorInvitacion] = useState<Record<string, AvisoPago[]>>({});
+  const [montoAvisoManual, setMontoAvisoManual] = useState<Record<string, string>>({});
   const [cargandoAbonos, setCargandoAbonos] = useState(false);
   const [montoNuevoAbono, setMontoNuevoAbono] = useState<Record<string, string>>({});
   const [notaNuevoAbono, setNotaNuevoAbono] = useState<Record<string, string>>({});
@@ -2115,6 +2228,57 @@ export default function App() {
       mostrarToast(`Abono de $${monto.toLocaleString("es-MX")} registrado`, "success");
     } catch (err: any) {
       mostrarToast("Error al registrar abono: " + err.message, "error");
+    }
+  };
+
+  // Abre/cierra el panel de Pagos y estatus, y de paso trae los avisos de pago del cliente
+  // pendientes de revisar para esa invitación (solo la primera vez que se abre).
+  const togglePagosInvitacion = async (row: InvitacionGuardadaRow) => {
+    const abriendo = invitacionPagosExpandidaId !== row.id;
+    setInvitacionPagosExpandidaId(prev => prev === row.id ? null : row.id);
+    if (!abriendo || avisosPagoPorInvitacion[row.id] || !window.supabaseClient) return;
+    try {
+      const { data, error } = await window.supabaseClient
+        .from("avisos_pago")
+        .select("id, monto, comprobante_url, nota, creado_en")
+        .eq("invitacion_id", row.id)
+        .eq("revisado", false)
+        .order("creado_en", { ascending: false });
+      if (error) throw error;
+      setAvisosPagoPorInvitacion(prev => ({ ...prev, [row.id]: (data || []) as AvisoPago[] }));
+    } catch (err: any) {
+      mostrarToast("Error al cargar avisos de pago: " + err.message, "error");
+    }
+  };
+
+  // Aprueba un aviso de pago del cliente: lo registra como abono real (usa el monto que el
+  // cliente reportó, o el que el admin haya corregido/escrito a mano si no lo dio) y lo marca
+  // como revisado.
+  const handleAprobarAvisoPago = async (row: InvitacionGuardadaRow, aviso: AvisoPago, montoManual?: string) => {
+    const monto = aviso.monto || Number(montoManual || 0);
+    if (!monto || monto <= 0) {
+      mostrarToast("Escribe el monto del pago antes de registrarlo", "error");
+      return;
+    }
+    await handleRegistrarAbono(row, monto, aviso.nota || "Aviso de pago del cliente");
+    if (!window.supabaseClient) return;
+    try {
+      await window.supabaseClient.from("avisos_pago").update({ revisado: true }).eq("id", aviso.id);
+      setAvisosPagoPorInvitacion(prev => ({ ...prev, [row.id]: prev[row.id].filter(a => a.id !== aviso.id) }));
+    } catch (err: any) {
+      mostrarToast("El abono se registró, pero no se pudo marcar el aviso como revisado: " + err.message, "error");
+    }
+  };
+
+  // Descarta un aviso de pago sin registrar ningún abono (ej. era un duplicado o un error).
+  const handleDescartarAvisoPago = async (row: InvitacionGuardadaRow, aviso: AvisoPago) => {
+    if (!window.supabaseClient) return;
+    try {
+      await window.supabaseClient.from("avisos_pago").update({ revisado: true }).eq("id", aviso.id);
+      setAvisosPagoPorInvitacion(prev => ({ ...prev, [row.id]: prev[row.id].filter(a => a.id !== aviso.id) }));
+      mostrarToast("Aviso descartado", "success");
+    } catch (err: any) {
+      mostrarToast("Error: " + err.message, "error");
     }
   };
 
@@ -5585,7 +5749,7 @@ export default function App() {
                           </button>
                         )}
                         <button
-                          onClick={() => setInvitacionPagosExpandidaId(prev => prev === row.id ? null : row.id)}
+                          onClick={() => togglePagosInvitacion(row)}
                           className="text-[10px] font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1"
                         >
                           💳 {invitacionPagosExpandidaId === row.id ? "Ocultar pagos" : "Pagos y estatus"}
@@ -5604,8 +5768,40 @@ export default function App() {
                       {invitacionPagosExpandidaId === row.id && (() => {
                         const precioSugerido = paquetes[(row.datos_completos?.paquete || "basico")].precio.replace(/[^0-9.]/g, "");
                         const falta = (row.precio_total || 0) - (row.precio_pagado || 0);
+                        const avisosPendientes = avisosPagoPorInvitacion[row.id] || [];
                         return (
                           <div className="mt-3 pt-3 border-t border-slate-200/60 space-y-3">
+                            {avisosPendientes.length > 0 && (
+                              <div className="p-2.5 bg-amber-50 border border-amber-300 rounded-lg space-y-2">
+                                <p className="text-[11px] font-bold text-amber-800">🔔 {avisosPendientes.length} aviso(s) de pago del cliente sin revisar:</p>
+                                {avisosPendientes.map(aviso => (
+                                  <div key={aviso.id} className="bg-white border border-amber-200 rounded-lg p-2 flex items-center gap-2">
+                                    {aviso.comprobante_url && (
+                                      <img src={aviso.comprobante_url} alt="Comprobante" className="w-14 h-14 object-cover rounded border border-slate-200 shrink-0" referrerPolicy="no-referrer" />
+                                    )}
+                                    <div className="flex-1 min-w-0 text-[11px]">
+                                      {aviso.monto ? (
+                                        <p className="font-bold text-slate-800">${aviso.monto.toLocaleString("es-MX")} MXN</p>
+                                      ) : (
+                                        <input
+                                          type="number"
+                                          placeholder="El cliente no puso el monto -- escríbelo aquí"
+                                          value={montoAvisoManual[aviso.id] || ""}
+                                          onChange={(e) => setMontoAvisoManual(prev => ({ ...prev, [aviso.id]: e.target.value }))}
+                                          className="w-full px-1.5 py-1 bg-amber-50 border border-amber-300 rounded text-[11px] outline-none focus:border-amber-500 mb-1"
+                                        />
+                                      )}
+                                      {aviso.nota && <p className="text-slate-500 truncate">{aviso.nota}</p>}
+                                      <p className="text-slate-400">{new Date(aviso.creado_en).toLocaleDateString("es-MX")}</p>
+                                    </div>
+                                    <div className="flex flex-col gap-1 shrink-0">
+                                      <button onClick={() => handleAprobarAvisoPago(row, aviso, montoAvisoManual[aviso.id])} className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded-lg transition">✅ Registrar</button>
+                                      <button onClick={() => handleDescartarAvisoPago(row, aviso)} className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold rounded-lg transition">Descartar</button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                             <div className="flex items-center gap-2 flex-wrap">
                               <label className="text-[10px] font-bold text-slate-600 shrink-0">Estatus:</label>
                               <select
