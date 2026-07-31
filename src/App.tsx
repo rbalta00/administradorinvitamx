@@ -67,6 +67,7 @@ interface InvitacionGuardadaRow {
   pdf_pagado: boolean;
   notas: string | null;
   link_pago: string | null;
+  intake_actualizado_en: string | null;
 }
 
 // Estatus del pedido (columna `estado`), en el orden en que normalmente avanza una venta.
@@ -821,7 +822,10 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
           datos_completos: actualizado,
           fecha_fiesta: form.fecha ? form.fecha.substring(0, 10) : null,
           foto_portada_url: form.fotoPortada || "",
-          foto_galeria_urls: form.fotos
+          foto_galeria_urls: form.fotos,
+          // Marca cuándo fue la última vez que EL CLIENTE (no el admin) guardó desde este
+          // formulario, para que en "Mis Invitaciones" se vea claramente que ya respondió.
+          intake_actualizado_en: new Date().toISOString()
         })
         .eq("id", invitacionId);
       if (errUpdate) throw errUpdate;
@@ -1501,6 +1505,8 @@ export default function App() {
   const [invitacionExpandidaId, setInvitacionExpandidaId] = useState<string | null>(null);
   const [invitacionPagosExpandidaId, setInvitacionPagosExpandidaId] = useState<string | null>(null);
   const [busquedaInvitaciones, setBusquedaInvitaciones] = useState("");
+  const [filtroEstatusInvitaciones, setFiltroEstatusInvitaciones] = useState("todos");
+  const [filtroRapidoInvitaciones, setFiltroRapidoInvitaciones] = useState<"ninguno" | "pendientes" | "proximos">("ninguno");
   // Alta rápida de "Nuevo Cliente": lo primero que se hace al vender un paquete -- guarda un
   // registro en Supabase de inmediato (estatus "Cotización") con solo nombre + celular, antes
   // de llenar el resto de la invitación.
@@ -1722,12 +1728,32 @@ export default function App() {
     try {
       const { data, error } = await window.supabaseClient
         .from("invitaciones")
-        .select("id, nombre_quinceanera, fecha_fiesta, tema_elegido, estado, activo_hasta, updated_at, link_invitacion, datos_completos, telefono_whatsapp, precio_total, precio_pagado, pases_pagado, pdf_pagado, notas, link_pago")
+        .select("id, nombre_quinceanera, fecha_fiesta, tema_elegido, estado, activo_hasta, updated_at, link_invitacion, datos_completos, telefono_whatsapp, precio_total, precio_pagado, pases_pagado, pdf_pagado, notas, link_pago, intake_actualizado_en")
         .neq("id", FONDOS_ROW_ID)
         .order("updated_at", { ascending: false });
 
       if (error) throw error;
-      setListaInvitaciones((data || []) as InvitacionGuardadaRow[]);
+      let filas = (data || []) as InvitacionGuardadaRow[];
+
+      // Estatus automático "Evento pasado": si la fecha del evento ya pasó y el estatus sigue
+      // en cualquier etapa "activa" (no se toca si el admin ya lo archivó o ya lo había
+      // marcado como evento pasado), lo actualizamos aquí para que nadie tenga que acordarse
+      // de hacerlo a mano. Se revisa cada vez que se abre el panel.
+      const hoyISO = new Date().toISOString().substring(0, 10);
+      const idsAActualizar = filas
+        .filter(r => r.fecha_fiesta && r.fecha_fiesta < hoyISO && r.estado !== "evento_pasado" && r.estado !== "archivada")
+        .map(r => r.id);
+      if (idsAActualizar.length > 0) {
+        const { error: errAuto } = await window.supabaseClient
+          .from("invitaciones")
+          .update({ estado: "evento_pasado" })
+          .in("id", idsAActualizar);
+        if (!errAuto) {
+          filas = filas.map(r => idsAActualizar.includes(r.id) ? { ...r, estado: "evento_pasado" } : r);
+        }
+      }
+
+      setListaInvitaciones(filas);
     } catch (err: any) {
       mostrarToast("Error al cargar invitaciones: " + err.message, "error");
     } finally {
@@ -1757,6 +1783,38 @@ export default function App() {
       mostrarToast("Error al cargar confirmaciones: " + err.message, "error");
     } finally {
       setCargandoConfirmaciones(false);
+    }
+  };
+
+  // Corrige el número de personas de una confirmación ya recibida (ej. el invitado se
+  // equivocó al llenar el RSVP).
+  const handleActualizarPersonasConfirmacion = async (invitacionId: string, confirmacionId: string, numPersonas: number) => {
+    if (!window.supabaseClient) return;
+    try {
+      const { error } = await window.supabaseClient.from("confirmaciones").update({ num_personas: numPersonas }).eq("id", confirmacionId);
+      if (error) throw error;
+      setConfirmacionesPorInvitacion(prev => ({
+        ...prev,
+        [invitacionId]: prev[invitacionId].map(c => c.id === confirmacionId ? { ...c, num_personas: numPersonas } : c)
+      }));
+    } catch (err: any) {
+      mostrarToast("Error al actualizar: " + err.message, "error");
+    }
+  };
+
+  // Elimina una confirmación individual (ej. una respuesta duplicada o hecha por error).
+  const handleEliminarConfirmacion = async (invitacionId: string, confirmacionId: string) => {
+    if (!window.supabaseClient) return;
+    try {
+      const { error } = await window.supabaseClient.from("confirmaciones").delete().eq("id", confirmacionId);
+      if (error) throw error;
+      setConfirmacionesPorInvitacion(prev => ({
+        ...prev,
+        [invitacionId]: prev[invitacionId].filter(c => c.id !== confirmacionId)
+      }));
+      mostrarToast("Confirmación eliminada", "success");
+    } catch (err: any) {
+      mostrarToast("Error al eliminar: " + err.message, "error");
     }
   };
 
@@ -1962,6 +2020,41 @@ export default function App() {
     const urlFormulario = `${window.location.origin}/?intake=1&iid=${row.id}`;
     const msg = `¡Hola! 🌸 Para seguir con tu invitación de XV Años de *${row.nombre_quinceanera || "tu evento"}*, por favor llena tus datos y sube tus fotos en este link:\n${urlFormulario}`;
     window.open(`https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(msg)}`, "_blank");
+  };
+
+  // Exporta la lista de "Mis Invitaciones" (respetando los filtros/búsqueda activos) a un CSV
+  // descargable, para llevar cuentas fuera de la app (Excel, contador, etc.).
+  const escapeCSV = (valor: string | number | null | undefined): string => {
+    const texto = String(valor ?? "");
+    return /[",\n]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto;
+  };
+  const handleExportarInvitacionesCSV = () => {
+    const encabezados = ["Nombre", "Tema", "Fecha del evento", "Estatus", "Teléfono", "Precio total", "Precio pagado", "Falta pagar", "Pases pagado", "PDF pagado", "Notas"];
+    const filas = invitacionesFiltradas.map(row => {
+      const estatusLabel = ESTATUS_PEDIDO.find(e => e.id === (row.estado || "cotizacion"))?.label || row.estado || "";
+      const falta = (row.precio_total || 0) - (row.precio_pagado || 0);
+      return [
+        row.nombre_quinceanera || "",
+        temas.find(t => t.id === row.tema_elegido)?.nombre || row.tema_elegido || "",
+        row.fecha_fiesta || "",
+        estatusLabel,
+        row.telefono_whatsapp || "",
+        row.precio_total ?? "",
+        row.precio_pagado ?? "",
+        row.precio_total ? falta : "",
+        row.pases_pagado ? "Sí" : "No",
+        row.pdf_pagado ? "Sí" : "No",
+        row.notas || ""
+      ].map(escapeCSV).join(",");
+    });
+    const csv = "﻿" + [encabezados.join(","), ...filas].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `mis-invitaciones-${new Date().toISOString().substring(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   // Descargar el archivo index.html standalone
@@ -2915,11 +3008,28 @@ export default function App() {
     );
   }
 
-  // Filtro del panel "Mis Invitaciones" por nombre de la quinceañera o nombre del tema.
+  // Saldo pendiente y "evento en los próximos 14 días" -- se usan tanto para los chips-resumen
+  // clicables como para el filtro rápido de la lista, así que van en un solo lugar.
+  const invitacionTienePendiente = (row: InvitacionGuardadaRow) =>
+    row.estado !== "archivada" && ((row.precio_total || 0) - (row.precio_pagado || 0)) > 0;
+  const invitacionEsProxima = (row: InvitacionGuardadaRow) => {
+    if (!row.fecha_fiesta || row.estado === "archivada" || row.estado === "evento_pasado") return false;
+    const dias = (new Date(row.fecha_fiesta + "T00:00:00").getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+    return dias >= 0 && dias <= 14;
+  };
+  const invitacionesConSaldoPendiente = listaInvitaciones.filter(invitacionTienePendiente);
+  const totalSaldoPendiente = invitacionesConSaldoPendiente.reduce((acc, r) => acc + ((r.precio_total || 0) - (r.precio_pagado || 0)), 0);
+  const invitacionesProximas = listaInvitaciones.filter(invitacionEsProxima);
+
+  // Filtro del panel "Mis Invitaciones" por nombre de la quinceañera/tema, estatus, y el chip
+  // rápido de "con saldo pendiente" / "evento próximo" que se activa desde el resumen de arriba.
   const invitacionesFiltradas = (() => {
     const q = busquedaInvitaciones.trim().toLowerCase();
-    if (!q) return listaInvitaciones;
     return listaInvitaciones.filter(row => {
+      if (filtroEstatusInvitaciones !== "todos" && (row.estado || "cotizacion") !== filtroEstatusInvitaciones) return false;
+      if (filtroRapidoInvitaciones === "pendientes" && !invitacionTienePendiente(row)) return false;
+      if (filtroRapidoInvitaciones === "proximos" && !invitacionEsProxima(row)) return false;
+      if (!q) return true;
       const temaNombre = temas.find(t => t.id === row.tema_elegido)?.nombre || row.tema_elegido || "";
       return (row.nombre_quinceanera || "").toLowerCase().includes(q) || temaNombre.toLowerCase().includes(q);
     });
@@ -5126,6 +5236,15 @@ export default function App() {
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-lg font-extrabold text-slate-900">📋 Mis Invitaciones</h3>
               <div className="flex items-center gap-2">
+                {listaInvitaciones.length > 0 && (
+                  <button
+                    onClick={handleExportarInvitacionesCSV}
+                    title="Descargar la lista visible como CSV (Excel)"
+                    className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg transition flex items-center gap-1.5"
+                  >
+                    ⬇️ CSV
+                  </button>
+                )}
                 <button
                   onClick={() => setMostrarNuevoCliente(true)}
                   className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5"
@@ -5145,13 +5264,42 @@ export default function App() {
             </p>
 
             {listaInvitaciones.length > 0 && (
-              <input
-                type="text"
-                value={busquedaInvitaciones}
-                onChange={(e) => setBusquedaInvitaciones(e.target.value)}
-                placeholder="🔎 Buscar por nombre de la quinceañera o tema..."
-                className="w-full px-3 py-2 mb-4 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 outline-none focus:border-indigo-500"
-              />
+              <div className="flex gap-2 mb-4 flex-wrap">
+                <button
+                  onClick={() => setFiltroRapidoInvitaciones(prev => prev === "pendientes" ? "ninguno" : "pendientes")}
+                  disabled={invitacionesConSaldoPendiente.length === 0}
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition disabled:opacity-40 disabled:cursor-not-allowed ${filtroRapidoInvitaciones === "pendientes" ? "bg-amber-600 border-amber-600 text-white" : "bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100"}`}
+                >
+                  💰 {invitacionesConSaldoPendiente.length} con saldo pendiente (${totalSaldoPendiente.toLocaleString("es-MX")} MXN)
+                </button>
+                <button
+                  onClick={() => setFiltroRapidoInvitaciones(prev => prev === "proximos" ? "ninguno" : "proximos")}
+                  disabled={invitacionesProximas.length === 0}
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition disabled:opacity-40 disabled:cursor-not-allowed ${filtroRapidoInvitaciones === "proximos" ? "bg-indigo-600 border-indigo-600 text-white" : "bg-indigo-50 border-indigo-300 text-indigo-800 hover:bg-indigo-100"}`}
+                >
+                  📅 {invitacionesProximas.length} con evento en los próximos 14 días
+                </button>
+              </div>
+            )}
+
+            {listaInvitaciones.length > 0 && (
+              <div className="flex gap-2 mb-4">
+                <input
+                  type="text"
+                  value={busquedaInvitaciones}
+                  onChange={(e) => setBusquedaInvitaciones(e.target.value)}
+                  placeholder="🔎 Buscar por nombre de la quinceañera o tema..."
+                  className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 outline-none focus:border-indigo-500"
+                />
+                <select
+                  value={filtroEstatusInvitaciones}
+                  onChange={(e) => setFiltroEstatusInvitaciones(e.target.value)}
+                  className="px-2 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 outline-none focus:border-indigo-500"
+                >
+                  <option value="todos">Todos los estatus</option>
+                  {ESTATUS_PEDIDO.map(e => <option key={e.id} value={e.id}>{e.label}</option>)}
+                </select>
+              </div>
             )}
 
             {cargandoMisInvitaciones ? (
@@ -5159,7 +5307,7 @@ export default function App() {
             ) : listaInvitaciones.length === 0 ? (
               <p className="text-sm text-slate-500 py-8 text-center">Aún no has guardado ninguna invitación. Usa "💾 Guardar en Supabase" para que aparezca aquí.</p>
             ) : invitacionesFiltradas.length === 0 ? (
-              <p className="text-sm text-slate-500 py-8 text-center">Ninguna invitación coincide con "{busquedaInvitaciones}".</p>
+              <p className="text-sm text-slate-500 py-8 text-center">Ninguna invitación coincide con estos filtros{busquedaInvitaciones ? ` ("${busquedaInvitaciones}")` : ""}.</p>
             ) : (
               <div className="space-y-3">
                 {invitacionesFiltradas.map((row) => {
@@ -5177,6 +5325,13 @@ export default function App() {
                             )}
                             {vigenciaVencida && (
                               <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[9px] font-bold uppercase">Vigencia vencida</span>
+                            )}
+                            {row.intake_actualizado_en ? (
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[9px] font-bold" title={new Date(row.intake_actualizado_en).toLocaleString("es-MX")}>
+                                📋 Cliente respondió {new Date(row.intake_actualizado_en).toLocaleDateString("es-MX")}
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-500 text-[9px] font-bold">📋 Sin respuesta del cliente</span>
                             )}
                           </div>
                           <span className="block text-[11px] text-slate-500 mt-0.5">
@@ -5367,13 +5522,37 @@ export default function App() {
                                   </p>
                                 );
                               })()}
-                              <div className="space-y-1 max-h-40 overflow-y-auto">
+                              <div className="space-y-1 max-h-52 overflow-y-auto">
                                 {confirmacionesPorInvitacion[row.id].map(c => (
-                                  <div key={c.id} className="flex items-center justify-between text-[11px] bg-white border border-slate-200 rounded-lg px-2.5 py-1.5">
-                                    <span className="font-semibold text-slate-800">{c.nombre_invitado}</span>
-                                    <span className={c.asistencia === "si" ? "text-emerald-600 font-bold" : "text-rose-500 font-bold"}>
-                                      {c.asistencia === "si" ? `✅ ${c.num_personas} persona(s)` : "❌ No asiste"}
-                                    </span>
+                                  <div key={c.id} className="flex items-center justify-between gap-2 text-[11px] bg-white border border-slate-200 rounded-lg px-2.5 py-1.5">
+                                    <span className="font-semibold text-slate-800 truncate">{c.nombre_invitado}</span>
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      {c.asistencia === "si" ? (
+                                        <>
+                                          <span className="text-emerald-600 font-bold">✅</span>
+                                          <input
+                                            type="number"
+                                            min={1}
+                                            defaultValue={c.num_personas}
+                                            onBlur={(e) => {
+                                              const valor = Number(e.target.value) || 1;
+                                              if (valor !== c.num_personas) handleActualizarPersonasConfirmacion(row.id, c.id, valor);
+                                            }}
+                                            className="w-12 px-1 py-0.5 bg-slate-50 border border-slate-200 rounded text-center outline-none focus:border-indigo-500"
+                                          />
+                                          <span className="text-slate-500">persona(s)</span>
+                                        </>
+                                      ) : (
+                                        <span className="text-rose-500 font-bold">❌ No asiste</span>
+                                      )}
+                                      <button
+                                        onClick={() => handleEliminarConfirmacion(row.id, c.id)}
+                                        title="Eliminar esta confirmación"
+                                        className="text-slate-300 hover:text-rose-500 transition"
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </button>
+                                    </div>
                                   </div>
                                 ))}
                               </div>
