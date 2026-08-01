@@ -1433,6 +1433,12 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
       // la escritura, el RSVP real sigue siendo el mensaje de WhatsApp de abajo -- esto es solo
       // para que el admin pueda ver un conteo de confirmaciones sin depender de leer WhatsApp.
       try {
+        // "iid" solo existe en un link de invitación REAL ya guardada (ver getShareUrl en
+        // App.tsx) -- las demos públicas (catálogo, Estilos de Presentación, demo
+        // personalizada) nunca lo llevan, así que sirve para distinguir un RSVP de a de veras
+        // de alguien nomás jugando con el formulario en una demo. Sin este filtro, cada quien
+        // que probara "Confirmar Asistencia" en cualquier demo le mandaba un aviso de Telegram
+        // al admin idéntico a un invitado real (confirmado -- era un bug real).
         const iid = new URLSearchParams(window.location.search).get('iid');
         if (iid && SUPABASE_URL_RSVP && SUPABASE_ANON_KEY_RSVP) {
           fetch(SUPABASE_URL_RSVP + '/rest/v1/confirmaciones', {
@@ -1451,12 +1457,14 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
             })
           }).catch(() => {});
         }
-        const txtEstadoAviso = asistencia === 'si' ? 'SÍ asistirá' : 'NO asistirá';
-        fetch('/api/notify-telegram', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mensaje: '🎉 ' + nombre + ' confirmó: ' + txtEstadoAviso + ' (' + pases + ' pases) a los XV de ${escBacktick(datos.nombre)}' })
-        }).catch(() => {});
+        if (iid) {
+          const txtEstadoAviso = asistencia === 'si' ? 'SÍ asistirá' : 'NO asistirá';
+          fetch('/api/notify-telegram', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mensaje: '🎉 ' + nombre + ' confirmó: ' + txtEstadoAviso + ' (' + pases + ' pases) a los XV de ${escBacktick(datos.nombre)}' })
+          }).catch(() => {});
+        }
       } catch (e) { /* nunca debe impedir que el RSVP por WhatsApp funcione */ }
 
       const txtAsistira = asistencia === 'si'
