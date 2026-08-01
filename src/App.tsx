@@ -2490,6 +2490,61 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
+  // Respaldo completo de TODAS las invitaciones guardadas (no solo las visibles bajo el
+  // filtro/búsqueda actual, a diferencia del CSV de arriba -- un respaldo que se le puede
+  // olvidar quitar un filtro y quedar incompleto no sirve como respaldo). Incluye el
+  // datos_completos entero de cada una, así que este único archivo basta para reconstruir
+  // cualquier invitación si algo le pasa a la fila en Supabase.
+  const handleRespaldoCompletoInvitaciones = () => {
+    const respaldo = listaInvitaciones.map(row => ({
+      id: row.id,
+      nombre_quinceanera: row.nombre_quinceanera,
+      fecha_fiesta: row.fecha_fiesta,
+      tema_elegido: row.tema_elegido,
+      estado: row.estado,
+      precio_total: row.precio_total,
+      precio_pagado: row.precio_pagado,
+      telefono_whatsapp: row.telefono_whatsapp,
+      notas: row.notas,
+      link_pago: row.link_pago,
+      activo_hasta: row.activo_hasta,
+      intake_actualizado_en: row.intake_actualizado_en,
+      datos_completos: row.datos_completos
+    }));
+    const blob = new Blob([JSON.stringify(respaldo, null, 2)], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `respaldo-completo-invitaciones-${new Date().toISOString().substring(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    mostrarToast(`Respaldo de ${respaldo.length} invitación${respaldo.length === 1 ? "" : "es"} descargado`, "success");
+  };
+
+  // Archiva en un solo paso todas las invitaciones cuyo evento ya pasó (estado
+  // "evento_pasado", puesto ahí automáticamente por cargarListaInvitaciones) -- antes había
+  // que abrir cada una y cambiarle el estatus a mano de una en una.
+  const handleArchivarEventosPasados = () => {
+    const idsAArchivar = invitacionesArchivablesPorEventoPasado.map(r => r.id);
+    if (idsAArchivar.length === 0) return;
+    const n = idsAArchivar.length;
+    setConfirmModal({
+      titulo: "Archivar eventos pasados",
+      mensaje: `¿Archivar ${n} invitación${n === 1 ? "" : "es"} marcada${n === 1 ? "" : "s"} como "Evento pasado"? Esto solo cambia su estatus a "Archivada" -- no borra nada ni afecta los links ya compartidos con los invitados o el cliente.`,
+      onAceptar: async () => {
+        if (!window.supabaseClient) return;
+        try {
+          const { error } = await window.supabaseClient.from("invitaciones").update({ estado: "archivada" }).in("id", idsAArchivar);
+          if (error) throw error;
+          setListaInvitaciones(prev => prev.map(r => idsAArchivar.includes(r.id) ? { ...r, estado: "archivada" } : r));
+          mostrarToast(`${n} invitación${n === 1 ? "" : "es"} archivada${n === 1 ? "" : "s"}`, "success");
+        } catch (err: any) {
+          mostrarToast("Error al archivar: " + err.message, "error");
+        }
+      }
+    });
+  };
+
   // Descargar el archivo index.html standalone
   const handleDescargarHTML = () => {
     const htmlCompleto = generarHTMLFinal(datos, temaActual);
@@ -3601,6 +3656,10 @@ export default function App() {
   const totalSaldoPendiente = invitacionesConSaldoPendiente.reduce((acc, r) => acc + ((r.precio_total || 0) - (r.precio_pagado || 0)), 0);
   const invitacionesProximas = listaInvitaciones.filter(invitacionEsProxima);
   const invitacionesUrgentes = listaInvitaciones.filter(row => invitacionEsProxima(row) && invitacionTienePendiente(row));
+  // Para el archivado en lote: invitaciones cuyo evento ya pasó y que todavía no se han
+  // archivado a mano -- se auto-marcan "evento_pasado" al cargar la lista (ver
+  // cargarListaInvitaciones), así que este botón solo necesita dar el siguiente paso.
+  const invitacionesArchivablesPorEventoPasado = listaInvitaciones.filter(r => r.estado === "evento_pasado");
 
   // Dashboard de ingresos: abonosTodos (tabla `abonos`, con fecha real de cada pago) es la
   // fuente para el histórico mes a mes; listaInvitaciones sirve para los totales por
@@ -5769,7 +5828,7 @@ export default function App() {
 
       {/* MODAL DE CONFIRMACIÓN */}
       {confirmModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+        <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-sm w-full shadow-2xl animate-scaleIn">
             <h4 className="text-sm font-extrabold text-slate-900 mb-2">{confirmModal.titulo}</h4>
             <p className="text-xs text-slate-600 leading-relaxed mb-6">{confirmModal.mensaje}</p>
@@ -5787,7 +5846,7 @@ export default function App() {
                   confirmModal.onAceptar();
                   setConfirmModal(null);
                 }}
-                className="px-4 py-2 bg-indigo-650 hover:bg-indigo-700 text-white text-xs font-extrabold rounded-lg transition cursor-pointer shadow-sm"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold rounded-lg transition cursor-pointer shadow-sm"
               >
                 Proceder
               </button>
@@ -5953,6 +6012,24 @@ export default function App() {
                     className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg transition flex items-center gap-1.5"
                   >
                     ⬇️ CSV
+                  </button>
+                )}
+                {listaInvitaciones.length > 0 && (
+                  <button
+                    onClick={handleRespaldoCompletoInvitaciones}
+                    title="Descargar un respaldo JSON completo (todos los campos, todas las invitaciones) para reconstruir cualquiera si hace falta"
+                    className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg transition flex items-center gap-1.5"
+                  >
+                    🗄️ Respaldo completo
+                  </button>
+                )}
+                {invitacionesArchivablesPorEventoPasado.length > 0 && (
+                  <button
+                    onClick={handleArchivarEventosPasados}
+                    title={`Archivar de un solo paso las ${invitacionesArchivablesPorEventoPasado.length} invitaciones con evento ya pasado`}
+                    className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg transition flex items-center gap-1.5"
+                  >
+                    📦 Archivar {invitacionesArchivablesPorEventoPasado.length} pasados
                   </button>
                 )}
                 <button
