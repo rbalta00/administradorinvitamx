@@ -2832,6 +2832,16 @@ export default function App() {
 
   // Compartir datos de la invitación final por WhatsApp
   const handleEnviarWhatsApp = (overrideInvitadoIndex?: number) => {
+    // validarInvitacion() ya detecta un WhatsApp de confirmación mal escrito, pero solo se
+    // muestra como un aviso pasivo en la sección de compartir -- el admin puede no llegar a
+    // verlo y mandar el link igual. Aquí se avisa justo en el momento que de verdad importa
+    // (al mandar el link), sin bloquear el envío -- misma filosofía que validarInvitacion:
+    // avisa, no bloquea, porque el admin puede querer compartir un WIP a propósito.
+    const soloDigitosWhatsapp = (datos.whatsappConfirmacion || "").replace(/[^0-9]/g, "");
+    if (soloDigitosWhatsapp.length < 10 || soloDigitosWhatsapp.length > 13) {
+      mostrarToast("⚠️ El WhatsApp de confirmación de asistencia no parece válido — los invitados no podrán confirmarte por ahí (revisa la pestaña Quinceañera)", "error");
+    }
+
     const targetIndex = typeof overrideInvitadoIndex === "number" ? overrideInvitadoIndex : selectedInvitadoIndex;
     const urlFinal = aplicarModoMuestra(getShareUrl(targetIndex));
     const nombreQuince = datos.nombre || "Sophia Valeria";

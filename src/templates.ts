@@ -1420,7 +1420,12 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
     function enviarRSVPWhatsApp() {
       const nombre = document.getElementById('rsvp-nombre').value.trim();
       const asistencia = document.getElementById('rsvp-asistencia').value;
-      const pases = document.getElementById('rsvp-pases').value || "1";
+      // El input tiene min="1" max="10", pero eso es solo cosmético (HTML no impide escribir
+      // fuera de ese rango, y nada impide llamar esta función o el REST de Supabase directo
+      // sin pasar por el input). Se acota aquí de verdad para que un número absurdo no
+      // descuadre el conteo real de "personas confirmadas" que ve la familia y el admin.
+      const pasesNum = Math.min(Math.max(parseInt(document.getElementById('rsvp-pases').value, 10) || 1, 1), 10);
+      const pases = String(pasesNum);
 
       if (!nombre) {
         alert("Por favor ingresa tu nombre para proceder con la confirmación de asistencia.");
@@ -1450,7 +1455,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
             invitacion_id: iid,
             nombre_invitado: nombre,
             asistencia: asistencia,
-            num_personas: parseInt(pases, 10) || 1
+            num_personas: pasesNum
           });
           // Evita duplicar la fila si esta misma persona ya había confirmado antes (doble
           // clic, recargar la página, etc.) -- si ya existe una confirmación con el mismo
