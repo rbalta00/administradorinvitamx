@@ -1536,6 +1536,9 @@ export default function App() {
   // su propia invitación al instante (sin backend) -- se resetea al abrir la demo de otro tema.
   const [catalogDemoNombre, setCatalogDemoNombre] = useState("");
   const [catalogDemoFecha, setCatalogDemoFecha] = useState("");
+  // Paquete elegido para la demo personalizada -- por default Premium (no "todo incluido" desde
+  // el inicio) para que el visitante vea exactamente qué trae SU paquete, no el Deluxe completo.
+  const [catalogDemoPaquete, setCatalogDemoPaquete] = useState<"basico" | "premium" | "deluxe">("premium");
 
   // Guarda UN fondo de tema en Supabase sin arriesgar los demás. Antes, handleBgImageUpload y
   // handleGuardarEnlaceCloudinary armaban el objeto completo a partir de localStorage y lo
@@ -3211,6 +3214,10 @@ export default function App() {
             (() => {
               const temaDemoSel = temas.find(t => t.id === selectedCatalogTemaId) || temas[0];
               const datosDemoBase = getDatosVisualizacionCatalog(temaDemoSel, datos);
+              // Secciones a la carta que NO vienen incluidas según el paquete elegido -- misma
+              // política real usada en Nuevo Cliente/paquetes.ts, para que la demo no le haga
+              // creer al visitante que todo viene incluido sin importar qué compre.
+              const seccionesExcluidasPorPaquete = catalogDemoPaquete === "deluxe" ? [] : ["pases"];
               const datosDemoPersonalizada = {
                 ...datosDemoBase,
                 ...(catalogDemoNombre.trim() ? { nombre: catalogDemoNombre.trim() } : {}),
@@ -3218,12 +3225,13 @@ export default function App() {
                 // ("YYYY-MM-DDTHH:mm"); una fecha sola se interpreta como UTC y se corre un día
                 // en zonas horarias negativas (confirmado en vivo con GMT-6).
                 ...(catalogDemoFecha ? { fecha: `${catalogDemoFecha}T19:00` } : {}),
-                seccionesExcluidas: ["apertura"],
+                paquete: catalogDemoPaquete,
+                seccionesExcluidas: ["apertura", ...seccionesExcluidasPorPaquete],
                 estiloCajasSecciones: catalogDemoEstiloCajas
               };
               const handleEnviarDemoPersonalizada = () => {
-                const linkPersonalizado = `${window.location.origin}/?v=1&d=${encodeState({ ...datosDemoPersonalizada, seccionesExcluidas: (datosDemoBase.seccionesExcluidas || []).filter((s: string) => s !== "apertura") })}`;
-                const msg = `¡Hola! Así se vería mi invitación de XV años (tema "${temaDemoSel.nombre}"${catalogDemoNombre.trim() ? ` a nombre de ${catalogDemoNombre.trim()}` : ""}): ${linkPersonalizado}`;
+                const linkPersonalizado = `${window.location.origin}/?v=1&d=${encodeState({ ...datosDemoPersonalizada, seccionesExcluidas: seccionesExcluidasPorPaquete })}`;
+                const msg = `¡Hola! Así se vería mi invitación de XV años (tema "${temaDemoSel.nombre}", paquete ${paquetes[catalogDemoPaquete].nombre}${catalogDemoNombre.trim() ? `, a nombre de ${catalogDemoNombre.trim()}` : ""}): ${linkPersonalizado}`;
                 window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, "_blank");
               };
               return (
@@ -3245,6 +3253,20 @@ export default function App() {
                       onChange={(e) => setCatalogDemoFecha(e.target.value)}
                       className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 outline-none focus:border-indigo-500"
                     />
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Paquete</label>
+                      <div className="flex gap-1">
+                        {(Object.keys(paquetes) as Array<"basico" | "premium" | "deluxe">).map((key) => (
+                          <button
+                            key={key}
+                            onClick={() => setCatalogDemoPaquete(key)}
+                            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold border-2 transition cursor-pointer capitalize ${catalogDemoPaquete === key ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"}`}
+                          >
+                            {paquetes[key].nombre}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                     {(catalogDemoNombre.trim() || catalogDemoFecha) && (
                       <button
                         onClick={handleEnviarDemoPersonalizada}
@@ -3266,7 +3288,11 @@ export default function App() {
                       </button>
                     ))}
                   </div>
-                  <div className="w-full h-[calc(100vh-240px)] rounded-2xl border border-slate-200 overflow-hidden shadow-xl bg-white">
+                  <p className="text-center text-[11px] font-bold text-slate-500">
+                    Viendo cómo se vería tu paquete: <span className="text-indigo-600">{paquetes[catalogDemoPaquete].nombre}</span> ({paquetes[catalogDemoPaquete].precio})
+                    {seccionesExcluidasPorPaquete.includes("pases") && " — Pases de Entrada no incluidos en este paquete"}
+                  </p>
+                  <div className="w-full h-[calc(100vh-260px)] rounded-2xl border border-slate-200 overflow-hidden shadow-xl bg-white">
                     <iframe
                       srcDoc={generarHTMLFinal(datosDemoPersonalizada, temaDemoSel)}
                       className="w-full h-full border-0"
@@ -3448,7 +3474,7 @@ export default function App() {
                         {/* Botones de acción */}
                         <div className="pt-2 flex flex-col gap-2">
                           <button
-                            onClick={() => { setSelectedCatalogTemaId(t.id); setCatalogDemoEstiloCajas("normal"); setCatalogDemoNombre(""); setCatalogDemoFecha(""); }}
+                            onClick={() => { setSelectedCatalogTemaId(t.id); setCatalogDemoEstiloCajas("normal"); setCatalogDemoNombre(""); setCatalogDemoFecha(""); setCatalogDemoPaquete("premium"); }}
                             className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all duration-200 active:scale-95 cursor-pointer text-center shadow-md flex items-center justify-center gap-1.5"
                           >
                             Ver Demo en Vivo 👁️✨
