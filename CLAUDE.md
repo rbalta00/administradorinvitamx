@@ -44,6 +44,15 @@ Fully working end-to-end — confirmed live (a real "ping" reached the admin's T
 - `middleware.ts`'s matcher is narrowed to `/((?!assets/|api/).*)` — **`/api/*` must stay excluded from the Basic Auth check**, since anonymous public visitors (guest RSVP, intake form, catalog demo) call this endpoint directly and never carry Basic Auth credentials. Without this exclusion the middleware returns 401 before the function ever runs (confirmed live — this was broken from when the feature first shipped until 2026-08-01).
 - Bot: username `invitqmxbot` (created via @BotFather, first_name "Invitamxbot"). Token and chat_id are set as `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` in Vercel (production + preview).
 
+### Anti-spam rate limiting on public writes (added 2026-08-01)
+
+`confirmaciones`, `avisos_pago`, and the intake form's `invitaciones` update are all written directly from anonymous, unauthenticated pages using the public anon key (RLS is "allow all" on every table — there's no backend proxying these writes). Rate limiting is enforced **in Postgres itself**, via `BEFORE INSERT`/`BEFORE UPDATE` triggers, so it can't be bypassed by calling the REST API directly instead of going through the app:
+
+- `confirmaciones` and `avisos_pago` both already had a `invitacion_id → invitaciones.id` foreign key, which means an attacker can't spam rows under a random/made-up invitation id — a real (unguessable) UUID is required. So the added triggers (`rl_confirmaciones`, `rl_avisos_pago`) only need to rate-limit *known* invitation ids: max 15 confirmaciones / 5 avisos de pago per invitación per 10 minutes, plus a generous global circuit-breaker (40 / 20 per 5 minutes across the whole table) in case multiple real ids get spammed at once.
+- The intake form (`?intake=1&iid=...`) only ever touches `invitaciones.intake_actualizado_en` on save — the admin editor's own saves never set that column — so `rl_invitaciones_intake` fires only on that column changing (`when (new.intake_actualizado_en is distinct from old.intake_actualizado_en)`) and rejects resubmits less than 15 seconds apart, without ever touching the admin's normal editing flow.
+- All three raise a plain `raise exception 'rate_limit_exceeded: ...'`, which PostgREST turns into an HTTP error response. The RSVP path (plain `fetch` in `templates.ts`) already silently swallows all insert failures (`.catch(() => {})`, same as any network error), so a rate-limited guest just doesn't get a DB row recorded — no UI change needed there. `avisos_pago` and the intake form go through `supabase-js` in `App.tsx`, whose existing `try/catch` already surfaces `err.message` (the Spanish rate-limit text) in the on-page error banner.
+- Verified live by scripting 20 rapid inserts against a real invitación id (blocked at #16) and two back-to-back intake updates (second one rejected).
+
 ## Project overview
 
 "Generador de Invitaciones XV" — a single-page React app for building and sharing digital invitations for Mexican quinceañera (XV años) parties. It's built and iterated on via Google AI Studio; the codebase is a single-app Vite project with (almost) no backend of its own.
