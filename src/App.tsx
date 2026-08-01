@@ -2786,6 +2786,18 @@ export default function App() {
         problemas.push("La fecha del evento ya pasó");
       }
     }
+    // El enlace de Maps es texto libre y opcional (la dirección escrita ya se muestra aparte),
+    // pero un error común es pegar la dirección en vez del link de compartir de Google Maps --
+    // eso deja el botón "Cómo llegar" roto sin que nada lo note. Solo se avisa si SE ESCRIBIÓ
+    // algo y no tiene pinta de URL; un campo vacío no es un error, solo falta ese dato.
+    const revisarMaps = (valor: string | undefined, etiqueta: string) => {
+      const texto = (valor || "").trim();
+      if (texto && !/^https?:\/\//i.test(texto)) {
+        problemas.push(`El enlace de Google Maps de ${etiqueta} no parece una URL (¿pegaste la dirección en vez del link "Compartir" de Maps?) — el botón "Cómo llegar" no va a funcionar`);
+      }
+    };
+    revisarMaps(datos.ceremonia?.maps, "la ceremonia");
+    revisarMaps(datos.recepcion?.maps, "la recepción");
     return problemas;
   };
 
@@ -2832,14 +2844,15 @@ export default function App() {
 
   // Compartir datos de la invitación final por WhatsApp
   const handleEnviarWhatsApp = (overrideInvitadoIndex?: number) => {
-    // validarInvitacion() ya detecta un WhatsApp de confirmación mal escrito, pero solo se
-    // muestra como un aviso pasivo en la sección de compartir -- el admin puede no llegar a
-    // verlo y mandar el link igual. Aquí se avisa justo en el momento que de verdad importa
-    // (al mandar el link), sin bloquear el envío -- misma filosofía que validarInvitacion:
-    // avisa, no bloquea, porque el admin puede querer compartir un WIP a propósito.
-    const soloDigitosWhatsapp = (datos.whatsappConfirmacion || "").replace(/[^0-9]/g, "");
-    if (soloDigitosWhatsapp.length < 10 || soloDigitosWhatsapp.length > 13) {
-      mostrarToast("⚠️ El WhatsApp de confirmación de asistencia no parece válido — los invitados no podrán confirmarte por ahí (revisa la pestaña Quinceañera)", "error");
+    // validarInvitacion() ya detecta estos problemas (WhatsApp inválido, enlaces de Maps que
+    // parecen direcciones en vez de links, etc.), pero solo se mostraba como un aviso pasivo
+    // en la sección de compartir -- el admin puede no llegar a verlo y mandar el link igual.
+    // Aquí se avisa justo en el momento que de verdad importa (al mandar el link), sin
+    // bloquear el envío -- misma filosofía que validarInvitacion: avisa, no bloquea, porque
+    // el admin puede querer compartir un WIP a propósito.
+    const problemasEnvio = validarInvitacion();
+    if (problemasEnvio.length > 0) {
+      mostrarToast(`⚠️ Revisa antes de compartir: ${problemasEnvio.join(" · ")}`, "error");
     }
 
     const targetIndex = typeof overrideInvitadoIndex === "number" ? overrideInvitadoIndex : selectedInvitadoIndex;
