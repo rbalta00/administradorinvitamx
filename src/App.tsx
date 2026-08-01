@@ -3227,10 +3227,20 @@ export default function App() {
                 ...(catalogDemoFecha ? { fecha: `${catalogDemoFecha}T19:00` } : {}),
                 paquete: catalogDemoPaquete,
                 seccionesExcluidas: ["apertura", ...seccionesExcluidasPorPaquete],
-                estiloCajasSecciones: catalogDemoEstiloCajas
+                estiloCajasSecciones: catalogDemoEstiloCajas,
+                // El sample data trae un número de WhatsApp de mentiras (whatsappConfirmacion de
+                // datosDefault.deluxe) -- lo pisamos con el número real del negocio para que tanto
+                // el botón de RSVP dentro de la demo como el CTA de "muestra expirada" (más abajo)
+                // contacten a alguien real en vez de un número de ejemplo.
+                whatsappConfirmacion: whatsappDestino
               };
               const handleEnviarDemoPersonalizada = () => {
-                const linkPersonalizado = `${window.location.origin}/?v=1&d=${encodeState({ ...datosDemoPersonalizada, seccionesExcluidas: seccionesExcluidasPorPaquete })}`;
+                const datosParaLink = { ...datosDemoPersonalizada, seccionesExcluidas: seccionesExcluidasPorPaquete };
+                // Reutiliza el mismo candado real de "Muestra (5 días)" que ya usa el admin
+                // (ver aplicarModoMuestra/muestraExpirada) -- después de 5 días el link deja de
+                // mostrar la invitación y en su lugar aparece el CTA de "contactar para comprar".
+                const exp = Date.now() + MUESTRA_DIAS_VIGENCIA * 24 * 60 * 60 * 1000;
+                const linkPersonalizado = `${window.location.origin}/?v=1&d=${encodeState(datosParaLink)}&muestra=1&exp=${exp}`;
                 const msg = `¡Hola! Así se vería mi invitación de XV años (tema "${temaDemoSel.nombre}", paquete ${paquetes[catalogDemoPaquete].nombre}${catalogDemoNombre.trim() ? `, a nombre de ${catalogDemoNombre.trim()}` : ""}): ${linkPersonalizado}`;
                 window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, "_blank");
               };
@@ -3268,12 +3278,15 @@ export default function App() {
                       </div>
                     </div>
                     {(catalogDemoNombre.trim() || catalogDemoFecha) && (
-                      <button
-                        onClick={handleEnviarDemoPersonalizada}
-                        className="px-3 py-1.5 bg-[#25D366] hover:bg-[#20ba56] text-white rounded-lg text-[11px] font-bold transition cursor-pointer"
-                      >
-                        Enviar mi demo por WhatsApp 💬
-                      </button>
+                      <div className="flex flex-col items-start gap-1">
+                        <button
+                          onClick={handleEnviarDemoPersonalizada}
+                          className="px-3 py-1.5 bg-[#25D366] hover:bg-[#20ba56] text-white rounded-lg text-[11px] font-bold transition cursor-pointer"
+                        >
+                          Enviar mi demo por WhatsApp 💬
+                        </button>
+                        <span className="text-[9px] text-slate-400">Ese link es válido por 5 días</span>
+                      </div>
                     )}
                   </div>
                   <div className="flex flex-wrap items-center justify-center gap-2 bg-white border border-slate-200 rounded-xl p-2.5 shadow-sm">
