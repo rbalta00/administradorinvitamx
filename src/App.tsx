@@ -3120,8 +3120,12 @@ export default function App() {
     );
 
     if (match && match[1].trim()) {
-      const pases = parseInt(match[2], 10);
-      return { nombre: match[1].trim(), pases: pases > 0 ? pases : 1 };
+      // Acotado al mismo rango (1-20) que el formulario de "agregar uno" de al lado -- antes
+      // esta línea aceptaba hasta 99 pases sin tope mientras el otro formulario topaba en 20,
+      // una inconsistencia entre dos formas de cargar lo mismo (aunque de bajo riesgo real, ya
+      // que esto lo pega el propio admin, no un visitante público).
+      const pases = Math.min(Math.max(parseInt(match[2], 10) || 1, 1), 20);
+      return { nombre: match[1].trim(), pases };
     }
     // Sin número identificable al final -> se toma la línea completa como nombre, default 2 pases
     return { nombre: trimmed, pases: 2 };
@@ -5378,7 +5382,7 @@ export default function App() {
                         min="1"
                         max="20"
                         value={nuevoInvitadoPases}
-                        onChange={(e) => setNuevoInvitadoPases(parseInt(e.target.value) || 1)}
+                        onChange={(e) => setNuevoInvitadoPases(Math.min(Math.max(parseInt(e.target.value, 10) || 1, 1), 20))}
                         className="col-span-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-xs focus:border-indigo-600 outline-none"
                       />
                     </div>
