@@ -1441,20 +1441,37 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
         // al admin idéntico a un invitado real (confirmado -- era un bug real).
         const iid = new URLSearchParams(window.location.search).get('iid');
         if (iid && SUPABASE_URL_RSVP && SUPABASE_ANON_KEY_RSVP) {
-          fetch(SUPABASE_URL_RSVP + '/rest/v1/confirmaciones', {
-            method: 'POST',
-            headers: {
-              'apikey': SUPABASE_ANON_KEY_RSVP,
-              'Authorization': 'Bearer ' + SUPABASE_ANON_KEY_RSVP,
-              'Content-Type': 'application/json',
-              'Prefer': 'return=minimal'
-            },
-            body: JSON.stringify({
-              invitacion_id: iid,
-              nombre_invitado: nombre,
-              asistencia: asistencia,
-              num_personas: parseInt(pases, 10) || 1
-            })
+          const headersRSVP = {
+            'apikey': SUPABASE_ANON_KEY_RSVP,
+            'Authorization': 'Bearer ' + SUPABASE_ANON_KEY_RSVP,
+            'Content-Type': 'application/json'
+          };
+          const bodyRSVP = JSON.stringify({
+            invitacion_id: iid,
+            nombre_invitado: nombre,
+            asistencia: asistencia,
+            num_personas: parseInt(pases, 10) || 1
+          });
+          // Evita duplicar la fila si esta misma persona ya había confirmado antes (doble
+          // clic, recargar la página, etc.) -- si ya existe una confirmación con el mismo
+          // nombre para esta invitación, se actualiza esa fila en vez de insertar otra.
+          fetch(SUPABASE_URL_RSVP + '/rest/v1/confirmaciones?invitacion_id=eq.' + encodeURIComponent(iid) + '&nombre_invitado=ilike.' + encodeURIComponent(nombre), {
+            method: 'GET',
+            headers: headersRSVP
+          }).then(function (r) { return r.json(); }).then(function (existentes) {
+            const existente = Array.isArray(existentes) && existentes[0];
+            if (existente && existente.id) {
+              return fetch(SUPABASE_URL_RSVP + '/rest/v1/confirmaciones?id=eq.' + existente.id, {
+                method: 'PATCH',
+                headers: Object.assign({}, headersRSVP, { 'Prefer': 'return=minimal' }),
+                body: bodyRSVP
+              });
+            }
+            return fetch(SUPABASE_URL_RSVP + '/rest/v1/confirmaciones', {
+              method: 'POST',
+              headers: Object.assign({}, headersRSVP, { 'Prefer': 'return=minimal' }),
+              body: bodyRSVP
+            });
           }).catch(() => {});
         }
         if (iid) {
