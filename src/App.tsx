@@ -1770,6 +1770,14 @@ export default function App() {
   const [busquedaInvitaciones, setBusquedaInvitaciones] = useState("");
   const [filtroEstatusInvitaciones, setFiltroEstatusInvitaciones] = useState("todos");
   const [filtroRapidoInvitaciones, setFiltroRapidoInvitaciones] = useState<"ninguno" | "pendientes" | "proximos" | "urgentes">("ninguno");
+
+  // Estado para el "Dashboard de Ingresos": totales y desglose histórico de ingresos, aparte
+  // del detalle por-invitación que ya vive en "Mis Invitaciones". Usa la tabla `abonos`
+  // completa (no filtrada por invitación) porque es la única fuente con fecha real de cada
+  // pago -- `invitaciones.precio_pagado` es solo el acumulado, sin ubicación en el tiempo.
+  const [mostrarDashboardIngresos, setMostrarDashboardIngresos] = useState(false);
+  const [cargandoDashboardIngresos, setCargandoDashboardIngresos] = useState(false);
+  const [abonosTodos, setAbonosTodos] = useState<{ invitacion_id: string; monto: number; creado_en: string }[]>([]);
   // Alta rápida de "Nuevo Cliente": lo primero que se hace al vender un paquete -- guarda un
   // registro en Supabase de inmediato (estatus "Cotización") con solo nombre + celular, antes
   // de llenar el resto de la invitación.
@@ -2026,6 +2034,32 @@ export default function App() {
       mostrarToast("Error al cargar invitaciones: " + err.message, "error");
     } finally {
       setCargandoMisInvitaciones(false);
+    }
+  };
+
+  // Carga los datos del "Dashboard de Ingresos": reutiliza listaInvitaciones (si ya se cargó
+  // antes, no la vuelve a pedir) para los totales por paquete/pendiente, y trae la tabla
+  // `abonos` COMPLETA (todas las invitaciones, no solo una) para el histórico mes a mes.
+  const cargarDashboardIngresos = async () => {
+    if (!window.supabaseClient) {
+      mostrarToast("Supabase no está configurado en este entorno.", "error");
+      return;
+    }
+    setCargandoDashboardIngresos(true);
+    try {
+      if (listaInvitaciones.length === 0) {
+        await cargarListaInvitaciones();
+      }
+      const { data, error } = await window.supabaseClient
+        .from("abonos")
+        .select("invitacion_id, monto, creado_en")
+        .order("creado_en", { ascending: true });
+      if (error) throw error;
+      setAbonosTodos((data || []) as { invitacion_id: string; monto: number; creado_en: string }[]);
+    } catch (err: any) {
+      mostrarToast("Error al cargar el dashboard de ingresos: " + err.message, "error");
+    } finally {
+      setCargandoDashboardIngresos(false);
     }
   };
 
@@ -3568,6 +3602,32 @@ export default function App() {
   const invitacionesProximas = listaInvitaciones.filter(invitacionEsProxima);
   const invitacionesUrgentes = listaInvitaciones.filter(row => invitacionEsProxima(row) && invitacionTienePendiente(row));
 
+  // Dashboard de ingresos: abonosTodos (tabla `abonos`, con fecha real de cada pago) es la
+  // fuente para el histórico mes a mes; listaInvitaciones sirve para los totales por
+  // paquete/pendiente que no necesitan ubicarse en el tiempo.
+  const totalCobradoHistorico = abonosTodos.reduce((acc, a) => acc + (a.monto || 0), 0);
+  const invitacionesActivasParaIngresos = listaInvitaciones.filter(r => r.estado !== "archivada");
+  const totalPendienteCobrarGlobal = invitacionesActivasParaIngresos.reduce((acc, r) => acc + Math.max((r.precio_total || 0) - (r.precio_pagado || 0), 0), 0);
+  const totalContratado = invitacionesActivasParaIngresos.reduce((acc, r) => acc + (r.precio_total || 0), 0);
+  const ingresosPorMes = (() => {
+    const mapa = new Map<string, number>();
+    for (const a of abonosTodos) {
+      const mes = (a.creado_en || "").substring(0, 7); // "YYYY-MM"
+      if (!mes) continue;
+      mapa.set(mes, (mapa.get(mes) || 0) + (a.monto || 0));
+    }
+    return Array.from(mapa.entries()).sort(([a], [b]) => a.localeCompare(b));
+  })();
+  const maxIngresoMensual = Math.max(1, ...ingresosPorMes.map(([, monto]) => monto));
+  const ingresosPorPaquete = (() => {
+    const mapa: Record<"basico" | "premium" | "deluxe", number> = { basico: 0, premium: 0, deluxe: 0 };
+    for (const r of listaInvitaciones) {
+      const paquete = (r.datos_completos?.paquete as "basico" | "premium" | "deluxe") || "basico";
+      mapa[paquete] = (mapa[paquete] || 0) + (r.precio_pagado || 0);
+    }
+    return mapa;
+  })();
+
   // Avisa (sin bloquear) si el celular capturado en "Nuevo Cliente" ya pertenece a otra
   // invitación guardada -- suele pasar cuando ya se dio de alta por error o desde otra pantalla.
   const nuevoClienteDigitos = nuevoClienteTelefono.replace(/[^0-9]/g, "");
@@ -3665,6 +3725,17 @@ export default function App() {
           >
             <Layers className="w-3.5 h-3.5 text-slate-500" />
             <span>Mis Invitaciones</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setMostrarDashboardIngresos(true);
+              cargarDashboardIngresos();
+            }}
+            className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+            title="Ver ingresos totales, histórico mensual y pendiente por cobrar"
+          >
+            <span>💰 Ingresos</span>
           </button>
 
           <button
@@ -5774,6 +5845,92 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setMostrarFondosGuardados(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition cursor-pointer"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {mostrarDashboardIngresos && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-3xl w-full shadow-2xl animate-scaleIn max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-extrabold text-slate-900">💰 Dashboard de Ingresos</h3>
+              <button
+                onClick={() => setMostrarDashboardIngresos(false)}
+                className="p-1 hover:bg-slate-100 rounded-lg transition"
+              >
+                <X className="w-5 h-5 text-slate-600" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">
+              Cobrado histórico (de la tabla de abonos, con fecha real de cada pago), pendiente por cobrar y desglose por paquete — de todos tus clientes guardados, no solo el que tengas abierto en el editor.
+            </p>
+
+            {cargandoDashboardIngresos ? (
+              <p className="text-sm text-slate-500 py-8 text-center">Cargando ingresos desde Supabase...</p>
+            ) : listaInvitaciones.length === 0 ? (
+              <p className="text-sm text-slate-500 py-8 text-center">Aún no has guardado ninguna invitación. Usa "💾 Guardar en Supabase" para que aparezca aquí.</p>
+            ) : (
+              <div className="space-y-5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50">
+                    <p className="text-[11px] font-bold text-emerald-700 uppercase">Cobrado histórico</p>
+                    <p className="text-xl font-extrabold text-emerald-900">${totalCobradoHistorico.toLocaleString("es-MX")} MXN</p>
+                  </div>
+                  <div className="p-4 rounded-xl border border-amber-200 bg-amber-50">
+                    <p className="text-[11px] font-bold text-amber-700 uppercase">Pendiente por cobrar</p>
+                    <p className="text-xl font-extrabold text-amber-900">${totalPendienteCobrarGlobal.toLocaleString("es-MX")} MXN</p>
+                  </div>
+                  <div className="p-4 rounded-xl border border-indigo-200 bg-indigo-50">
+                    <p className="text-[11px] font-bold text-indigo-700 uppercase">Total contratado</p>
+                    <p className="text-xl font-extrabold text-indigo-900">${totalContratado.toLocaleString("es-MX")} MXN</p>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-bold text-slate-700 mb-2">📅 Histórico mensual (pagos registrados en "Pagos y estatus")</p>
+                  {ingresosPorMes.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic">Aún no hay abonos registrados.</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {ingresosPorMes.map(([mes, monto]) => (
+                        <div key={mes} className="flex items-center gap-2">
+                          <span className="w-16 text-[11px] font-mono text-slate-500 shrink-0">{mes}</span>
+                          <div className="flex-1 bg-slate-100 rounded-full h-4 overflow-hidden">
+                            <div
+                              className="h-full bg-emerald-500 rounded-full"
+                              style={{ width: `${Math.max((monto / maxIngresoMensual) * 100, 3)}%` }}
+                            ></div>
+                          </div>
+                          <span className="w-24 text-right text-[11px] font-bold text-slate-700 shrink-0">${monto.toLocaleString("es-MX")}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <p className="text-xs font-bold text-slate-700 mb-2">📦 Cobrado por paquete</p>
+                  <div className="grid grid-cols-3 gap-3">
+                    {(["basico", "premium", "deluxe"] as const).map(p => (
+                      <div key={p} className="p-3 rounded-lg border border-slate-200 bg-slate-50 text-center">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">{paquetes[p].nombre}</p>
+                        <p className="text-sm font-extrabold text-slate-800">${ingresosPorPaquete[p].toLocaleString("es-MX")}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end mt-5">
+              <button
+                type="button"
+                onClick={() => setMostrarDashboardIngresos(false)}
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition cursor-pointer"
               >
                 Cerrar
