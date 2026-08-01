@@ -301,55 +301,62 @@ const decodeState = (str: string): any => {
 // Si se pasa `existingId`, actualiza esa fila en vez de crear una nueva — evita que guardar
 // varias veces mientras se edita la MISMA invitación acumule filas duplicadas en la tabla.
 async function guardarEnSupabase(datosInvitacion: InvitacionDatos, temaActual: TemaConfig, shareUrl?: string, existingId?: string | null) {
-  try {
-    // Verificar que Supabase esté cargado
-    if (!window.supabaseClient) {
-      console.error('Supabase no está inicializado');
-      return;
-    }
-
-    const supabase = window.supabaseClient;
-
-    const datosParaGuardar = {
-      nombre_quinceanera: datosInvitacion.nombre || 'Sin nombre',
-      apellido_quinceanera: '',
-      edad: null,
-      fecha_fiesta: datosInvitacion.fecha || null,
-      hora_fiesta: null,
-      lugar_fiesta: datosInvitacion.ceremonia?.lugar || '',
-      foto_portada_url: datosInvitacion.fotoPortada || '',
-      foto_galeria_urls: datosInvitacion.fotos || [],
-      foto_familia_url: '',
-      tema_elegido: temaActual.id,
-      nombre_papa: (datosInvitacion.padres && datosInvitacion.padres[0]) || '',
-      nombre_mama: (datosInvitacion.padres && datosInvitacion.padres[1]) || '',
-      telefono_whatsapp: datosInvitacion.whatsappConfirmacion || '',
-      email_cliente: '',
-      link_invitacion: shareUrl || window.location.href,
-      fondos_personalizados: datosInvitacion.bgImages || {},
-      // Estado completo (todos los campos de InvitacionDatos), aparte de las columnas de
-      // resumen de arriba — es lo que permite reabrir esta invitación exacta en el editor
-      // desde el panel "Mis Invitaciones" en vez de solo poder leer un resumen.
-      datos_completos: datosInvitacion,
-      estado: 'completada'
-    };
-
-    console.log('📤 Guardando en Supabase:', datosParaGuardar);
-
-    const query = existingId
-      ? supabase.from('invitaciones').update(datosParaGuardar).eq('id', existingId).select()
-      : supabase.from('invitaciones').insert([datosParaGuardar]).select();
-
-    const { data, error } = await query;
-
-    if (error) throw error;
-
-    console.log(existingId ? '✅ Actualizado en Supabase correctamente:' : '✅ Guardado en Supabase correctamente:', data[0]?.id);
-    return data[0];
-
-  } catch (err: any) {
-    console.error('❌ Error al guardar en Supabase:', err.message);
+  // Verificar que Supabase esté cargado
+  if (!window.supabaseClient) {
+    throw new Error('Supabase no está disponible');
   }
+
+  const supabase = window.supabaseClient;
+
+  const datosParaGuardar = {
+    nombre_quinceanera: datosInvitacion.nombre || 'Sin nombre',
+    apellido_quinceanera: '',
+    edad: null,
+    fecha_fiesta: datosInvitacion.fecha || null,
+    hora_fiesta: null,
+    lugar_fiesta: datosInvitacion.ceremonia?.lugar || '',
+    foto_portada_url: datosInvitacion.fotoPortada || '',
+    foto_galeria_urls: datosInvitacion.fotos || [],
+    foto_familia_url: '',
+    tema_elegido: temaActual.id,
+    nombre_papa: (datosInvitacion.padres && datosInvitacion.padres[0]) || '',
+    nombre_mama: (datosInvitacion.padres && datosInvitacion.padres[1]) || '',
+    telefono_whatsapp: datosInvitacion.whatsappConfirmacion || '',
+    email_cliente: '',
+    link_invitacion: shareUrl || window.location.href,
+    fondos_personalizados: datosInvitacion.bgImages || {},
+    // Estado completo (todos los campos de InvitacionDatos), aparte de las columnas de
+    // resumen de arriba — es lo que permite reabrir esta invitación exacta en el editor
+    // desde el panel "Mis Invitaciones" en vez de solo poder leer un resumen.
+    datos_completos: datosInvitacion,
+    estado: 'completada'
+  };
+
+  // Reintenta hasta 3 veces en total con espera creciente (1s, 2s) antes de rendirse -- antes,
+  // cualquier error (de red o de Supabase) se tragaba aquí mismo con un console.error y esta
+  // función devolvía undefined silenciosamente, así que los 3 lugares que la llaman (que SÍ
+  // tienen try/catch esperando que esto pueda fallar) nunca se enteraban: el admin veía que el
+  // botón "Guardar en Supabase" no hacía nada, sin ningún error ni aviso.
+  const intentosTotales = 3;
+  let ultimoError = new Error('Ocurrió un error al guardar en Supabase.');
+  for (let intento = 1; intento <= intentosTotales; intento++) {
+    try {
+      const query = existingId
+        ? supabase.from('invitaciones').update(datosParaGuardar).eq('id', existingId).select()
+        : supabase.from('invitaciones').insert([datosParaGuardar]).select();
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      return data[0];
+    } catch (err: any) {
+      ultimoError = err instanceof Error ? err : new Error(err?.message || 'Ocurrió un error al guardar en Supabase.');
+      if (intento < intentosTotales) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * intento));
+      }
+    }
+  }
+  throw ultimoError;
 }
 
 // Retorna los colores de vestimenta recomendados característicos de cada tema
@@ -662,24 +669,40 @@ declare global {
   }
 }
 
-// Sube una imagen a Cloudinary sin depender de ningún estado del componente App -- usado por
-// IntakeForm, que se renderiza para clientes sin sesión de admin ni acceso al resto de la app.
+// Sube una imagen a Cloudinary sin depender de ningún estado del componente App -- la usan
+// tanto el editor del admin como IntakeForm (formulario público sin sesión de cliente).
+// Reintenta hasta 3 veces en total con espera creciente (1s, 2s) antes de rendirse: en
+// conexiones móviles inestables (el caso típico del cliente subiendo fotos desde el celular)
+// una subida que falla por un corte momentáneo casi siempre funciona al reintentarla, y antes
+// esto obligaba al usuario a notar el error y darle "subir" de nuevo a mano.
 const subirImagenPublica = async (file: File): Promise<string> => {
   const cloudName = "dswrrm5u1";
   const uploadPreset = "invitaciones-xv";
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("upload_preset", uploadPreset);
-  const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-    method: "POST",
-    body: formData
-  });
-  if (!response.ok) {
-    const errJson = await response.json().catch(() => ({}));
-    throw new Error(errJson?.error?.message || "Ocurrió un error al subir la imagen.");
+  const intentosTotales = 3;
+  let ultimoError = new Error("Ocurrió un error al subir la imagen.");
+  for (let intento = 1; intento <= intentosTotales; intento++) {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", uploadPreset);
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        method: "POST",
+        body: formData
+      });
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson?.error?.message || "Ocurrió un error al subir la imagen.");
+      }
+      const resData = await response.json();
+      return resData.secure_url;
+    } catch (err: any) {
+      ultimoError = err instanceof Error ? err : new Error("Ocurrió un error al subir la imagen.");
+      if (intento < intentosTotales) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * intento));
+      }
+    }
   }
-  const resData = await response.json();
-  return resData.secure_url;
+  throw ultimoError;
 };
 
 // Avisa al admin por Telegram (mejor esfuerzo, nunca bloquea el flujo del cliente) cuando pasa
@@ -1495,29 +1518,6 @@ export default function App() {
   const [enlaceCloudinary, setEnlaceCloudinary] = useState<string>('');
   const [estadoGuardadoLink, setEstadoGuardadoLink] = useState<'idle' | 'guardando' | 'ok' | 'error'>('idle');
 
-  // Función para subir archivos a Cloudinary con los datos provistos
-  const subirACloudinary = async (file: File): Promise<string> => {
-    const cloudName = "dswrrm5u1";
-    const uploadPreset = "invitaciones-xv";
-    
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", uploadPreset);
-
-    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-      method: "POST",
-      body: formData
-    });
-
-    if (!response.ok) {
-      const errJson = await response.json().catch(() => ({}));
-      throw new Error(errJson?.error?.message || "Ocurrió un error al cargar la imagen.");
-    }
-
-    const resData = await response.json();
-    return resData.secure_url;
-  };
-
   // Estado del tema seleccionado
   const [selectedTemaId, setSelectedTemaId] = useState<string>(initialTemaId);
 
@@ -1599,7 +1599,7 @@ export default function App() {
 
     setSubiendoCloudinary(true);
     try {
-      const url = await subirACloudinary(file);
+      const url = await subirImagenPublica(file);
 
       try {
         await guardarFondoEnSupabase(selectedTemaId, url);
@@ -2804,7 +2804,7 @@ export default function App() {
     const file = files[0];
     setSubiendoCloudinary(true);
     try {
-      const url = await subirACloudinary(file);
+      const url = await subirImagenPublica(file);
       setDatos(prev => ({
         ...prev,
         fotos: [...(prev.fotos || []), url]
@@ -2825,7 +2825,7 @@ export default function App() {
     const file = files[0];
     setSubiendoCloudinary(true);
     try {
-      const url = await subirACloudinary(file);
+      const url = await subirImagenPublica(file);
       setDatos(prev => ({
         ...prev,
         fotoPortada: url
@@ -2863,7 +2863,7 @@ export default function App() {
     if (!file) return;
     setSubiendoCloudinary(true);
     try {
-      const url = await subirACloudinary(file);
+      const url = await subirImagenPublica(file);
       setDatos(prev => {
         const nuevasFotos = [...(prev.fotos || [])];
         nuevasFotos[index] = url;
