@@ -18,13 +18,19 @@
 // Los archivos estáticos del build (/assets/*) también se dejan pasar siempre, si no el propio
 // navegador no podría ni cargar el JS/CSS para pintar la pantalla de login.
 //
-// Las funciones serverless (/api/*, ej. notify-telegram) también se excluyen: las llaman
-// visitantes anónimos desde páginas públicas (RSVP del invitado, intake del cliente, demo del
-// catálogo) que nunca traen credenciales de Basic Auth -- bug real detectado el 2026-07-31:
-// sin este bypass, el middleware las bloqueaba con 401 y ninguna notificación llegaba nunca.
+// Las funciones serverless públicas (/api/*, ej. notify-telegram) también se excluyen: las
+// llaman visitantes anónimos desde páginas públicas (RSVP del invitado, intake del cliente,
+// demo del catálogo) que nunca traen credenciales de Basic Auth -- bug real detectado el
+// 2026-07-31: sin este bypass, el middleware las bloqueaba con 401 y ninguna notificación
+// llegaba nunca.
+//
+// /api/admin/* es la excepción a esa excepción (añadido 2026-08-01): esas rutas usan la
+// service_role key de Supabase en el servidor para leer TODAS las invitaciones/abonos de un
+// jalón (ver api/admin/*.ts) -- exactamente lo que NO debe quedar abierto a cualquiera, así
+// que sí deben pasar por el mismo Basic Auth que protege el resto del editor.
 
 export const config = {
-  matcher: "/((?!assets/|api/).*)",
+  matcher: "/((?!assets/|api/(?!admin/)).*)",
 };
 
 export default function middleware(request: Request) {

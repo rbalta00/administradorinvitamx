@@ -2002,13 +2002,12 @@ export default function App() {
     }
     setCargandoMisInvitaciones(true);
     try {
-      const { data, error } = await window.supabaseClient
-        .from("invitaciones")
-        .select("id, nombre_quinceanera, fecha_fiesta, tema_elegido, estado, activo_hasta, updated_at, link_invitacion, datos_completos, telefono_whatsapp, precio_total, precio_pagado, pases_pagado, pdf_pagado, notas, link_pago, intake_actualizado_en")
-        .neq("id", FONDOS_ROW_ID)
-        .order("updated_at", { ascending: false });
-
-      if (error) throw error;
+      // Pasa por api/admin/list-invitaciones.ts (service_role key en el servidor, protegido
+      // por el Basic Auth de middleware.ts) en vez de leer la tabla completa directo con la
+      // anon key -- ver el comentario en ese archivo para el porqué.
+      const resp = await fetch("/api/admin/list-invitaciones");
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data?.error || "Error al cargar invitaciones");
       let filas = (data || []) as InvitacionGuardadaRow[];
 
       // Estatus automático "Evento pasado": si la fecha del evento ya pasó y el estatus sigue
@@ -2050,11 +2049,12 @@ export default function App() {
       if (listaInvitaciones.length === 0) {
         await cargarListaInvitaciones();
       }
-      const { data, error } = await window.supabaseClient
-        .from("abonos")
-        .select("invitacion_id, monto, creado_en")
-        .order("creado_en", { ascending: true });
-      if (error) throw error;
+      // Igual que cargarListaInvitaciones: pasa por api/admin/abonos.ts (service_role key en
+      // el servidor) en vez de leer la tabla completa de abonos de TODOS los clientes directo
+      // con la anon key.
+      const resp = await fetch("/api/admin/abonos");
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data?.error || "Error al cargar abonos");
       setAbonosTodos((data || []) as { invitacion_id: string; monto: number; creado_en: string }[]);
     } catch (err: any) {
       mostrarToast("Error al cargar el dashboard de ingresos: " + err.message, "error");
