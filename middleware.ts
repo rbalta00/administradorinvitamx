@@ -17,9 +17,14 @@
 //   - ?intake=1              -> formulario público para que el cliente capture sus datos/fotos
 // Los archivos estáticos del build (/assets/*) también se dejan pasar siempre, si no el propio
 // navegador no podría ni cargar el JS/CSS para pintar la pantalla de login.
+//
+// Las funciones serverless (/api/*, ej. notify-telegram) también se excluyen: las llaman
+// visitantes anónimos desde páginas públicas (RSVP del invitado, intake del cliente, demo del
+// catálogo) que nunca traen credenciales de Basic Auth -- bug real detectado el 2026-07-31:
+// sin este bypass, el middleware las bloqueaba con 401 y ninguna notificación llegaba nunca.
 
 export const config = {
-  matcher: "/((?!assets/).*)",
+  matcher: "/((?!assets/|api/).*)",
 };
 
 export default function middleware(request: Request) {
