@@ -26,11 +26,15 @@ Fecha       | Ángulo                        | Avatar/Público                  
 2026-08-02  | Tendencia coquette/dulce       | General                          | Imagen/demo real del tema | XV Coquette Listones Rose | ventas/campana-12-temas.txt #11
 2026-08-02  | Coquette de lujo               | General                          | Imagen/demo real del tema | XV Coquette Luxe        | ventas/campana-12-temas.txt #12
 2026-08-02  | Mágico/único/diferente a todo  | General                          | Imagen/demo real del tema | Aurora Boreal           | ventas/campana-12-temas.txt #13
+2026-08-02  | Orgullo social/presumir en redes | La quinceañera (15-19 años)    | Video vertical TikTok/Reels | General (todos temas) | ventas/anuncios-2026-08-02-avatar-quinceanera.txt #1
+2026-08-02  | Personalización/decide tú      | La quinceañera (15-19 años)      | Carrusel de temas     | General (todos temas)  | ventas/anuncios-2026-08-02-avatar-quinceanera.txt #2
+2026-08-02  | Prueba social entre pares      | La quinceañera (15-19 años)      | Testimonio/reseña     | General (todos temas)  | ventas/anuncios-2026-08-02-avatar-quinceanera.txt #3
 
 --------------------------------------------------------------
-NOTA: todos los avatares de arriba son genéricos ("mamás/papás
-organizando XV" o "general") — un eje bueno para la próxima corrida
-del skill /anuncios es variar el AVATAR (ej. la propia quinceañera
-como destinataria del mensaje, el papá que paga, un familiar que
-organiza sorpresa) en vez de solo variar ángulo/tema otra vez.
+NOTA: avatares ya cubiertos: "mamás/papás organizando XV" y "la
+quinceañera (15-19 años)". Pendientes para variar en próximas
+corridas del skill /anuncios: el papá/familiar que paga pero no
+organiza (ángulo distinto al de mamá), un padrino/madrina que
+regala la invitación como sorpresa, o el público de reventa (quien
+organiza XV de otra persona, ej. planners/organizadores de eventos).
 ================================================================
