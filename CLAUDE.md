@@ -24,7 +24,20 @@ The user's eventual plan (stated 2026-07-27, timeline not yet set):
 2. Create exactly **one** new repo, name **`app`**, meant to be an improved rebuild of this generator (not a from-scratch unrelated project) — likely covers gaps noted below (auth, broken-link class of bugs, automation).
 3. Do not start on `app` or delete anything until the user explicitly says so in a future session — this note exists so that instruction isn't lost/forgotten between sessions.
 
-### Pending decision (2026-07-31): real lock/expiration on public links
+### Manual access block on guest/intake links (added 2026-08-02)
+
+Supersedes the old "Pending decision" note below (kept as history: this is exactly what that note flagged as the harder half of the problem — now built). Explicitly **100% manual, nothing automatic**: the user was clear across the design conversation that they alone decide when a link gets closed, no timer or date field ever does it on its own — same philosophy as every other admin control in this app (pases, pagos, estatus).
+
+- **Two new columns on `invitaciones`**: `bloqueada boolean default false` and `motivo_bloqueo text` (`evento_pasado` | `cancelado` | `falta_pago` | `solicitud_cliente` | `otro` — see `MOTIVOS_BLOQUEO` in `App.tsx`). The motivo is **admin-only bookkeeping**, never shown to the guest/client — the block screen only differs in *tone*, not in exposing the reason (see below).
+- **"Mis Invitaciones" UI**: each row has a motivo `<select>` + a "🔒 Apagar acceso" / "🔓 Encender acceso" toggle (`handleActualizarBloqueoInvitacion`), right below the existing (still-cosmetic) "Activa hasta" date field — that field was left untouched, this is a separate, actually-enforced mechanism.
+- **How the guest view (`?v=1&d=...`) enforces it — the architecturally interesting part**: the link's `InvitacionDatos` blob (`d` param) is still 100% static/offline by design (see "State, sharing, and persistence" above) — blocking can't come from decoding `d`. Instead, `App.tsx` reads `iid` (already present on any link generated *after* the invitación was first saved — see `getShareUrl`) and does a live `supabaseClient.from("invitaciones").select("bloqueada, motivo_bloqueo").eq("id", iid)` lookup before rendering (`bloqueoCheck` state, right next to the existing `muestraExpirada` logic which is the pattern this was modeled on). **Consequence:** a guest link shared before the invitación was ever saved to Supabase (no `iid`) cannot be blocked this way — treated as never-blocked, same accepted gap noted for the RSVP `iid` tracking above.
+- **Intake form (`?intake=1&iid=...`)** checks `bloqueada` in its existing row fetch and shows the same "no longer available" message via its existing `error` state — no new UI needed there.
+- **Two message tones, motivo stays internal**: `motivo_bloqueo === "evento_pasado"` shows a warm "Gracias por ser parte de este día tan especial" screen; every other motivo shows a neutral "Esta invitación ya no está disponible, contacta a quien te compartió este link." The specific reason (e.g. a payment dispute) is never surfaced to whoever opens the link.
+- **Fully reversible, always**: turning it back on is the same toggle — since the state is a plain boolean written once (not continuously re-evaluated against a date), there's no risk of an automatic process silently re-blocking a link the admin just reopened.
+- **Deliberately NOT built** (see design conversation, out of scope for now): a QR-code door check-in system, and any automatic purge/hard-delete of long-dormant blocked invitaciones (the latter was explicitly discussed and deferred — data cost is negligible since `datos_completos` is text/jsonb, not photos; the real reason to eventually purge is privacy, not storage, and it should stay a manual, backup-first process using the existing "🗄️ Respaldo completo" export, not automated).
+
+<details>
+<summary>Original pending-decision note (2026-07-31), kept for history</summary>
 
 Explicitly deferred, not started — user said "por ahora déjalo pendiente" (leave it pending for now):
 
@@ -32,6 +45,8 @@ Explicitly deferred, not started — user said "por ahora déjalo pendiente" (le
 - Why this is harder than it sounds: the guest invitation link is **self-contained by design** — the entire `InvitacionDatos` is base64-encoded in the `d` param and rendered client-side with zero Supabase dependency (see "State, sharing, and persistence" below). Adding real expiration to it means either (a) making guest view mode depend on a live Supabase lookup (`iid`-based, like the intake form already does), which changes a load-bearing architectural property (offline-shareable, no backend dependency to view), or (b) some other mechanism — this needs a real design conversation, not a quick patch.
 - The intake-form link (`?intake=1&iid=...`) already depends on Supabase, so locking *that one* specifically (e.g. respecting `activo_hasta` or a dedicated expiry column, returning a "this link is no longer active" screen from `IntakeForm`) would be comparatively easy and low-risk — worth doing first if/when this gets picked back up, independent of the harder guest-link problem.
 - Do not build either half of this until the user explicitly asks — this note exists purely so the open item isn't lost between sessions.
+
+</details>
 
 ### Telegram notifications to the admin (live since 2026-08-01)
 

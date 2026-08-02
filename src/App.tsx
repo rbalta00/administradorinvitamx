@@ -68,6 +68,8 @@ interface InvitacionGuardadaRow {
   notas: string | null;
   link_pago: string | null;
   intake_actualizado_en: string | null;
+  bloqueada: boolean;
+  motivo_bloqueo: string | null;
 }
 
 // Estatus del pedido (columna `estado`), en el orden en que normalmente avanza una venta.
@@ -79,6 +81,18 @@ const ESTATUS_PEDIDO: { id: string; label: string }[] = [
   { id: "evento_pasado", label: "🎉 Evento pasado" },
   { id: "archivada", label: "📦 Archivada" }
 ];
+
+// Motivos del bloqueo manual de acceso (columna `motivo_bloqueo`) -- puramente para que el
+// admin filtre/reporte por qué se cerró cada link; nunca se le muestra el motivo específico
+// al invitado (ver pantallas de bloqueo en isViewMode e IntakeForm más abajo). El bloqueo en
+// sí es 100% manual y reversible -- nada en la app lo activa ni lo desactiva solo.
+const MOTIVOS_BLOQUEO: Record<string, string> = {
+  evento_pasado: "Evento ya pasó",
+  cancelado: "Cancelado por el cliente",
+  falta_pago: "Falta de pago / disputa",
+  solicitud_cliente: "Cliente pidió cerrarlo",
+  otro: "Otro motivo"
+};
 
 // Una respuesta del formulario de RSVP dentro de una invitación (tabla `confirmaciones`)
 interface ConfirmacionRSVP {
@@ -779,12 +793,17 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
       try {
         const { data, error: err } = await window.supabaseClient
           .from("invitaciones")
-          .select("nombre_quinceanera, datos_completos, estado, precio_total, precio_pagado")
+          .select("nombre_quinceanera, datos_completos, estado, precio_total, precio_pagado, bloqueada")
           .eq("id", invitacionId)
           .maybeSingle();
         if (err) throw err;
         if (!data) {
           setError("No encontramos tu invitación. Pídele el link correcto a quien te lo compartió.");
+          setCargando(false);
+          return;
+        }
+        if (data.bloqueada) {
+          setError("Este formulario ya no está disponible. Contacta a quien te compartió este link para más información.");
           setCargando(false);
           return;
         }
@@ -1765,6 +1784,9 @@ export default function App() {
   const [avisosPagoPorInvitacion, setAvisosPagoPorInvitacion] = useState<Record<string, AvisoPago[]>>({});
   const [montoAvisoManual, setMontoAvisoManual] = useState<Record<string, string>>({});
   const [cargandoAbonos, setCargandoAbonos] = useState(false);
+  // Motivo elegido en el selector de apagar/encender acceso, por fila -- se lee al momento de
+  // apagar (ver MOTIVOS_BLOQUEO / handleActualizarBloqueoInvitacion más arriba).
+  const [motivoBloqueoSeleccionado, setMotivoBloqueoSeleccionado] = useState<Record<string, string>>({});
   const [montoNuevoAbono, setMontoNuevoAbono] = useState<Record<string, string>>({});
   const [notaNuevoAbono, setNotaNuevoAbono] = useState<Record<string, string>>({});
   const [busquedaInvitaciones, setBusquedaInvitaciones] = useState("");
@@ -2222,6 +2244,26 @@ export default function App() {
     }
   };
 
+  // Apaga/enciende el acceso público de una invitación (vista de invitado ?v=1 e intake
+  // ?intake=1) sin borrar nada -- 100% manual y reversible, nada en la app lo dispara solo.
+  // El motivo es solo para el registro del admin (ver MOTIVOS_BLOQUEO); nunca se le muestra
+  // al invitado el motivo específico, solo si está o no disponible.
+  const handleActualizarBloqueoInvitacion = async (row: InvitacionGuardadaRow, bloqueada: boolean, motivo: string) => {
+    if (!window.supabaseClient) return;
+    try {
+      const motivoAGuardar = bloqueada ? motivo : null;
+      const { error } = await window.supabaseClient
+        .from("invitaciones")
+        .update({ bloqueada, motivo_bloqueo: motivoAGuardar })
+        .eq("id", row.id);
+      if (error) throw error;
+      setListaInvitaciones(prev => prev.map(r => r.id === row.id ? { ...r, bloqueada, motivo_bloqueo: motivoAGuardar } : r));
+      mostrarToast(bloqueada ? "Acceso apagado" : "Acceso encendido de nuevo", "success");
+    } catch (err: any) {
+      mostrarToast("Error al actualizar el bloqueo: " + err.message, "error");
+    }
+  };
+
   // Actualiza un solo campo de administración de pedido (estatus, precios, pases/PDF pagado,
   // notas, link de pago) de una fila ya guardada, sin tocar el resto de columnas -- separado a
   // propósito de guardarEnSupabase (que guarda el DISEÑO) para que abrir/guardar la invitación
@@ -2509,6 +2551,8 @@ export default function App() {
       link_pago: row.link_pago,
       activo_hasta: row.activo_hasta,
       intake_actualizado_en: row.intake_actualizado_en,
+      bloqueada: row.bloqueada,
+      motivo_bloqueo: row.motivo_bloqueo,
       datos_completos: row.datos_completos
     }));
     const blob = new Blob([JSON.stringify(respaldo, null, 2)], { type: "application/json;charset=utf-8" });
@@ -3179,11 +3223,38 @@ export default function App() {
   const esVistaDeMuestra = paramsMuestra?.get("muestra") === "1";
   const muestraExpirada = !!muestraExp && Date.now() > parseInt(muestraExp, 10);
 
+  // Bloqueo manual del admin (ver "Mis Invitaciones" -> Apagar/Encender acceso). A diferencia
+  // de la muestra de arriba, esto SÍ necesita una consulta a Supabase: el blob `d` de la URL es
+  // estático (codificado una vez al compartir el link), así que no puede reflejar un apagado
+  // hecho después -- solo el `iid` (id de la fila) que ya viaja en el link una vez que la
+  // invitación se guardó permite revisar el estado actual en vivo. Links compartidos ANTES de
+  // guardar (sin `iid`) no se pueden bloquear por esta vía -- se tratan como no bloqueados.
+  const [bloqueoCheck, setBloqueoCheck] = useState<{ listo: boolean; bloqueada: boolean; motivo: string | null }>({ listo: false, bloqueada: false, motivo: null });
+  const iidVista = paramsMuestra?.get("iid") || null;
+  useEffect(() => {
+    if (!isViewMode) return;
+    if (!iidVista || !window.supabaseClient) {
+      setBloqueoCheck({ listo: true, bloqueada: false, motivo: null });
+      return;
+    }
+    let cancelado = false;
+    window.supabaseClient
+      .from("invitaciones")
+      .select("bloqueada, motivo_bloqueo")
+      .eq("id", iidVista)
+      .maybeSingle()
+      .then(({ data, error }: any) => {
+        if (cancelado) return;
+        setBloqueoCheck({ listo: true, bloqueada: !error && !!data?.bloqueada, motivo: (!error && data?.motivo_bloqueo) || null });
+      });
+    return () => { cancelado = true; };
+  }, [isViewMode, iidVista]);
+
   // Reemplazar el DOM de la página para la vista de los invitados (isViewMode = true)
   // Esto elimina las restricciones severas de iframe y sandbox del navegador,
   // permitiendo que el copiado de cuentas de banco, itinerarios, música y mapas funcionen de manera nativa y confiable.
   useEffect(() => {
-    if (isViewMode && !muestraExpirada) {
+    if (isViewMode && !muestraExpirada && bloqueoCheck.listo && !bloqueoCheck.bloqueada) {
       let htmlContent = generarHTMLFinal(datos, temaActual);
 
       if (esVistaDeMuestra) {
@@ -3203,7 +3274,22 @@ export default function App() {
       document.write(htmlContent);
       document.close();
     }
-  }, [isViewMode, datos, temaActual, esVistaDeMuestra, muestraExpirada]);
+  }, [isViewMode, datos, temaActual, esVistaDeMuestra, muestraExpirada, bloqueoCheck.listo, bloqueoCheck.bloqueada]);
+
+  if (isViewMode && bloqueoCheck.listo && bloqueoCheck.bloqueada) {
+    const esEventoPasado = bloqueoCheck.motivo === "evento_pasado";
+    return (
+      <div className="w-screen h-screen fixed inset-0 flex flex-col items-center justify-center bg-slate-50 z-50 px-6 text-center">
+        <span className="text-4xl mb-3">{esEventoPasado ? "💛" : "🔒"}</span>
+        <p className="text-sm font-semibold text-slate-700 mb-1">
+          {esEventoPasado ? "Gracias por ser parte de este día tan especial" : "Esta invitación ya no está disponible"}
+        </p>
+        <p className="text-xs text-slate-500 max-w-xs">
+          {esEventoPasado ? "Este evento ya tuvo lugar." : "Contacta a quien te compartió este link para más información."}
+        </p>
+      </div>
+    );
+  }
 
   if (isViewMode && muestraExpirada) {
     const numeroContacto = datos.whatsappConfirmacion || whatsappDestino;
@@ -6147,6 +6233,9 @@ export default function App() {
                             {vigenciaVencida && (
                               <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[9px] font-bold uppercase">Vigencia vencida</span>
                             )}
+                            {row.bloqueada && (
+                              <span className="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[9px] font-bold uppercase">🔒 Acceso apagado</span>
+                            )}
                             {row.intake_actualizado_en ? (
                               <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[9px] font-bold" title={new Date(row.intake_actualizado_en).toLocaleString("es-MX")}>
                                 📋 Cliente respondió {new Date(row.intake_actualizado_en).toLocaleDateString("es-MX")}
@@ -6225,6 +6314,27 @@ export default function App() {
                           {confirmacionesPorInvitacion[row.id] && (
                             <span className="px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700">{confirmacionesPorInvitacion[row.id].length}</span>
                           )}
+                        </button>
+                      </div>
+                      <div className="mt-2 pt-2 border-t border-slate-200/60 flex items-center gap-2 flex-wrap">
+                        <label className="text-[10px] font-bold text-slate-600">Acceso del invitado/cliente:</label>
+                        <select
+                          value={motivoBloqueoSeleccionado[row.id] ?? row.motivo_bloqueo ?? "evento_pasado"}
+                          onChange={(e) => {
+                            setMotivoBloqueoSeleccionado(prev => ({ ...prev, [row.id]: e.target.value }));
+                            if (row.bloqueada) handleActualizarBloqueoInvitacion(row, true, e.target.value);
+                          }}
+                          className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[10px] text-slate-700 outline-none focus:border-indigo-500"
+                        >
+                          {Object.entries(MOTIVOS_BLOQUEO).map(([id, label]) => (
+                            <option key={id} value={id}>{label}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => handleActualizarBloqueoInvitacion(row, !row.bloqueada, motivoBloqueoSeleccionado[row.id] ?? row.motivo_bloqueo ?? "evento_pasado")}
+                          className={`text-[10px] font-bold rounded-lg px-2 py-1 transition ${row.bloqueada ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100" : "bg-rose-50 text-rose-700 hover:bg-rose-100"}`}
+                        >
+                          {row.bloqueada ? "🔓 Encender acceso" : "🔒 Apagar acceso"}
                         </button>
                       </div>
 

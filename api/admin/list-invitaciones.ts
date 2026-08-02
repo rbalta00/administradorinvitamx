@@ -36,7 +36,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const supabase = createClient(url, serviceKey);
     const { data, error } = await supabase
       .from("invitaciones")
-      .select("id, nombre_quinceanera, fecha_fiesta, tema_elegido, estado, activo_hasta, updated_at, link_invitacion, datos_completos, telefono_whatsapp, precio_total, precio_pagado, pases_pagado, pdf_pagado, notas, link_pago, intake_actualizado_en")
+      .select("id, nombre_quinceanera, fecha_fiesta, tema_elegido, estado, activo_hasta, updated_at, link_invitacion, datos_completos, telefono_whatsapp, precio_total, precio_pagado, pases_pagado, pdf_pagado, notas, link_pago, intake_actualizado_en, bloqueada, motivo_bloqueo")
       .neq("id", FONDOS_ROW_ID)
       .order("updated_at", { ascending: false });
 
