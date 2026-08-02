@@ -43,6 +43,11 @@ export interface InvitacionDatos {
     nombre: string;
     pases: number;
   }>;
+  /** Complemento à la carte "Control de Acceso QR" (requiere que la sección "pases" esté
+   *  activa -- ver toggle junto a SeccionesToggleList en App.tsx). Cuando es true, cada pase
+   *  de familia muestra un QR de check-in en generarHTMLFinal (ver mostrarPaseFijo en
+   *  templates.ts) que apunta a /?checkin=1&iid=...&fam=... */
+  controlAccesoQR?: boolean;
   bgImages?: Record<string, string>;
   /** Opacidad (0-1) del velo que se pone encima del fondo personalizado para mantener el
    *  texto legible. Si no está definida, se usa el valor por tema en generarHTMLFinal

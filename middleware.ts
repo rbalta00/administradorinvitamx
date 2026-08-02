@@ -15,6 +15,7 @@
 //   - ?v=1 / ?view=true      -> vista de un invitado abriendo su invitación
 //   - ?catalog=true / ?catalogo=true -> catálogo de temas de demostración
 //   - ?intake=1              -> formulario público para que el cliente capture sus datos/fotos
+//   - ?checkin=1             -> control de acceso QR (à la carte) para quien controla la puerta
 // Los archivos estáticos del build (/assets/*) también se dejan pasar siempre, si no el propio
 // navegador no podría ni cargar el JS/CSS para pintar la pantalla de login.
 //
@@ -42,7 +43,8 @@ export default function middleware(request: Request) {
     params.get("view") === "true" ||
     params.get("catalog") === "true" ||
     params.get("catalogo") === "true" ||
-    params.get("intake") === "1";
+    params.get("intake") === "1" ||
+    params.get("checkin") === "1";
 
   if (esVistaPublica) {
     return;

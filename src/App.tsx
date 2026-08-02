@@ -70,6 +70,7 @@ interface InvitacionGuardadaRow {
   intake_actualizado_en: string | null;
   bloqueada: boolean;
   motivo_bloqueo: string | null;
+  checkin_pagado: boolean;
 }
 
 // Estatus del pedido (columna `estado`), en el orden en que normalmente avanza una venta.
@@ -151,7 +152,8 @@ const KEY_MAP: Record<string, string> = {
   mostrarFotoPortada: "mfp",
   seccionesExcluidas: "se",
   mostrarAnimacionCaida: "mac",
-  personalizacion: "pz"
+  personalizacion: "pz",
+  controlAccesoQR: "cq"
 };
 
 const SUB_KEY_MAP: Record<string, string> = {
@@ -562,6 +564,13 @@ const POLITICA_PASES: Record<"basico" | "premium" | "deluxe", string> = {
   premium: "A la carte +$180 MXN",
   deluxe: "Incluido sin costo"
 };
+
+// Precio del complemento "Control de Acceso QR" (2026-08-02): plano, +$150 MXN sin importar
+// el paquete -- a diferencia de pases, una vez construido el QR se genera solo junto con el
+// resto del link (no hay trabajo manual extra por familia), así que no se escalona por
+// paquete. Requiere que el cliente ya tenga pases activo -- sin una lista de familias no hay
+// nada contra qué controlar el acceso.
+const PRECIO_CONTROL_ACCESO_QR = "A la carte +$150 MXN";
 
 const SeccionesToggleList = memo(({ secciones, seccionesExcluidas, onToggle, onMover, paquete }: {
   secciones: string[];
@@ -1301,6 +1310,196 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
   );
 }
 
+// Complemento à la carte "Control de Acceso QR" (requiere que la invitación tenga "pases"
+// activo -- ver toggle junto a SeccionesToggleList). Página pública para quien controla la
+// entrada del evento: se llega o bien por el QR de un pase individual (?checkin=1&iid=...&fam=...
+// -- ver mostrarPaseFijo en templates.ts) o por el link general que el admin genera y manda por
+// WhatsApp (?checkin=1&iid=..., sin &fam=, muestra una lista buscable de todas las familias).
+// Lee datos_completos por iid con la anon key -- mismo modelo de riesgo aceptado que el resto
+// de los links públicos de esta app (UUID adivinable = acceso a esa fila).
+function CheckinPage({ invitacionId, famNombre }: { invitacionId: string | null; famNombre: string | null }) {
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [insertError, setInsertError] = useState<string | null>(null);
+  const [nombreQuinceanera, setNombreQuinceanera] = useState("");
+  const [invitados, setInvitados] = useState<{ nombre: string; pases: number }[]>([]);
+  const [registros, setRegistros] = useState<{ invitado_nombre: string; personas_registradas: number }[]>([]);
+  const [busqueda, setBusqueda] = useState("");
+  const [cantidadAConfirmar, setCantidadAConfirmar] = useState(1);
+  const [confirmando, setConfirmando] = useState(false);
+  const [confirmado, setConfirmado] = useState(false);
+
+  useEffect(() => {
+    const cargar = async () => {
+      if (!invitacionId || !window.supabaseClient) {
+        setError("Este link no es válido.");
+        setCargando(false);
+        return;
+      }
+      try {
+        const { data, error: err } = await window.supabaseClient
+          .from("invitaciones")
+          .select("nombre_quinceanera, datos_completos")
+          .eq("id", invitacionId)
+          .maybeSingle();
+        if (err) throw err;
+        const dc: Partial<InvitacionDatos> = data?.datos_completos || {};
+        if (!data || !dc.controlAccesoQR) {
+          setError("Esta función no está disponible para esta invitación.");
+          setCargando(false);
+          return;
+        }
+        setNombreQuinceanera(data.nombre_quinceanera || "");
+        setInvitados(dc.invitados || []);
+
+        const { data: checkinsData, error: errCheckins } = await window.supabaseClient
+          .from("checkins")
+          .select("invitado_nombre, personas_registradas")
+          .eq("invitacion_id", invitacionId);
+        if (!errCheckins) setRegistros(checkinsData || []);
+      } catch (e: any) {
+        setError("Ocurrió un error al cargar: " + e.message);
+      } finally {
+        setCargando(false);
+      }
+    };
+    cargar();
+  }, [invitacionId]);
+
+  const registradosPorFamilia = (nombre: string) =>
+    registros.filter(r => r.invitado_nombre === nombre).reduce((s, r) => s + r.personas_registradas, 0);
+
+  const totalAsignado = invitados.reduce((s, i) => s + (i.pases || 0), 0);
+  const totalRegistrado = registros.reduce((s, r) => s + r.personas_registradas, 0);
+
+  const handleConfirmar = async () => {
+    if (!invitacionId || !famNombre || !window.supabaseClient) return;
+    setConfirmando(true);
+    setInsertError(null);
+    try {
+      const { error: err } = await window.supabaseClient
+        .from("checkins")
+        .insert([{ invitacion_id: invitacionId, invitado_nombre: famNombre, personas_registradas: cantidadAConfirmar }]);
+      if (err) throw err;
+      setConfirmado(true);
+      setRegistros(prev => [...prev, { invitado_nombre: famNombre, personas_registradas: cantidadAConfirmar }]);
+    } catch (e: any) {
+      setInsertError("No se pudo registrar la entrada: " + e.message);
+    } finally {
+      setConfirmando(false);
+    }
+  };
+
+  if (cargando) {
+    return (
+      <div className="w-screen h-screen fixed inset-0 flex flex-col items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-3"></div>
+        <p className="text-xs text-slate-500 font-medium font-sans">Cargando control de acceso...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="w-screen h-screen fixed inset-0 flex flex-col items-center justify-center bg-slate-50 px-6 text-center gap-2">
+        <span className="text-4xl mb-2">🔳</span>
+        <p className="text-sm font-semibold text-slate-700">{error}</p>
+      </div>
+    );
+  }
+
+  // Pantalla de confirmación de UNA familia -- llegó desde el QR de su pase o desde la lista general.
+  if (famNombre) {
+    const invitado = invitados.find(i => i.nombre === famNombre);
+    if (!invitado) {
+      return (
+        <div className="w-screen h-screen fixed inset-0 flex flex-col items-center justify-center bg-slate-50 px-6 text-center gap-2">
+          <span className="text-4xl mb-2">🔳</span>
+          <p className="text-sm font-semibold text-slate-700">No encontramos a "{famNombre}" en la lista de pases.</p>
+          <a href={`?checkin=1&iid=${encodeURIComponent(invitacionId || "")}`} className="text-xs font-bold text-indigo-600 mt-2">← Ver lista completa</a>
+        </div>
+      );
+    }
+    const yaRegistrados = registradosPorFamilia(famNombre);
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="max-w-sm w-full bg-white rounded-2xl shadow-lg border border-slate-200 p-6 text-center">
+          <span className="text-3xl block mb-2">🔳</span>
+          <h1 className="text-lg font-bold text-slate-800">{invitado.nombre}</h1>
+          <p className="text-xs text-slate-500 mt-1">{invitado.pases} pase{invitado.pases === 1 ? "" : "s"} asignado{invitado.pases === 1 ? "" : "s"}</p>
+          {yaRegistrados > 0 && !confirmado && (
+            <p className="text-xs font-bold text-amber-600 mt-2">Ya se registraron {yaRegistrados} de este pase.</p>
+          )}
+          {confirmado ? (
+            <p className="text-sm font-bold text-emerald-600 mt-4">✅ Entrada registrada</p>
+          ) : (
+            <>
+              <label className="block text-[11px] font-bold text-slate-600 mt-4 mb-1">¿Cuántas personas entran ahora?</label>
+              <input
+                type="number"
+                min={1}
+                value={cantidadAConfirmar}
+                onChange={(e) => setCantidadAConfirmar(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                className="w-24 mx-auto text-center px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-500"
+              />
+              {insertError && <p className="text-[11px] text-rose-600 mt-2">{insertError}</p>}
+              <button
+                onClick={handleConfirmar}
+                disabled={confirmando}
+                className="w-full mt-4 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-sm font-bold rounded-xl transition"
+              >
+                {confirmando ? "Registrando..." : "Confirmar entrada"}
+              </button>
+            </>
+          )}
+          <a href={`?checkin=1&iid=${encodeURIComponent(invitacionId || "")}`} className="block text-[11px] font-bold text-slate-400 hover:text-slate-600 mt-4">← Ver lista completa</a>
+        </div>
+      </div>
+    );
+  }
+
+  // Pantalla general: lista buscable de familias + contador en vivo.
+  const invitadosFiltrados = invitados.filter(i => i.nombre.toLowerCase().includes(busqueda.trim().toLowerCase()));
+  return (
+    <div className="min-h-screen bg-slate-50 p-4">
+      <div className="max-w-md mx-auto">
+        <h1 className="text-base font-bold text-slate-800 text-center mt-2">Control de Acceso — {nombreQuinceanera}</h1>
+        <p className="text-xs text-slate-500 text-center mt-1 mb-4">{totalRegistrado} de {totalAsignado} pases registrados</p>
+        <input
+          type="text"
+          placeholder="Buscar familia..."
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-full text-sm outline-none focus:border-indigo-500 mb-3"
+        />
+        <div className="space-y-2">
+          {invitadosFiltrados.map((inv, idx) => {
+            const registrado = registradosPorFamilia(inv.nombre);
+            return (
+              <a
+                key={idx}
+                href={`?checkin=1&iid=${encodeURIComponent(invitacionId || "")}&fam=${encodeURIComponent(inv.nombre)}`}
+                className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200 hover:border-indigo-300 transition"
+              >
+                <div>
+                  <span className="block text-sm font-bold text-slate-800">{inv.nombre}</span>
+                  <span className="block text-[11px] text-slate-500">{inv.pases} pase{inv.pases === 1 ? "" : "s"} asignado{inv.pases === 1 ? "" : "s"}</span>
+                </div>
+                <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${registrado >= inv.pases ? "bg-emerald-100 text-emerald-700" : registrado > 0 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"}`}>
+                  {registrado}/{inv.pases}
+                </span>
+              </a>
+            );
+          })}
+          {invitadosFiltrados.length === 0 && (
+            <p className="text-xs text-slate-400 text-center py-6">Ninguna familia coincide con "{busqueda}"</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   // Cargar estado inicial desde la URL si existe o desde localStorage, o el editor precargado
   const getInitialState = (): { initialDatos: InvitacionDatos; initialTemaId: string; isView: boolean; isCatalog: boolean; initialCatalogTemaId: string | null; isEmbed: boolean } => {
@@ -1419,6 +1618,12 @@ export default function App() {
   const isIntakeMode = queryParams.get('intake') === '1';
   const intakeInvitacionId = queryParams.get('iid');
 
+  // Complemento à la carte "Control de Acceso QR" (?checkin=1&iid=...[&fam=...]) -- ver
+  // CheckinPage más arriba.
+  const isCheckinMode = queryParams.get('checkin') === '1';
+  const checkinInvitacionId = queryParams.get('iid');
+  const checkinFamNombre = queryParams.get('fam');
+
   // Estado principal de los datos de la invitación
   const [datos, setDatos] = useState<InvitacionDatos>(initialDatos);
 
@@ -1505,8 +1710,13 @@ export default function App() {
   const toggleSeccion = useCallback((secName: string) => {
     setDatos(prev => {
       const ex = prev.seccionesExcluidas || [];
-      const newEx = ex.includes(secName) ? ex.filter(s => s !== secName) : [...ex, secName];
-      return { ...prev, seccionesExcluidas: newEx };
+      const seVaAExcluir = !ex.includes(secName);
+      const newEx = seVaAExcluir ? [...ex, secName] : ex.filter(s => s !== secName);
+      // Si se apaga "pases", el Control de Acceso QR se apaga con él -- requiere pases activo
+      // (ver toggle junto a SeccionesToggleList) y así evitamos que quede "true" a escondidas
+      // y reaparezca solo si el admin reactiva pases más adelante.
+      const nuevoControlAccesoQR = (secName === "pases" && seVaAExcluir) ? false : prev.controlAccesoQR;
+      return { ...prev, seccionesExcluidas: newEx, controlAccesoQR: nuevoControlAccesoQR };
     });
   }, []);
 
@@ -1787,6 +1997,10 @@ export default function App() {
   // Motivo elegido en el selector de apagar/encender acceso, por fila -- se lee al momento de
   // apagar (ver MOTIVOS_BLOQUEO / handleActualizarBloqueoInvitacion más arriba).
   const [motivoBloqueoSeleccionado, setMotivoBloqueoSeleccionado] = useState<Record<string, string>>({});
+  // Teléfono del encargado de acceso (asistente, wedding planner, etc.) para mandarle el link
+  // de Control de Acceso QR -- a propósito NO se guarda en la fila como telefono_whatsapp (ese
+  // es el del cliente): se escribe cada vez porque suele ser una persona distinta al cliente.
+  const [telefonoCheckinPorInvitacion, setTelefonoCheckinPorInvitacion] = useState<Record<string, string>>({});
   const [montoNuevoAbono, setMontoNuevoAbono] = useState<Record<string, string>>({});
   const [notaNuevoAbono, setNotaNuevoAbono] = useState<Record<string, string>>({});
   const [busquedaInvitaciones, setBusquedaInvitaciones] = useState("");
@@ -2270,7 +2484,7 @@ export default function App() {
   // en el editor nunca pise estos datos de administración, y viceversa.
   const handleActualizarCampoInvitacion = async (
     row: InvitacionGuardadaRow,
-    campo: "estado" | "precio_total" | "precio_pagado" | "pases_pagado" | "pdf_pagado" | "notas" | "link_pago",
+    campo: "estado" | "precio_total" | "precio_pagado" | "pases_pagado" | "pdf_pagado" | "checkin_pagado" | "notas" | "link_pago",
     valor: string | number | boolean | null
   ) => {
     if (!window.supabaseClient) return;
@@ -2497,6 +2711,27 @@ export default function App() {
     window.open(`https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(msg)}`, "_blank");
   };
 
+  // Complemento à la carte "Control de Acceso QR": manda el link GENERAL de check-in
+  // (sin &fam=, ver CheckinPage) a quien vaya a controlar la puerta -- normalmente no es el
+  // mismo número del cliente, por eso se escribe aparte cada vez en vez de usar
+  // row.telefono_whatsapp.
+  const handleEnviarLinkCheckin = (row: InvitacionGuardadaRow) => {
+    const telefono = (telefonoCheckinPorInvitacion[row.id] || "").replace(/[^0-9]/g, "");
+    if (telefono.length < 10) {
+      mostrarToast("Escribe el número del encargado de acceso (código de país + 10 dígitos)", "error");
+      return;
+    }
+    const urlCheckin = `${window.location.origin}/?checkin=1&iid=${row.id}`;
+    const msg = `¡Hola! 🔳 Este es el link de control de acceso para la fiesta de XV Años de *${row.nombre_quinceanera || "el evento"}* -- ábrelo el día del evento para registrar la entrada de cada familia:\n${urlCheckin}`;
+    window.open(`https://api.whatsapp.com/send?phone=${telefono}&text=${encodeURIComponent(msg)}`, "_blank");
+  };
+
+  const handleCopiarLinkCheckin = (row: InvitacionGuardadaRow) => {
+    const urlCheckin = `${window.location.origin}/?checkin=1&iid=${row.id}`;
+    navigator.clipboard.writeText(urlCheckin);
+    mostrarToast("Link de control de acceso copiado", "success");
+  };
+
   // Exporta la lista de "Mis Invitaciones" (respetando los filtros/búsqueda activos) a un CSV
   // descargable, para llevar cuentas fuera de la app (Excel, contador, etc.).
   const escapeCSV = (valor: string | number | null | undefined): string => {
@@ -2504,7 +2739,7 @@ export default function App() {
     return /[",\n]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto;
   };
   const handleExportarInvitacionesCSV = () => {
-    const encabezados = ["Nombre", "Tema", "Fecha del evento", "Estatus", "Teléfono", "Precio total", "Precio pagado", "Falta pagar", "Pases pagado", "PDF pagado", "Notas"];
+    const encabezados = ["Nombre", "Tema", "Fecha del evento", "Estatus", "Teléfono", "Precio total", "Precio pagado", "Falta pagar", "Pases pagado", "PDF pagado", "QR acceso pagado", "Notas"];
     const filas = invitacionesFiltradas.map(row => {
       const estatusLabel = ESTATUS_PEDIDO.find(e => e.id === (row.estado || "cotizacion"))?.label || row.estado || "";
       const falta = (row.precio_total || 0) - (row.precio_pagado || 0);
@@ -2519,6 +2754,7 @@ export default function App() {
         row.precio_total ? falta : "",
         row.pases_pagado ? "Sí" : "No",
         row.pdf_pagado ? "Sí" : "No",
+        row.checkin_pagado ? "Sí" : "No",
         row.notas || ""
       ].map(escapeCSV).join(",");
     });
@@ -2553,6 +2789,7 @@ export default function App() {
       intake_actualizado_en: row.intake_actualizado_en,
       bloqueada: row.bloqueada,
       motivo_bloqueo: row.motivo_bloqueo,
+      checkin_pagado: row.checkin_pagado,
       datos_completos: row.datos_completos
     }));
     const blob = new Blob([JSON.stringify(respaldo, null, 2)], { type: "application/json;charset=utf-8" });
@@ -3339,6 +3576,10 @@ export default function App() {
     return <div className="w-screen h-screen fixed inset-0 bg-white" />;
   }
 
+  if (isCheckinMode) {
+    return <CheckinPage invitacionId={checkinInvitacionId} famNombre={checkinFamNombre} />;
+  }
+
   if (isIntakeMode) {
     return <IntakeForm invitacionId={intakeInvitacionId} />;
   }
@@ -4074,6 +4315,36 @@ export default function App() {
                       onMover={moverSeccion}
                       paquete={datos.paquete}
                     />
+                    {(() => {
+                      const pasesActivo = !(datos.seccionesExcluidas || []).includes("pases");
+                      return (
+                        <div className={`mt-3 flex items-center justify-between p-2.5 rounded-lg border ${pasesActivo ? "bg-indigo-50/50 border-indigo-200" : "bg-slate-100/50 border-slate-200 opacity-60"}`}>
+                          <div className="pr-3 min-w-0">
+                            <span className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[11px] font-bold text-indigo-900">Control de Acceso QR 🔳</span>
+                              <span className={`shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${pasesActivo ? "bg-amber-100 text-amber-700" : "bg-slate-200 text-slate-500"}`}>
+                                {PRECIO_CONTROL_ACCESO_QR}
+                              </span>
+                            </span>
+                            <span className="block text-[10px] text-slate-500 mt-0.5">
+                              {pasesActivo
+                                ? "Cada pase de familia muestra un QR para registrar su entrada en la puerta."
+                                : "Requiere activar \"Control de pases de invitados\" primero -- sin una lista de familias no hay nada contra qué controlar el acceso."}
+                            </span>
+                          </div>
+                          <label className={`relative inline-flex items-center shrink-0 ${pasesActivo ? "cursor-pointer" : "cursor-not-allowed"}`}>
+                            <input
+                              type="checkbox"
+                              checked={pasesActivo && !!datos.controlAccesoQR}
+                              disabled={!pasesActivo}
+                              onChange={(e) => setDatos({ ...datos, controlAccesoQR: e.target.checked })}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 peer-disabled:cursor-not-allowed"></div>
+                          </label>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 
@@ -6484,7 +6755,48 @@ export default function App() {
                                 />
                                 Á la carte "PDF" pagado
                               </label>
+                              <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-700 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={row.checkin_pagado}
+                                  onChange={(e) => handleActualizarCampoInvitacion(row, "checkin_pagado", e.target.checked)}
+                                />
+                                Á la carte "Control de Acceso QR" pagado
+                              </label>
                             </div>
+
+                            {row.checkin_pagado && (
+                              <div>
+                                <label className="text-[10px] font-bold text-slate-600 block mb-1">Control de Acceso QR — link para quien controle la puerta</label>
+                                {!row.datos_completos?.controlAccesoQR ? (
+                                  <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5">
+                                    ⚠️ Activa el toggle "Control de Acceso QR" dentro del editor de esta invitación (requiere que "pases" esté activo) para que el QR aparezca en los pases de los invitados.
+                                  </p>
+                                ) : (
+                                  <div className="flex gap-1.5">
+                                    <input
+                                      type="text"
+                                      placeholder="Tel. del encargado de acceso (52...)"
+                                      value={telefonoCheckinPorInvitacion[row.id] || ""}
+                                      onChange={(e) => setTelefonoCheckinPorInvitacion(prev => ({ ...prev, [row.id]: e.target.value }))}
+                                      className="flex-1 px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 outline-none focus:border-indigo-500 font-mono"
+                                    />
+                                    <button
+                                      onClick={() => handleEnviarLinkCheckin(row)}
+                                      className="px-2.5 bg-[#25D366] hover:bg-[#20ba56] text-white rounded-lg text-[10px] font-bold transition whitespace-nowrap"
+                                    >
+                                      Enviar
+                                    </button>
+                                    <button
+                                      onClick={() => handleCopiarLinkCheckin(row)}
+                                      className="px-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-600 rounded-lg text-[10px] font-bold transition whitespace-nowrap"
+                                    >
+                                      Copiar
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
 
                             <div>
                               <label className="text-[10px] font-bold text-slate-600 block mb-1">Link de pago (Mercado Pago, PayPal.me, etc.)</label>

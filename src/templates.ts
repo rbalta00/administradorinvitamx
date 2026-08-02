@@ -741,6 +741,10 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
             <span id="pase-cantidad" class="text-3xl font-bold text-accent font-serif">2</span>
           </div>
           <p class="text-[10px] text-gray-400 italic font-mono mt-1">Presenta esta invitación digital para tu ingreso</p>
+          <div id="qr-acceso-bloque" class="hidden mt-4 pt-3 border-t border-borderTheme/30">
+            <img id="qr-acceso-img" src="" alt="Código QR de acceso" width="150" height="150" class="mx-auto rounded-xl border border-gray-200 bg-white p-1.5" />
+            <p class="text-[9px] text-gray-400 mt-1.5">Muestra este código QR en la entrada</p>
+          </div>
         </div>
 
         <div id="sin-coincidencia-pases" class="hidden text-xs text-gray-500 italic mt-3">
@@ -1406,6 +1410,22 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
         document.getElementById('pase-cantidad').innerText = invitado.pases;
         resultadoBloque.classList.remove('hidden');
         sinCoincidencia.classList.add('hidden');
+
+        // Complemento à la carte "Control de Acceso QR": el QR es solo un link de check-in
+        // (?checkin=1&iid=...&fam=...) convertido a imagen por un servicio público -- no hay
+        // librería de generación de QR en este proyecto ni falta hacerla. Requiere que el link
+        // traiga &iid= (invitación ya guardada), igual que el registro de RSVP más abajo.
+        if (${datos.controlAccesoQR ? "true" : "false"}) {
+          const iid = new URLSearchParams(window.location.search).get('iid');
+          const qrBloque = document.getElementById('qr-acceso-bloque');
+          const qrImg = document.getElementById('qr-acceso-img');
+          if (iid && qrBloque && qrImg) {
+            const checkinUrl = window.location.origin + '/?checkin=1&iid=' + encodeURIComponent(iid) + '&fam=' + encodeURIComponent(invitado.nombre);
+            qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(checkinUrl);
+            qrBloque.classList.remove('hidden');
+          }
+        }
+
         return true;
       }
 
