@@ -1,0 +1,36 @@
+================================================================
+REGISTRO DE ANUNCIOS PROBADOS — INVITACIONES XV (administradorinvitamx)
+================================================================
+Este archivo lleva el historial de qué ángulos, avatares, formatos
+y productos/temas ya se han usado en anuncios, para no repetirlos.
+Antes de generar anuncios nuevos (skill /anuncios), revisar esta
+lista completa primero.
+
+Fecha       | Ángulo                        | Avatar/Público                  | Formato              | Producto/Tema        | Archivo fuente
+------------|--------------------------------|----------------------------------|-----------------------|------------------------|--------------------------------
+2026-08-02  | Rapidez y comodidad (24-48h)   | Mamás/papás organizando XV       | Video/carrusel (sin def.) | General (todos temas) | ventas/campana-anuncios.txt #1
+2026-08-02  | Diseño/estética premium        | Mamás/papás organizando XV       | Video/carrusel (sin def.) | General (todos temas) | ventas/campana-anuncios.txt #2
+2026-08-02  | Control de invitados (pases+RSVP) | Mamás/papás organizando XV    | Video/carrusel (sin def.) | General (todos temas) | ventas/campana-anuncios.txt #3
+2026-08-02  | Precio/ahorro vs. impreso      | Mamás/papás organizando XV       | Video/carrusel (sin def.) | General (todos temas) | ventas/campana-anuncios.txt #4
+2026-08-02  | Exclusividad/a la medida       | Mamás/papás organizando XV       | Video/carrusel (sin def.) | Paquete Deluxe (a medida) | ventas/campana-anuncios.txt #5
+2026-08-02  | Elegancia atemporal            | General                          | Imagen/demo real del tema | Dorado Clásico          | ventas/campana-12-temas.txt #1
+2026-08-02  | Romántico/delicado/femenino    | General                          | Imagen/demo real del tema | Vuelo de Mariposas      | ventas/campana-12-temas.txt #2
+2026-08-02  | Artístico/pintado a mano       | General                          | Imagen/demo real del tema | Floral Acuarela         | ventas/campana-12-temas.txt #3
+2026-08-02  | Misterioso/mágico/nocturno     | General                          | Imagen/demo real del tema | Místico Celestial       | ventas/campana-12-temas.txt #4
+2026-08-02  | Natural/orgánico/boho-elegante | General                          | Imagen/demo real del tema | Eucalipto Botánico      | ventas/campana-12-temas.txt #5
+2026-08-02  | Glamour/lujo rosa-dorado       | General                          | Imagen/demo real del tema | Glam Rose Oro           | ventas/campana-12-temas.txt #6
+2026-08-02  | Bohemio/cálido/rústico         | General                          | Imagen/demo real del tema | Rustique Boho Chic      | ventas/campana-12-temas.txt #7
+2026-08-02  | Cuento de hadas/gala           | General                          | Imagen/demo real del tema | Princesa Elegante       | ventas/campana-12-temas.txt #8
+2026-08-02  | Moderno/minimalista-lujo       | General                          | Imagen/demo real del tema | Mármol & Oro Geométrico | ventas/campana-12-temas.txt #9
+2026-08-02  | Moderno/atrevido/fiesta urbana | General                          | Imagen/demo real del tema | Ciber Cyber Neon        | ventas/campana-12-temas.txt #10
+2026-08-02  | Tendencia coquette/dulce       | General                          | Imagen/demo real del tema | XV Coquette Listones Rose | ventas/campana-12-temas.txt #11
+2026-08-02  | Coquette de lujo               | General                          | Imagen/demo real del tema | XV Coquette Luxe        | ventas/campana-12-temas.txt #12
+2026-08-02  | Mágico/único/diferente a todo  | General                          | Imagen/demo real del tema | Aurora Boreal           | ventas/campana-12-temas.txt #13
+
+--------------------------------------------------------------
+NOTA: todos los avatares de arriba son genéricos ("mamás/papás
+organizando XV" o "general") — un eje bueno para la próxima corrida
+del skill /anuncios es variar el AVATAR (ej. la propia quinceañera
+como destinataria del mensaje, el papá que paga, un familiar que
+organiza sorpresa) en vez de solo variar ángulo/tema otra vez.
+================================================================
