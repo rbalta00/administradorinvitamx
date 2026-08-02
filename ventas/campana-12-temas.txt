@@ -1,5 +1,5 @@
 ================================================================
-LOTE DE 12 ANUNCIOS — UNO POR CADA TEMA DEL CATÁLOGO
+LOTE DE 13 ANUNCIOS — UNO POR CADA TEMA DEL CATÁLOGO
 Plataforma: Meta Ads (Facebook + Instagram)
 Fecha: 2026-08-02
 ================================================================
@@ -9,7 +9,7 @@ CÓMO USAR ESTE LOTE
 Cada anuncio está pensado para usarse con una captura o video del
 DEMO REAL de ese tema (ya lo tienes en el catálogo interactivo,
 ?catalog=true) como imagen/creativo — no necesitas generar nada con
-IA. Rota entre estos 12 cada 2-3 semanas para evitar fatiga de
+IA. Rota entre estos 13 cada 2-3 semanas para evitar fatiga de
 anuncio, sin repetir el mismo tema dos veces seguidas.
 
 Todos comparten: CTA a WhatsApp, "desde $499 MXN", tono cercano.
@@ -167,6 +167,19 @@ la sofisticación. 💎
 Descripción: 12 temas para elegir. Desde $499 MXN.
 CTA: Ver este diseño
 
+--------------------------------------------------------------
+13. AURORA BOREAL 🌌 (LUCES NÓRDICAS)
+--------------------------------------------------------------
+Ángulo: mágico, diferente a todo lo demás, cielo nocturno con luces
+Headline: El tema que nadie más tiene: Aurora Boreal
+Texto principal:
+Cielo nocturno profundo con luces de aurora boreal brillando en
+cian, verde neón y morado — como si el cielo mismo fuera parte de
+la decoración. Si tu quinceañera quiere algo que literalmente nadie
+más va a tener en su fiesta, este es. 🌌
+Descripción: 12 temas para elegir. Desde $499 MXN.
+CTA: Ver este diseño
+
 
 --------------------------------------------------------------
 NOTAS
@@ -178,9 +191,8 @@ NOTAS
   en la Fase 3 de la campaña original (muestra gratis / urgencia de
   fecha / ajustes incluidos) — solo cambia el tema/imagen, no la
   oferta, para no mezclar demasiadas variables a la vez.
-- Cuando se agregue un tema nuevo al catálogo (ej. Aurora Boreal, que
-  ya existe en el código pero no estaba en esta lista de 12), pídeme
-  el anuncio correspondiente y lo sumamos al lote.
+- Cuando se agregue un tema nuevo al catálogo, pídeme el anuncio
+  correspondiente y lo sumamos al lote.
 
 ================================================================
 FIN DEL DOCUMENTO
