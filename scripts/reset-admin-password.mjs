@@ -1,6 +1,10 @@
-// Genera una contraseña nueva para el login del editor (ADMIN_PASSWORD) y la
-// sube directo a Vercel (production + preview), luego redeploya para que
-// tome efecto. Uso: npm run reset-admin-password
+// Genera (o recibe) una contraseña nueva para el login del editor
+// (ADMIN_PASSWORD) y la sube directo a Vercel (production + preview), luego
+// redeploya para que tome efecto.
+//
+// Uso:
+//   npm run reset-admin-password                    -> genera una aleatoria
+//   npm run reset-admin-password -- "MiContraseña123" -> usa la que tú elijas
 //
 // Requiere tener la Vercel CLI ya autenticada en esta máquina (npx vercel login).
 // No hace falta pedirle a nadie más la contraseña vieja -- ADMIN_PASSWORD está
@@ -10,7 +14,14 @@
 import { randomBytes } from "node:crypto";
 import { execSync } from "node:child_process";
 
-const nuevaPassword = randomBytes(15)
+const passwordElegida = process.argv[2];
+
+if (passwordElegida && passwordElegida.length < 8) {
+  console.error("La contraseña que diste es muy corta (menos de 8 caracteres) -- esto protege datos reales de clientes (teléfonos, datos bancarios). Usa algo más largo.");
+  process.exit(1);
+}
+
+const nuevaPassword = passwordElegida || randomBytes(15)
   .toString("base64")
   .replace(/[/+=]/g, "")
   .slice(0, 20);

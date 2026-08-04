@@ -101,7 +101,7 @@ Fix, scoped deliberately narrow (full RLS/auth redesign was explicitly deferred 
 - `npm run preview` — preview the production build
 - `npm run lint` — type-check only (`tsc --noEmit`); there is no separate lint tool configured
 - `npm run clean` — removes `dist/` and `server.js` (a stray artifact some AI Studio deploys generate at the root)
-- `npm run reset-admin-password` — generates a new random `ADMIN_PASSWORD`, uploads it to Vercel (production + preview), and redeploys. Self-service recovery for the editor's Basic Auth login (added 2026-08-03) — `ADMIN_PASSWORD` is marked "sensitive" in Vercel, so once set it can never be viewed again (not even in the dashboard), only replaced. Requires the Vercel CLI already logged in (`npx vercel login`).
+- `npm run reset-admin-password` — generates a new random `ADMIN_PASSWORD`, uploads it to Vercel (production + preview), and redeploys. Pass `-- "MiContraseña123"` to set a specific password instead of a random one (rejects anything under 8 chars). Self-service recovery for the editor's Basic Auth login (added 2026-08-03) — `ADMIN_PASSWORD` is marked "sensitive" in Vercel, so once set it can never be viewed again (not even in the dashboard), only replaced. Requires the Vercel CLI already logged in (`npx vercel login`).
 
 There is no test suite in this repo.
 
