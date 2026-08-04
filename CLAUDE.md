@@ -15,6 +15,8 @@ There are several other repos on `github.com/rbalta00` that started from the sam
 
 If asked to "open the generator" or "fix the generator" without a repo specified, assume this repo and its deployment at **https://administradorinvitamx.vercel.app** unless told otherwise.
 
+If the user asks to reset/create/generate a new password for this repo's admin login (e.g. "crea una nueva contraseña para administradorinvitamx", "resetea la contraseña", "olvidé la contraseña del admin") — run `npm run reset-admin-password` from this repo (add `-- "suContraseñaElegida"` if they give you a specific one, otherwise let it generate a random one). See the Commands section below for details. Do not try to look up or guess the old password — `ADMIN_PASSWORD` is marked "sensitive" in Vercel and is unrecoverable by design; the only path is replacing it.
+
 **Scope discipline:** when working in this repo, stay inside it. Don't read from, write to, or cross-reference the duplicate repos listed above as if they shared state with this one — they don't (separate Supabase usage, separate deploys, separately diverged code), even though they started from the same template.
 
 ### Planned future work (not started — wait for explicit go-ahead)
