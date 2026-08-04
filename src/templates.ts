@@ -888,12 +888,15 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
     }
 
     ${datos.bgImages && datos.bgImages[tema.id] ? `
-    /* Imagen de fondo cargada para este tema por separado (solo se muestra al abrir el sobre) */
+    /* Imagen de fondo cargada para este tema por separado (solo se muestra al abrir el sobre).
+       El fondo de respaldo usa el degradado real del tema (no transparent) -- si esta imagen
+       en particular se cae (link roto, borrada del hosting, etc.), la invitación no se queda
+       en blanco: se ve el degradado normal del tema por debajo mientras se resuelve. */
     html {
-      background: transparent !important;
+      background: ${tema.bgGradient} !important;
     }
     body.experiencia-iniciada {
-      background-color: transparent !important;
+      background: ${tema.bgGradient} !important;
     }
     body.experiencia-iniciada, body.experiencia-iniciada.theme-container {
       background-image: url('${datos.bgImages[tema.id]}') !important;
