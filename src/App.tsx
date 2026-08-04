@@ -465,7 +465,7 @@ const LazyIframe = memo(({ t, index, datos }: { t: any; index: number; datos: an
 
   const srcDoc = useMemo(() => {
     if (!shouldRender) return "";
-    return generarHTMLFinal({ ...getDatosVisualizacionCatalog(t, datos), seccionesExcluidas: [...(getDatosVisualizacionCatalog(t, datos).seccionesExcluidas || []), "apertura"] }, t);
+    return generarHTMLFinal({ ...getDatosVisualizacionCatalog(t, datos), seccionesExcluidas: [...(getDatosVisualizacionCatalog(t, datos).seccionesExcluidas || []), "apertura"] }, t, { esDemoDeCatalogo: true });
   }, [shouldRender, t, datos]);
 
   if (!shouldRender) {
@@ -3564,7 +3564,7 @@ export default function App() {
     if (isEmbedMode) {
       const embedTema = temas.find(t => t.id === initialCatalogTemaId) || temas[0];
       const datosEmbed = getDatosVisualizacionCatalog(embedTema, datos);
-      const htmlContent = generarHTMLFinal({ ...datosEmbed, seccionesExcluidas: [...(datosEmbed.seccionesExcluidas || []), "apertura"] }, embedTema);
+      const htmlContent = generarHTMLFinal({ ...datosEmbed, seccionesExcluidas: [...(datosEmbed.seccionesExcluidas || []), "apertura"] }, embedTema, { esDemoDeCatalogo: true });
 
       document.open();
       document.write(htmlContent);
@@ -3646,7 +3646,7 @@ export default function App() {
                de referencia para que la única diferencia visible sea el cajón */
             <div className="w-full h-[calc(100vh-140px)] rounded-2xl border border-slate-200 overflow-hidden shadow-xl bg-white">
               <iframe
-                srcDoc={generarHTMLFinal({ ...getDatosVisualizacionCatalog(temas.find(t => t.id === TEMA_DEMO_ESTILO_CAJAS) || temas[0], datos), seccionesExcluidas: ["apertura"], estiloCajasSecciones: selectedEstiloCajasDemo }, temas.find(t => t.id === TEMA_DEMO_ESTILO_CAJAS) || temas[0])}
+                srcDoc={generarHTMLFinal({ ...getDatosVisualizacionCatalog(temas.find(t => t.id === TEMA_DEMO_ESTILO_CAJAS) || temas[0], datos), seccionesExcluidas: ["apertura"], estiloCajasSecciones: selectedEstiloCajasDemo }, temas.find(t => t.id === TEMA_DEMO_ESTILO_CAJAS) || temas[0], { esDemoDeCatalogo: true })}
                 className="w-full h-full border-0"
                 title="Demo de Estilo de Contenedores"
               />
@@ -3750,7 +3750,7 @@ export default function App() {
                   </p>
                   <div className="w-full h-[calc(100vh-260px)] rounded-2xl border border-slate-200 overflow-hidden shadow-xl bg-white">
                     <iframe
-                      srcDoc={generarHTMLFinal(datosDemoPersonalizada, temaDemoSel)}
+                      srcDoc={generarHTMLFinal(datosDemoPersonalizada, temaDemoSel, { esDemoDeCatalogo: true })}
                       className="w-full h-full border-0"
                       title="Invitación Demo en Vivo"
                     />

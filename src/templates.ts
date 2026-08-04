@@ -36,7 +36,8 @@ const construirUrlGoogleFonts = (tema: TemaConfig): string => {
   return `https://fonts.googleapis.com/css2?family=${segmentos}&display=swap`;
 };
 
-export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): string {
+export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opciones?: { esDemoDeCatalogo?: boolean }): string {
+  const esDemoDeCatalogo = opciones?.esDemoDeCatalogo === true;
   // Invitaciones 100% a la medida: el tema "personalizado" acepta overrides de tipografía,
   // paleta de color y tipo de apertura definidos por el admin para ESA invitación en particular.
   // El resto de temas del catálogo no se ven afectados por esto.
@@ -1154,7 +1155,12 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig): stri
       // los datos del invitado al que se le envió, por privacidad — ver getShareUrl en App.tsx)
       try {
         const huboPase = mostrarPaseFijo();
-        if (huboPase) {
+        // El auto-scroll a "pases" solo tiene sentido para un invitado real abriendo SU
+        // invitación (le enseña su pase de volada) -- las demos del catálogo siempre rellenan
+        // un invitado de muestra para poder enseñar esa sección, así que sin este candado el
+        // scroll se disparaba en TODAS las demos del catálogo, alejándolas de la portada del
+        // tema que se supone deben enseñar primero.
+        if (huboPase && !${esDemoDeCatalogo ? "true" : "false"}) {
           // Hacer scroll suave hacia la sección de pases tras abrir la invitación
           setTimeout(() => {
             const pasesSection = document.querySelector('[data-section="pases"]');
