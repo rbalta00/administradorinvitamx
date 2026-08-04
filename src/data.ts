@@ -756,7 +756,7 @@ export const temas: TemaConfig[] = [
       secondary: "#D4AF37",
       accent: "#6B2545",
       dark: "#1A1A1A",
-      light: "#E5E5E5",
+      light: "#FBEFF2",
       bg: "#FBF8F3",
       border: "#D4AF37"
     },
