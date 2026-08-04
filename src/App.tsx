@@ -1821,6 +1821,47 @@ export default function App() {
     return fondosActualizados;
   };
 
+  // Quita el fondo personalizado de UN tema (Supabase + estado local + localStorage). Antes no
+  // existía ninguna forma de deshacer un fondo ya subido desde la UI -- si el link se rompía
+  // (borrado del hosting, link de prueba guardado sin querer, etc.) no había manera de
+  // limpiarlo sin editar la base de datos a mano. Sigue el mismo patrón "leer todo primero,
+  // solo tocar la entrada de este tema" que guardarFondoEnSupabase, para no arriesgar los
+  // fondos de los demás temas.
+  const handleQuitarFondoTema = async (temaId: string) => {
+    if (!window.supabaseClient) return;
+    try {
+      const { data: actual, error: errorLectura } = await window.supabaseClient
+        .from('invitaciones')
+        .select('fondos_personalizados')
+        .eq('id', FONDOS_ROW_ID)
+        .maybeSingle();
+      if (errorLectura) throw errorLectura;
+
+      const fondosActuales = { ...((actual && actual.fondos_personalizados) || {}) };
+      delete fondosActuales[temaId];
+
+      const { error: errorEscritura } = await window.supabaseClient
+        .from('invitaciones')
+        .update({ fondos_personalizados: fondosActuales, updated_at: new Date().toISOString() })
+        .eq('id', FONDOS_ROW_ID);
+      if (errorEscritura) throw errorEscritura;
+
+      try {
+        localStorage.setItem('xv_fondos_personalizados', JSON.stringify(fondosActuales));
+      } catch {}
+
+      setDatos(prev => {
+        const nuevoBgImages = { ...(prev.bgImages || {}) };
+        delete nuevoBgImages[temaId];
+        return { ...prev, bgImages: nuevoBgImages };
+      });
+
+      mostrarToast(`Fondo personalizado de "${temaId}" eliminado`, "success");
+    } catch (err: any) {
+      mostrarToast("Error al quitar el fondo: " + err.message, "error");
+    }
+  };
+
   // Manejo de carga de imágenes de fondo por tema por separado
   const handleBgImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -4385,6 +4426,14 @@ export default function App() {
                               {datos.bgImages[selectedTemaId]}
                             </span>
                           </div>
+                          <button
+                            type="button"
+                            onClick={() => handleQuitarFondoTema(selectedTemaId)}
+                            title="Quitar este fondo personalizado"
+                            className="shrink-0 p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       ) : (
                         <div className="p-2 border border-slate-200/60 rounded-lg bg-slate-100/30 flex items-center gap-2 flex-1">
@@ -5428,6 +5477,14 @@ export default function App() {
                             {datos.bgImages[selectedTemaId]}
                           </span>
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => handleQuitarFondoTema(selectedTemaId)}
+                          title="Quitar este fondo personalizado"
+                          className="shrink-0 p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     ) : (
                       <div className="p-2.5 border border-slate-150 rounded-xl bg-slate-55/50 flex items-center gap-3">
