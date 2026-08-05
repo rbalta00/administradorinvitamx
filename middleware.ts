@@ -36,7 +36,7 @@ export const config = {
 
 export default function middleware(request: Request) {
   // ⚠️ TEMPORALMENTE DESACTIVADO PARA TESTING - REACTIVAR CUANDO FUNCIONE
-  // return;
+  return;
 
   const url = new URL(request.url);
   const params = url.searchParams;
