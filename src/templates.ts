@@ -1037,9 +1037,24 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       animation: pulse-soft 3s ease-in-out infinite;
     }
 
-    /* Scroll suave */
+    /* Scroll suave y centrado de contenido */
     html {
       scroll-behavior: smooth;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      width: 100%;
+      margin: 0;
+      padding: 0;
     }
 
     /* Ocultar secciones inactivas del paquete */
