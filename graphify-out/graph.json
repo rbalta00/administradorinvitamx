@@ -10,7 +10,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "api_admin_abonos",
-      "community": 11,
+      "community": 13,
       "norm_label": "abonos.ts"
     },
     {
@@ -21,7 +21,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "api_admin_abonos_handler",
-      "community": 11,
+      "community": 13,
       "norm_label": "handler()"
     },
     {
@@ -31,7 +31,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "api_admin_list_invitaciones",
-      "community": 12,
+      "community": 14,
       "norm_label": "list-invitaciones.ts"
     },
     {
@@ -42,7 +42,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "api_admin_list_invitaciones_handler",
-      "community": 12,
+      "community": 14,
       "norm_label": "handler()"
     },
     {
@@ -52,7 +52,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "api_notify_telegram",
-      "community": 13,
+      "community": 15,
       "norm_label": "notify-telegram.ts"
     },
     {
@@ -63,7 +63,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "api_notify_telegram_handler",
-      "community": 13,
+      "community": 15,
       "norm_label": "handler()"
     },
     {
@@ -73,7 +73,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "middleware",
-      "community": 8,
+      "community": 11,
       "norm_label": "middleware.ts"
     },
     {
@@ -83,7 +83,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "middleware_config",
-      "community": 8,
+      "community": 11,
       "norm_label": "config"
     },
     {
@@ -94,7 +94,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "middleware_middleware",
-      "community": 8,
+      "community": 11,
       "norm_label": "middleware()"
     },
     {
@@ -104,7 +104,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "package",
-      "community": 5,
+      "community": 2,
       "norm_label": "package.json"
     },
     {
@@ -114,7 +114,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "package_name",
-      "community": 5,
+      "community": 2,
       "norm_label": "name"
     },
     {
@@ -124,7 +124,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "package_private",
-      "community": 5,
+      "community": 2,
       "norm_label": "private"
     },
     {
@@ -134,7 +134,7 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "package_version",
-      "community": 5,
+      "community": 2,
       "norm_label": "version"
     },
     {
@@ -144,7 +144,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "package_type",
-      "community": 5,
+      "community": 2,
       "norm_label": "type"
     },
     {
@@ -154,7 +154,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "package_scripts",
-      "community": 5,
+      "community": 2,
       "norm_label": "scripts"
     },
     {
@@ -164,7 +164,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "package_scripts_dev",
-      "community": 5,
+      "community": 2,
       "norm_label": "dev"
     },
     {
@@ -174,7 +174,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "package_scripts_build",
-      "community": 5,
+      "community": 2,
       "norm_label": "build"
     },
     {
@@ -184,7 +184,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "package_scripts_preview",
-      "community": 5,
+      "community": 2,
       "norm_label": "preview"
     },
     {
@@ -194,7 +194,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "package_scripts_clean",
-      "community": 5,
+      "community": 2,
       "norm_label": "clean"
     },
     {
@@ -204,7 +204,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "package_scripts_lint",
-      "community": 5,
+      "community": 2,
       "norm_label": "lint"
     },
     {
@@ -214,7 +214,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "package_scripts_reset_admin_password",
-      "community": 5,
+      "community": 2,
       "norm_label": "reset-admin-password"
     },
     {
@@ -224,7 +224,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "package_dependencies",
-      "community": 0,
+      "community": 1,
       "norm_label": "dependencies"
     },
     {
@@ -234,7 +234,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "package_dependencies_google_genai",
-      "community": 0,
+      "community": 1,
       "norm_label": "@google/genai"
     },
     {
@@ -244,7 +244,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "google_genai",
-      "community": 0,
+      "community": 1,
       "norm_label": "@google/genai"
     },
     {
@@ -254,7 +254,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "package_dependencies_supabase_supabase_js",
-      "community": 0,
+      "community": 1,
       "norm_label": "@supabase/supabase-js"
     },
     {
@@ -264,7 +264,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "supabase_supabase_js",
-      "community": 0,
+      "community": 1,
       "norm_label": "@supabase/supabase-js"
     },
     {
@@ -274,7 +274,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "package_dependencies_tailwindcss_vite",
-      "community": 0,
+      "community": 1,
       "norm_label": "@tailwindcss/vite"
     },
     {
@@ -284,7 +284,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "tailwindcss_vite",
-      "community": 0,
+      "community": 1,
       "norm_label": "@tailwindcss/vite"
     },
     {
@@ -294,7 +294,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "package_dependencies_vitejs_plugin_react",
-      "community": 0,
+      "community": 1,
       "norm_label": "@vitejs/plugin-react"
     },
     {
@@ -304,7 +304,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "vitejs_plugin_react",
-      "community": 0,
+      "community": 1,
       "norm_label": "@vitejs/plugin-react"
     },
     {
@@ -314,7 +314,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "package_dependencies_dotenv",
-      "community": 0,
+      "community": 1,
       "norm_label": "dotenv"
     },
     {
@@ -324,7 +324,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "dotenv",
-      "community": 0,
+      "community": 1,
       "norm_label": "dotenv"
     },
     {
@@ -334,7 +334,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "package_dependencies_express",
-      "community": 0,
+      "community": 1,
       "norm_label": "express"
     },
     {
@@ -344,7 +344,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "express",
-      "community": 0,
+      "community": 1,
       "norm_label": "express"
     },
     {
@@ -354,7 +354,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "package_dependencies_html2canvas",
-      "community": 0,
+      "community": 1,
       "norm_label": "html2canvas"
     },
     {
@@ -364,7 +364,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "html2canvas",
-      "community": 0,
+      "community": 1,
       "norm_label": "html2canvas"
     },
     {
@@ -374,7 +374,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "package_dependencies_jspdf",
-      "community": 0,
+      "community": 1,
       "norm_label": "jspdf"
     },
     {
@@ -384,7 +384,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "jspdf",
-      "community": 0,
+      "community": 1,
       "norm_label": "jspdf"
     },
     {
@@ -394,7 +394,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "package_dependencies_lucide_react",
-      "community": 0,
+      "community": 1,
       "norm_label": "lucide-react"
     },
     {
@@ -404,7 +404,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "lucide_react",
-      "community": 0,
+      "community": 1,
       "norm_label": "lucide-react"
     },
     {
@@ -414,7 +414,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "package_dependencies_motion",
-      "community": 0,
+      "community": 1,
       "norm_label": "motion"
     },
     {
@@ -424,7 +424,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "motion",
-      "community": 0,
+      "community": 1,
       "norm_label": "motion"
     },
     {
@@ -434,7 +434,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "package_dependencies_react",
-      "community": 0,
+      "community": 1,
       "norm_label": "react"
     },
     {
@@ -444,7 +444,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "react",
-      "community": 0,
+      "community": 1,
       "norm_label": "react"
     },
     {
@@ -454,7 +454,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "package_dependencies_react_dom",
-      "community": 0,
+      "community": 1,
       "norm_label": "react-dom"
     },
     {
@@ -464,7 +464,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "react_dom",
-      "community": 0,
+      "community": 1,
       "norm_label": "react-dom"
     },
     {
@@ -474,7 +474,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "package_dependencies_vite",
-      "community": 3,
+      "community": 1,
       "norm_label": "vite"
     },
     {
@@ -484,7 +484,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "vite",
-      "community": 3,
+      "community": 1,
       "norm_label": "vite"
     },
     {
@@ -494,7 +494,7 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "package_devdependencies",
-      "community": 3,
+      "community": 2,
       "norm_label": "devdependencies"
     },
     {
@@ -504,7 +504,7 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "package_devdependencies_types_express",
-      "community": 3,
+      "community": 2,
       "norm_label": "@types/express"
     },
     {
@@ -514,7 +514,7 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "types_express",
-      "community": 3,
+      "community": 2,
       "norm_label": "@types/express"
     },
     {
@@ -524,7 +524,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "package_devdependencies_types_node",
-      "community": 3,
+      "community": 2,
       "norm_label": "@types/node"
     },
     {
@@ -534,7 +534,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "types_node",
-      "community": 3,
+      "community": 2,
       "norm_label": "@types/node"
     },
     {
@@ -544,7 +544,7 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "package_devdependencies_autoprefixer",
-      "community": 3,
+      "community": 2,
       "norm_label": "autoprefixer"
     },
     {
@@ -554,7 +554,7 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "autoprefixer",
-      "community": 3,
+      "community": 2,
       "norm_label": "autoprefixer"
     },
     {
@@ -564,7 +564,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "package_devdependencies_esbuild",
-      "community": 3,
+      "community": 2,
       "norm_label": "esbuild"
     },
     {
@@ -574,7 +574,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "esbuild",
-      "community": 3,
+      "community": 2,
       "norm_label": "esbuild"
     },
     {
@@ -584,7 +584,7 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "package_devdependencies_tailwindcss",
-      "community": 3,
+      "community": 2,
       "norm_label": "tailwindcss"
     },
     {
@@ -594,7 +594,7 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "tailwindcss",
-      "community": 3,
+      "community": 2,
       "norm_label": "tailwindcss"
     },
     {
@@ -604,7 +604,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "package_devdependencies_tsx",
-      "community": 3,
+      "community": 2,
       "norm_label": "tsx"
     },
     {
@@ -614,7 +614,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "tsx",
-      "community": 3,
+      "community": 2,
       "norm_label": "tsx"
     },
     {
@@ -624,7 +624,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "package_devdependencies_typescript",
-      "community": 3,
+      "community": 2,
       "norm_label": "typescript"
     },
     {
@@ -634,7 +634,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "typescript",
-      "community": 3,
+      "community": 2,
       "norm_label": "typescript"
     },
     {
@@ -644,7 +644,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "package_devdependencies_vite",
-      "community": 3,
+      "community": 1,
       "norm_label": "vite"
     },
     {
@@ -654,7 +654,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "scripts_reset_admin_password",
-      "community": 14,
+      "community": 18,
       "norm_label": "reset-admin-password.mjs"
     },
     {
@@ -665,7 +665,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "scripts_reset_admin_password_run",
-      "community": 14,
+      "community": 18,
       "norm_label": "run()"
     },
     {
@@ -675,7 +675,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_app",
-      "community": 1,
+      "community": 0,
       "norm_label": "app.tsx"
     },
     {
@@ -685,7 +685,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "src_app_supabaseurl",
-      "community": 1,
+      "community": 0,
       "norm_label": "supabaseurl"
     },
     {
@@ -695,7 +695,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "src_app_supabaseanonkey",
-      "community": 1,
+      "community": 0,
       "norm_label": "supabaseanonkey"
     },
     {
@@ -717,7 +717,7 @@
       "source_location": "L77",
       "_origin": "ast",
       "id": "src_app_estatus_pedido",
-      "community": 7,
+      "community": 0,
       "norm_label": "estatus_pedido"
     },
     {
@@ -727,7 +727,7 @@
       "source_location": "L90",
       "_origin": "ast",
       "id": "src_app_motivos_bloqueo",
-      "community": 1,
+      "community": 0,
       "norm_label": "motivos_bloqueo"
     },
     {
@@ -739,7 +739,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "src_app_confirmacionrsvp",
-      "community": 1,
+      "community": 0,
       "norm_label": "confirmacionrsvp"
     },
     {
@@ -751,7 +751,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "src_app_abono",
-      "community": 1,
+      "community": 0,
       "norm_label": "abono"
     },
     {
@@ -763,7 +763,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "src_app_avisopago",
-      "community": 1,
+      "community": 0,
       "norm_label": "avisopago"
     },
     {
@@ -773,7 +773,7 @@
       "source_location": "L127",
       "_origin": "ast",
       "id": "src_app_key_map",
-      "community": 1,
+      "community": 0,
       "norm_label": "key_map"
     },
     {
@@ -783,7 +783,7 @@
       "source_location": "L159",
       "_origin": "ast",
       "id": "src_app_sub_key_map",
-      "community": 1,
+      "community": 0,
       "norm_label": "sub_key_map"
     },
     {
@@ -793,7 +793,7 @@
       "source_location": "L167",
       "_origin": "ast",
       "id": "src_app_reverse_key_map",
-      "community": 1,
+      "community": 0,
       "norm_label": "reverse_key_map"
     },
     {
@@ -803,7 +803,7 @@
       "source_location": "L168",
       "_origin": "ast",
       "id": "src_app_reverse_sub_key_map",
-      "community": 1,
+      "community": 0,
       "norm_label": "reverse_sub_key_map"
     },
     {
@@ -814,7 +814,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_app_encodestate",
-      "community": 6,
+      "community": 0,
       "norm_label": "encodestate()"
     },
     {
@@ -825,7 +825,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_app_decodestate",
-      "community": 6,
+      "community": 0,
       "norm_label": "decodestate()"
     },
     {
@@ -836,7 +836,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_app_guardarensupabase",
-      "community": 6,
+      "community": 0,
       "norm_label": "guardarensupabase()"
     },
     {
@@ -847,7 +847,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_app_getcolorsugeridoportema",
-      "community": 9,
+      "community": 0,
       "norm_label": "getcolorsugeridoportema()"
     },
     {
@@ -858,7 +858,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_app_getdatoscatalogtema",
-      "community": 9,
+      "community": 0,
       "norm_label": "getdatoscatalogtema()"
     },
     {
@@ -869,7 +869,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_app_getdatosvisualizacioncatalog",
-      "community": 9,
+      "community": 0,
       "norm_label": "getdatosvisualizacioncatalog()"
     },
     {
@@ -879,7 +879,7 @@
       "source_location": "L456",
       "_origin": "ast",
       "id": "src_app_lazyiframe",
-      "community": 1,
+      "community": 0,
       "norm_label": "lazyiframe"
     },
     {
@@ -889,7 +889,7 @@
       "source_location": "L500",
       "_origin": "ast",
       "id": "src_app_nombres_secciones",
-      "community": 1,
+      "community": 0,
       "norm_label": "nombres_secciones"
     },
     {
@@ -899,7 +899,7 @@
       "source_location": "L522",
       "_origin": "ast",
       "id": "src_app_fuentes_encabezado",
-      "community": 1,
+      "community": 0,
       "norm_label": "fuentes_encabezado"
     },
     {
@@ -909,7 +909,7 @@
       "source_location": "L523",
       "_origin": "ast",
       "id": "src_app_fuentes_texto",
-      "community": 1,
+      "community": 0,
       "norm_label": "fuentes_texto"
     },
     {
@@ -919,7 +919,7 @@
       "source_location": "L524",
       "_origin": "ast",
       "id": "src_app_fuentes_cursiva",
-      "community": 1,
+      "community": 0,
       "norm_label": "fuentes_cursiva"
     },
     {
@@ -929,7 +929,7 @@
       "source_location": "L526",
       "_origin": "ast",
       "id": "src_app_tipos_apertura",
-      "community": 1,
+      "community": 0,
       "norm_label": "tipos_apertura"
     },
     {
@@ -940,7 +940,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_app_tipoaperturapordefectodeltema",
-      "community": 6,
+      "community": 0,
       "norm_label": "tipoaperturapordefectodeltema()"
     },
     {
@@ -950,7 +950,7 @@
       "source_location": "L543",
       "_origin": "ast",
       "id": "src_app_estilos_cajas_secciones",
-      "community": 6,
+      "community": 0,
       "norm_label": "estilos_cajas_secciones"
     },
     {
@@ -960,7 +960,7 @@
       "source_location": "L549",
       "_origin": "ast",
       "id": "src_app_paletas_animacion",
-      "community": 1,
+      "community": 0,
       "norm_label": "paletas_animacion"
     },
     {
@@ -970,7 +970,7 @@
       "source_location": "L562",
       "_origin": "ast",
       "id": "src_app_politica_pases",
-      "community": 1,
+      "community": 0,
       "norm_label": "politica_pases"
     },
     {
@@ -980,7 +980,7 @@
       "source_location": "L575",
       "_origin": "ast",
       "id": "src_app_seccionestogglelist",
-      "community": 1,
+      "community": 0,
       "norm_label": "seccionestogglelist"
     },
     {
@@ -990,7 +990,7 @@
       "source_location": "L646",
       "_origin": "ast",
       "id": "src_app_temasgrid",
-      "community": 1,
+      "community": 0,
       "norm_label": "temasgrid"
     },
     {
@@ -1002,7 +1002,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "src_app_window",
-      "community": 1,
+      "community": 0,
       "norm_label": "window"
     },
     {
@@ -1013,7 +1013,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_app_subirimagenpublica",
-      "community": 7,
+      "community": 0,
       "norm_label": "subirimagenpublica()"
     },
     {
@@ -1024,7 +1024,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_app_notificaradmintelegram",
-      "community": 7,
+      "community": 0,
       "norm_label": "notificaradmintelegram()"
     },
     {
@@ -1035,7 +1035,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_app_intakeform",
-      "community": 7,
+      "community": 0,
       "norm_label": "intakeform()"
     },
     {
@@ -1046,7 +1046,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_app_checkinpage",
-      "community": 1,
+      "community": 0,
       "norm_label": "checkinpage()"
     },
     {
@@ -1057,7 +1057,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "src_app_app",
-      "community": 6,
+      "community": 0,
       "norm_label": "app()"
     },
     {
@@ -1160,7 +1160,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_main",
-      "community": 6,
+      "community": 0,
       "norm_label": "main.tsx"
     },
     {
@@ -1258,7 +1258,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tsconfig",
-      "community": 2,
+      "community": 3,
       "norm_label": "tsconfig.json"
     },
     {
@@ -1268,7 +1268,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "tsconfig_compileroptions",
-      "community": 2,
+      "community": 3,
       "norm_label": "compileroptions"
     },
     {
@@ -1278,7 +1278,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "tsconfig_compileroptions_target",
-      "community": 2,
+      "community": 3,
       "norm_label": "target"
     },
     {
@@ -1288,7 +1288,7 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "tsconfig_compileroptions_experimentaldecorators",
-      "community": 2,
+      "community": 3,
       "norm_label": "experimentaldecorators"
     },
     {
@@ -1298,7 +1298,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "tsconfig_compileroptions_usedefineforclassfields",
-      "community": 2,
+      "community": 3,
       "norm_label": "usedefineforclassfields"
     },
     {
@@ -1308,7 +1308,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "tsconfig_compileroptions_module",
-      "community": 2,
+      "community": 3,
       "norm_label": "module"
     },
     {
@@ -1318,7 +1318,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "tsconfig_compileroptions_lib",
-      "community": 2,
+      "community": 3,
       "norm_label": "lib"
     },
     {
@@ -1328,7 +1328,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "ref_es2022",
-      "community": 2,
+      "community": 3,
       "norm_label": "es2022"
     },
     {
@@ -1338,7 +1338,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "ref_dom",
-      "community": 2,
+      "community": 3,
       "norm_label": "dom"
     },
     {
@@ -1348,7 +1348,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "ref_dom_iterable",
-      "community": 2,
+      "community": 3,
       "norm_label": "dom.iterable"
     },
     {
@@ -1358,7 +1358,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "tsconfig_compileroptions_skiplibcheck",
-      "community": 2,
+      "community": 3,
       "norm_label": "skiplibcheck"
     },
     {
@@ -1368,7 +1368,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "tsconfig_compileroptions_moduleresolution",
-      "community": 2,
+      "community": 3,
       "norm_label": "moduleresolution"
     },
     {
@@ -1378,7 +1378,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "tsconfig_compileroptions_isolatedmodules",
-      "community": 2,
+      "community": 3,
       "norm_label": "isolatedmodules"
     },
     {
@@ -1388,7 +1388,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "tsconfig_compileroptions_moduledetection",
-      "community": 2,
+      "community": 3,
       "norm_label": "moduledetection"
     },
     {
@@ -1398,7 +1398,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "tsconfig_compileroptions_allowjs",
-      "community": 2,
+      "community": 3,
       "norm_label": "allowjs"
     },
     {
@@ -1408,7 +1408,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "tsconfig_compileroptions_jsx",
-      "community": 2,
+      "community": 3,
       "norm_label": "jsx"
     },
     {
@@ -1418,7 +1418,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "tsconfig_compileroptions_paths",
-      "community": 2,
+      "community": 3,
       "norm_label": "paths"
     },
     {
@@ -1428,7 +1428,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "tsconfig_compileroptions_allowimportingtsextensions",
-      "community": 2,
+      "community": 3,
       "norm_label": "allowimportingtsextensions"
     },
     {
@@ -1438,7 +1438,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "tsconfig_compileroptions_noemit",
-      "community": 2,
+      "community": 3,
       "norm_label": "noemit"
     },
     {
@@ -1448,7 +1448,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "vercel",
-      "community": 10,
+      "community": 12,
       "norm_label": "vercel.json"
     },
     {
@@ -1458,7 +1458,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "vercel_rewrites",
-      "community": 10,
+      "community": 12,
       "norm_label": "rewrites"
     },
     {
@@ -1468,7 +1468,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "vercel_headers",
-      "community": 10,
+      "community": 12,
       "norm_label": "headers"
     },
     {
@@ -1478,8 +1478,821 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "vite_config",
-      "community": 15,
+      "community": 46,
       "norm_label": "vite.config.ts"
+    },
+    {
+      "label": "Generador de Invitaciones XV - Digital Invitation Generator",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Project overview section",
+      "rationale": "Single-page React app for building and sharing digital invitations for Mexican quincea\u00f1era (XV a\u00f1os) parties, with editor, guest view, and catalog modes",
+      "id": "claude_md_project_overview",
+      "community": 8,
+      "norm_label": "generador de invitaciones xv - digital invitation generator"
+    },
+    {
+      "label": "Canonical Repository Status",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Canonical repo note",
+      "rationale": "administradorinvitamx is the official maintained repo as of 2026-07-27; other repos (invitacionesmx, invitamx, INVITAMXGEN, admin-hanny, hanny-xv-admin) are stale duplicates that diverged independently",
+      "id": "claude_md_canonical_repo_warning",
+      "community": 8,
+      "norm_label": "canonical repository status"
+    },
+    {
+      "label": "types.ts - Core Data Shapes",
+      "file_type": "code",
+      "source_file": "CLAUDE.md",
+      "source_location": "Architecture section",
+      "id": "claude_md_types_ts",
+      "community": 5,
+      "norm_label": "types.ts - core data shapes"
+    },
+    {
+      "label": "data.ts - Static Content and Configuration",
+      "file_type": "code",
+      "source_file": "CLAUDE.md",
+      "source_location": "Architecture section",
+      "id": "claude_md_data_ts",
+      "community": 5,
+      "norm_label": "data.ts - static content and configuration"
+    },
+    {
+      "label": "templates.ts - HTML Generation and Guest View",
+      "file_type": "code",
+      "source_file": "CLAUDE.md",
+      "source_location": "Architecture section",
+      "rationale": "Generates entire guest-facing invitation as single self-contained HTML string with inline styles, lightbox, countdown, opening animation",
+      "id": "claude_md_templates_ts",
+      "community": 5,
+      "norm_label": "templates.ts - html generation and guest view"
+    },
+    {
+      "label": "App.tsx - Editor UI and Query-Param Routing",
+      "file_type": "code",
+      "source_file": "CLAUDE.md",
+      "source_location": "Architecture section",
+      "rationale": "~3200 lines containing editor UI, three routing-free modes (editor, view, catalog) selected from URL query params",
+      "id": "claude_md_app_tsx",
+      "community": 5,
+      "norm_label": "app.tsx - editor ui and query-param routing"
+    },
+    {
+      "label": "main.tsx - React Root Mount",
+      "file_type": "code",
+      "source_file": "CLAUDE.md",
+      "source_location": "Architecture section",
+      "id": "claude_md_main_tsx",
+      "community": 5,
+      "norm_label": "main.tsx - react root mount"
+    },
+    {
+      "label": "middleware.ts - Vercel Edge Middleware and Admin Auth",
+      "file_type": "code",
+      "source_file": "CLAUDE.md",
+      "source_location": "Deployment section",
+      "rationale": "Gates editor behind HTTP Basic Auth via ADMIN_PASSWORD env var; lets through public query-param modes (?v=1, ?catalog=true, ?intake=1); matcher excludes public API routes",
+      "id": "claude_md_middleware_ts",
+      "community": 5,
+      "norm_label": "middleware.ts - vercel edge middleware and admin auth"
+    },
+    {
+      "label": "api/notify-telegram.ts - Telegram Bot Notifications",
+      "file_type": "code",
+      "source_file": "CLAUDE.md",
+      "source_location": "Telegram notifications section",
+      "rationale": "Vercel serverless function using Node handler signature (req, res), not Web-standard Request/Response; uses TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID env vars",
+      "id": "claude_md_api_notify_telegram_ts",
+      "community": 5,
+      "norm_label": "api/notify-telegram.ts - telegram bot notifications"
+    },
+    {
+      "label": "api/admin/list-invitaciones.ts - Bulk Invitations Read",
+      "file_type": "code",
+      "source_file": "CLAUDE.md",
+      "source_location": "Bulk-read exposure section",
+      "rationale": "Server-side endpoint using SUPABASE_SERVICE_ROLE_KEY to bypass RLS; returns all rows filtered by admin auth",
+      "id": "claude_md_api_admin_list_invitaciones_ts",
+      "community": 6,
+      "norm_label": "api/admin/list-invitaciones.ts - bulk invitations read"
+    },
+    {
+      "label": "api/admin/abonos.ts - Bulk Payments Read",
+      "file_type": "code",
+      "source_file": "CLAUDE.md",
+      "source_location": "Bulk-read exposure section",
+      "rationale": "Server-side endpoint using SUPABASE_SERVICE_ROLE_KEY for dashboard revenue aggregation",
+      "id": "claude_md_api_admin_abonos_ts",
+      "community": 6,
+      "norm_label": "api/admin/abonos.ts - bulk payments read"
+    },
+    {
+      "label": "InvitacionDatos - Core Invitation Content Schema",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "types.ts description",
+      "rationale": "Central data shape containing event details, ceremony/reception, itinerary, guest list, photos, theme, package, and all invitation-specific configuration",
+      "id": "claude_md_invitation_data_structure",
+      "community": 7,
+      "norm_label": "invitaciondatos - core invitation content schema"
+    },
+    {
+      "label": "PaqueteConfig - Package Tier Configuration",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "types.ts description",
+      "rationale": "Defines which sections are enabled and max photo count per package tier",
+      "id": "claude_md_paquete_config",
+      "community": 7,
+      "norm_label": "paqueteconfig - package tier configuration"
+    },
+    {
+      "label": "TemaConfig - Theme Visual Configuration",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "types.ts description",
+      "rationale": "Visual theme definition with font, color, gradient, custom CSS per theme",
+      "id": "claude_md_tema_config",
+      "community": 7,
+      "norm_label": "temaconfig - theme visual configuration"
+    },
+    {
+      "label": "Invitation Themes - 12 Pre-Built + 1 Custom",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Business policy section",
+      "rationale": "12 themes: Dorado Cl\u00e1sico, Vuelo de Mariposas, Floral Acuarela, M\u00edstico Celestial, Eucalipto Bot\u00e1nico, Glam Rose Oro, Rustique Boho Chic, Princesa Elegante, M\u00e1rmol & Oro Geom\u00e9trico, Ciber Cyber Neon, XV Coquette Listones Rose, XV Coquette Luxe; plus 1 custom A Medida theme",
+      "id": "claude_md_themes_feature",
+      "community": 33,
+      "norm_label": "invitation themes - 12 pre-built + 1 custom"
+    },
+    {
+      "label": "Invitation Packages - B\u00e1sico, Premium, Deluxe",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Business policy section",
+      "rationale": "Three tiers differentiated by max photo count (4/8/14) and included features; pases/PDF pricing differs by tier",
+      "id": "claude_md_packages_feature",
+      "community": 29,
+      "norm_label": "invitation packages - basico, premium, deluxe"
+    },
+    {
+      "label": "RSVP Tracking - confirmaciones Table and Integration",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Client/order management section",
+      "rationale": "Guest RSVP confirmation flows through WhatsApp (templates.ts enviarRSVPWhatsApp), stores in confirmaciones table with FK to invitaciones.id, tracked in Mis Invitaciones UI",
+      "id": "claude_md_rsvp_tracking_feature",
+      "community": 6,
+      "norm_label": "rsvp tracking - confirmaciones table and integration"
+    },
+    {
+      "label": "Pases - Per-Guest Personalized Passes",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Business policy and features list",
+      "rationale": "Per-family personalized pass with name and pase count; included in Deluxe, \u00e0-la-carte in B\u00e1sico/Premium; requires per-guest link generation via getShareUrl(invitadoIndex)",
+      "id": "claude_md_pases_feature",
+      "community": 7,
+      "norm_label": "pases - per-guest personalized passes"
+    },
+    {
+      "label": "Control de Acceso QR - Check-In via QR Code",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "QR control section",
+      "rationale": "Door check-in system; requires pases to be active; each pase renders QR linking to /?checkin=1&iid=<invitacion id>&fam=<familia>; CheckinPage shows single-family confirm or searchable family list",
+      "id": "claude_md_qr_checkin_feature",
+      "community": 7,
+      "norm_label": "control de acceso qr - check-in via qr code"
+    },
+    {
+      "label": "Manual Access Blocking - bloqueada + motivo_bloqueo",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Manual access block note",
+      "rationale": "Admin-controlled blocking of guest links via bloqueada boolean and motivo_bloqueo (evento_pasado | cancelado | falta_pago | solicitud_cliente | otro); checked via iid lookup before guest view renders",
+      "id": "claude_md_access_blocking_feature",
+      "community": 6,
+      "norm_label": "manual access blocking - bloqueada + motivo_bloqueo"
+    },
+    {
+      "label": "Client Intake Form - ?intake=1&iid=<row id>",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Client/order management section",
+      "rationale": "Public, login-free page for clients to self-fill fecha/ceremonia/recepci\u00f3n/itinerario/padrinos/regalo and upload photos; merges into datos_completos on save; sets intake_actualizado_en timestamp",
+      "id": "claude_md_intake_form_feature",
+      "community": 6,
+      "norm_label": "client intake form - ?intake=1&iid=<row id>"
+    },
+    {
+      "label": "Telegram Bot Notifications to Admin",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Telegram notifications section",
+      "rationale": "Fire-and-forget POST to /api/notify-telegram from IntakeForm handleEnviarAvisoPago/handleEnviar and RSVP flow; notifies admin via @invitqmxbot when client submits or confirms",
+      "id": "claude_md_telegram_notifications_feature",
+      "community": 5,
+      "norm_label": "telegram bot notifications to admin"
+    },
+    {
+      "label": "Anti-Spam Rate Limiting - PostgreSQL Triggers",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Anti-spam rate limiting section",
+      "rationale": "BEFORE INSERT/UPDATE triggers (rl_confirmaciones, rl_avisos_pago, rl_invitaciones_intake) enforce limits: 15 confirmaciones/10min/invitacion, 5 avisos_pago/10min/invitacion, 15sec minimum intake resubmit; global circuit-breaker per 5min",
+      "id": "claude_md_rate_limiting_feature",
+      "community": 6,
+      "norm_label": "anti-spam rate limiting - postgresql triggers"
+    },
+    {
+      "label": "Mis Invitaciones - Client Order Management Panel",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Client/order management section",
+      "rationale": "Lists all saved rows with search/filter by name/tema/estatus; supports CSV export, duplicate, delete, re-open; shows saldo pendiente and event-in-14-days filters; RSVP count/list viewer",
+      "id": "claude_md_mis_invitaciones_panel",
+      "community": 6,
+      "norm_label": "mis invitaciones - client order management panel"
+    },
+    {
+      "label": "Nuevo Cliente - Quick Order Creation",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Client/order management section",
+      "rationale": "Name + phone + package creates Supabase row immediately with estatus=cotizacion; tracks sale from moment it's made",
+      "id": "claude_md_nuevo_cliente_form",
+      "community": 28,
+      "norm_label": "nuevo cliente - quick order creation"
+    },
+    {
+      "label": "Ingresos Dashboard - Revenue Aggregation",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Client/order management section",
+      "rationale": "Aggregates across all saved invitaciones; computed from abonos table (has payment dates); shows hist\u00f3rico, month-by-month, pendiente, cobrado-por-paquete",
+      "id": "claude_md_dashboard_ingresos",
+      "community": 6,
+      "norm_label": "ingresos dashboard - revenue aggregation"
+    },
+    {
+      "label": "invitaciones Table - Supabase Core Schema",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Client/order management section",
+      "rationale": "Stores full invitation state; columns: id, datos_completos (jsonb), nombre_quinceanera, fecha_fiesta, estatus, precio_total, precio_pagado, pases_pagado, pdf_pagado, notas, link_pago, intake_actualizado_en, activo_hasta, bloqueada, motivo_bloqueo, checkin_pagado, and others",
+      "id": "claude_md_invitaciones_table",
+      "community": 6,
+      "norm_label": "invitaciones table - supabase core schema"
+    },
+    {
+      "label": "confirmaciones Table - RSVP Records",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Client/order management section",
+      "rationale": "Stores guest RSVP entries with FK invitacion_id; written directly from anonymous guest via anon key with RLS allow all",
+      "id": "claude_md_confirmaciones_table",
+      "community": 6,
+      "norm_label": "confirmaciones table - rsvp records"
+    },
+    {
+      "label": "abonos Table - Payment Transaction Records",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Client/order management section",
+      "rationale": "Payment transactions with real payment dates; only source for revenue aggregation with timestamps",
+      "id": "claude_md_abonos_table",
+      "community": 6,
+      "norm_label": "abonos table - payment transaction records"
+    },
+    {
+      "label": "avisos_pago Table - Payment Notifications",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Client/order management section",
+      "rationale": "Records when client notifies admin of payment; written via anon key; rate-limited by rl_avisos_pago trigger",
+      "id": "claude_md_avisos_pago_table",
+      "community": 6,
+      "norm_label": "avisos_pago table - payment notifications"
+    },
+    {
+      "label": "checkins Table - Door Check-In Records",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "QR control section",
+      "rationale": "Records per-family arrivals with personas_registradas; allows multiple rows per family (partial arrivals); RLS allow all; rate-limited with higher thresholds (300/10min per invitacion)",
+      "id": "claude_md_checkins_table",
+      "community": 7,
+      "norm_label": "checkins table - door check-in records"
+    },
+    {
+      "label": "Supabase - Backend Database and RLS",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "External services section",
+      "rationale": "Project ahwcilcejffgddeeuiux; client created via @supabase/supabase-js from VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY; exposed as window.supabaseClient; all tables use RLS with USING (true) for public writes",
+      "id": "claude_md_supabase_integration",
+      "community": 6,
+      "norm_label": "supabase - backend database and rls"
+    },
+    {
+      "label": "Cloudinary - Image Upload and CDN",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "External services section",
+      "rationale": "Direct unsigned upload from browser to cloud dswrrm5u1 with preset invitaciones-xv; used for photos, backgrounds, custom per-theme images",
+      "id": "claude_md_cloudinary_integration",
+      "community": 5,
+      "norm_label": "cloudinary - image upload and cdn"
+    },
+    {
+      "label": "WhatsApp - Sharing and Communication",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "External services section",
+      "rationale": "Builds https://api.whatsapp.com/send?phone=...&text=... links for sharing and confirmation flows; no API integration, client-side window.open only",
+      "id": "claude_md_whatsapp_integration",
+      "community": 5,
+      "norm_label": "whatsapp - sharing and communication"
+    },
+    {
+      "label": "Vercel - Single Project Deployment",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Deployment section",
+      "rationale": "administradorinvitamx project deployed at https://administradorinvitamx.vercel.app; serves editor, guest view, catalog, intake form from same URL via query-param routing",
+      "id": "claude_md_vercel_deployment",
+      "community": 5,
+      "norm_label": "vercel - single project deployment"
+    },
+    {
+      "label": "State Diffing - URL-Encoded Invitation Delta",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "State, sharing, persistence section",
+      "rationale": "encodeState/decodeState diffs against datosDefault[paquete]; only serializes changed fields using KEY_MAP/SUB_KEY_MAP aliases to keep links short and avoid 2KB URL limit",
+      "id": "claude_md_state_diffing_architecture",
+      "community": 9,
+      "norm_label": "state diffing - url-encoded invitation delta"
+    },
+    {
+      "label": "Base64 URL Encoding - Compact State Blob",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "State, sharing, persistence section",
+      "rationale": "Invitation data encoded into d URL param as base64 blob; embedded photos stripped, fall back to theme defaults; Cloudinary URLs used for custom photo sharing",
+      "id": "claude_md_base64_url_encoding",
+      "community": 9,
+      "norm_label": "base64 url encoding - compact state blob"
+    },
+    {
+      "label": "localStorage Persistence - xv_datos_invitacion",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "State, sharing, persistence section",
+      "rationale": "Invitation data auto-persisted to localStorage on every change; per-theme backgrounds in xv_fondos_personalizados; per-theme catalog tweaks in xv_dise\u00f1o_guardado_tema_${temaId}",
+      "id": "claude_md_localstorage_persistence",
+      "community": 9,
+      "norm_label": "localstorage persistence - xv_datos_invitacion"
+    },
+    {
+      "label": "Theme Customization - Personalized A Medida Theme",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Business features list",
+      "rationale": "13th theme option for 100% custom colors/fonts/opening style; \u00e1ngulo de venta premium/exclusividad",
+      "id": "claude_md_theme_customization",
+      "community": 32,
+      "norm_label": "theme customization - personalized a medida theme"
+    },
+    {
+      "label": "Animated Opening Styles - Card, Envelope, Curtain",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Business features list",
+      "rationale": "Three opening animations (tarjeta, sobre con sello, cortina) selectable independent of theme; special-cased by theme id in generarHTMLFinal",
+      "id": "claude_md_animated_opening_feature",
+      "community": 5,
+      "norm_label": "animated opening styles - card, envelope, curtain"
+    },
+    {
+      "label": "Decorative Rain Effect - Animated Particles",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Business features list",
+      "rationale": "P\u00e9talos, mariposas, listones, estrellas, etc. falling animation per theme",
+      "id": "claude_md_decorative_rain_effect",
+      "community": 23,
+      "norm_label": "decorative rain effect - animated particles"
+    },
+    {
+      "label": "Live Countdown Timer - Event Countdown",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Business features list",
+      "rationale": "Real-time countdown to event date rendered in guest view",
+      "id": "claude_md_countdown_timer",
+      "community": 22,
+      "norm_label": "live countdown timer - event countdown"
+    },
+    {
+      "label": "Photo Gallery - Carousel with Lightbox",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Business features list",
+      "rationale": "Carrusel and tap-to-expand lightbox for invitation photos",
+      "id": "claude_md_photo_gallery",
+      "community": 30,
+      "norm_label": "photo gallery - carousel with lightbox"
+    },
+    {
+      "label": "PDF Download - Invitation as PDF Memento",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Business features list",
+      "rationale": "PDF export via html2canvas/jspdf; included in Deluxe, \u00e0-la-carte in others; pricing noted in policy",
+      "id": "claude_md_pdf_download_feature",
+      "community": 10,
+      "norm_label": "pdf download - invitation as pdf memento"
+    },
+    {
+      "label": "Background Music Player - Event Soundtrack",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Business features list",
+      "rationale": "Audio player in guest view for client-selected event music",
+      "id": "claude_md_background_music_player",
+      "community": 19,
+      "norm_label": "background music player - event soundtrack"
+    },
+    {
+      "label": "Google Maps Integration - Ceremony/Reception Directions",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Business features list",
+      "rationale": "Direct link from invitation to Google Maps for venue addresses",
+      "id": "claude_md_google_maps_location",
+      "community": 26,
+      "norm_label": "google maps integration - ceremony/reception directions"
+    },
+    {
+      "label": "Calendar Add-To-Calendar Button",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Business features list",
+      "rationale": "Button to add event to guest's personal calendar",
+      "id": "claude_md_calendar_addon_feature",
+      "community": 20,
+      "norm_label": "calendar add-to-calendar button"
+    },
+    {
+      "label": "Instagram Hashtag Section - Event Hashtag Display",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Business features list",
+      "rationale": "Dedicated section for event Instagram hashtag; package-exclusive to Premium/Deluxe",
+      "id": "claude_md_instagram_hashtag_section",
+      "community": 27,
+      "norm_label": "instagram hashtag section - event hashtag display"
+    },
+    {
+      "label": "Gift Registry Section - Mesa de Regalos",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Business features list",
+      "rationale": "Bank account info and copy-to-clipboard for CLABE; package-exclusive to Premium/Deluxe",
+      "id": "claude_md_gift_registry_section",
+      "community": 25,
+      "norm_label": "gift registry section - mesa de regalos"
+    },
+    {
+      "label": "Parents and Godparents Section - Familia y Padrinos",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Business features list",
+      "rationale": "Displays parents and padrinos; package-exclusive to Premium/Deluxe",
+      "id": "claude_md_family_section",
+      "community": 24,
+      "norm_label": "parents and godparents section - familia y padrinos"
+    },
+    {
+      "label": "Pricing - B\u00e1sico Package",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Business policy section",
+      "rationale": "$499 MXN, 4 fotos max, no pases/PDF included; pases \u00e0-la-carte $150 MXN for up to 10 familias",
+      "id": "claude_md_pricing_basico",
+      "community": 7,
+      "norm_label": "pricing - basico package"
+    },
+    {
+      "label": "Pricing - Premium Package",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Business policy section",
+      "rationale": "$799 MXN, 8 fotos max, includes familia/regalos/hashtag/calendario sections; pases \u00e0-la-carte $180 MXN for up to 20 familias",
+      "id": "claude_md_pricing_premium",
+      "community": 7,
+      "norm_label": "pricing - premium package"
+    },
+    {
+      "label": "Pricing - Deluxe Package",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Business policy section",
+      "rationale": "$1,199-1,499 MXN, 14 fotos max, pases and PDF included at no extra charge for up to 40 familias",
+      "id": "claude_md_pricing_deluxe",
+      "community": 7,
+      "norm_label": "pricing - deluxe package"
+    },
+    {
+      "label": "Pases Pricing - Per-Guest Pass Feature",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Business policy section",
+      "rationale": "Deluxe: included for 40 familias, then $15-20 MXN each; Premium: $180 MXN for 20 familias, then $15-20 each; B\u00e1sico: $150 MXN for 10 familias, then $15-20 each",
+      "id": "claude_md_pricing_pases_addon",
+      "community": 7,
+      "norm_label": "pases pricing - per-guest pass feature"
+    },
+    {
+      "label": "QR Control de Acceso Pricing",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "QR control section",
+      "rationale": "Flat $150 MXN regardless of package, always requires pases; never standalone",
+      "id": "claude_md_pricing_qr_control",
+      "community": 7,
+      "norm_label": "qr control de acceso pricing"
+    },
+    {
+      "label": "Payment Policy - 50% Deposit",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Business policy section",
+      "rationale": "50% upfront to reserve date and start design, remaining 50% due on delivery",
+      "id": "claude_md_payment_policy_deposit",
+      "community": 16,
+      "norm_label": "payment policy - 50% deposit"
+    },
+    {
+      "label": "Delivery Turnaround - 24-48 Hours",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Business policy section",
+      "rationale": "24-48 hours after receiving all client data; faster than competitor ~72h, selling point",
+      "id": "claude_md_delivery_policy_turnaround",
+      "community": 16,
+      "norm_label": "delivery turnaround - 24-48 hours"
+    },
+    {
+      "label": "Post-Delivery Edits Policy",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Business policy section",
+      "rationale": "First 2 rounds free within 7 days of delivery; each additional edit costs $99-150 MXN",
+      "id": "claude_md_postdelivery_edits_policy",
+      "community": 31,
+      "norm_label": "post-delivery edits policy"
+    },
+    {
+      "label": "Sections - Dynamic Content Blocks",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Adding/removing section",
+      "rationale": "Sections (ceremonia, galeria, regalos, etc.) are string ids per-package; each has HTML in SECCIONES_CONTENIDO_HTML map in templates.ts; togglable via seccionesExcluidas, toggling doesn't warrant discount",
+      "id": "claude_md_section_architecture",
+      "community": 17,
+      "norm_label": "sections - dynamic content blocks"
+    },
+    {
+      "label": "Section Order - Dynamic Reordering",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": "Section order section",
+      "rationale": "datos.ordenSecciones (array of section ids); getOrdenSeccionesEfectivo validates order, drops invalid, appends missing; apertura/cierre always first/last",
+      "id": "claude_md_section_order_customization",
+      "community": 17,
+      "norm_label": "section order - dynamic reordering"
+    },
+    {
+      "label": "Business Features List - Sales Copy Reference",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": "Business/pricing policy section",
+      "rationale": "Quick reference of all product features for sales/landing copy, organized by buyer value (what invitee sees, buyer experience); deliberately excludes promises about payment gateway, app, or SMS",
+      "id": "claude_md_copy_venta_reference",
+      "community": 21,
+      "norm_label": "business features list - sales copy reference"
+    },
+    {
+      "label": "Node Dependencies - package.json",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "dependencies section",
+      "id": "package_json_dependencies",
+      "community": 37,
+      "norm_label": "node dependencies - package.json"
+    },
+    {
+      "label": "React - Version 19.0.1",
+      "file_type": "rationale",
+      "source_file": "package.json",
+      "source_location": "dependencies",
+      "id": "package_json_react",
+      "community": 5,
+      "norm_label": "react - version 19.0.1"
+    },
+    {
+      "label": "Vite - Version 6.2.3",
+      "file_type": "rationale",
+      "source_file": "package.json",
+      "source_location": "dependencies",
+      "id": "package_json_vite",
+      "community": 8,
+      "norm_label": "vite - version 6.2.3"
+    },
+    {
+      "label": "Tailwind CSS - Version 4.1.14",
+      "file_type": "rationale",
+      "source_file": "package.json",
+      "source_location": "dependencies and devDependencies",
+      "id": "package_json_tailwind",
+      "community": 42,
+      "norm_label": "tailwind css - version 4.1.14"
+    },
+    {
+      "label": "@supabase/supabase-js - Version 2.110.0",
+      "file_type": "rationale",
+      "source_file": "package.json",
+      "source_location": "dependencies",
+      "id": "package_json_supabase_js",
+      "community": 6,
+      "norm_label": "@supabase/supabase-js - version 2.110.0"
+    },
+    {
+      "label": "html2canvas - Version 1.4.1",
+      "file_type": "rationale",
+      "source_file": "package.json",
+      "source_location": "dependencies",
+      "rationale": "Used for PDF generation via jspdf",
+      "id": "package_json_html2canvas",
+      "community": 10,
+      "norm_label": "html2canvas - version 1.4.1"
+    },
+    {
+      "label": "jspdf - Version 4.2.1",
+      "file_type": "rationale",
+      "source_file": "package.json",
+      "source_location": "dependencies",
+      "rationale": "PDF export from invitation HTML",
+      "id": "package_json_jspdf",
+      "community": 10,
+      "norm_label": "jspdf - version 4.2.1"
+    },
+    {
+      "label": "lucide-react - Version 0.546.0",
+      "file_type": "rationale",
+      "source_file": "package.json",
+      "source_location": "dependencies",
+      "id": "package_json_lucide_react",
+      "community": 40,
+      "norm_label": "lucide-react - version 0.546.0"
+    },
+    {
+      "label": "motion - Version 12.23.24",
+      "file_type": "rationale",
+      "source_file": "package.json",
+      "source_location": "dependencies",
+      "id": "package_json_motion",
+      "community": 41,
+      "norm_label": "motion - version 12.23.24"
+    },
+    {
+      "label": "@google/genai - Version 2.4.0",
+      "file_type": "rationale",
+      "source_file": "package.json",
+      "source_location": "dependencies",
+      "rationale": "AI Studio template boilerplate; not currently referenced in src/",
+      "id": "package_json_genai",
+      "community": 39,
+      "norm_label": "@google/genai - version 2.4.0"
+    },
+    {
+      "label": "Express - Version 4.21.2",
+      "file_type": "rationale",
+      "source_file": "package.json",
+      "source_location": "dependencies",
+      "id": "package_json_express",
+      "community": 38,
+      "norm_label": "express - version 4.21.2"
+    },
+    {
+      "label": "TypeScript - Version 5.8.2",
+      "file_type": "rationale",
+      "source_file": "package.json",
+      "source_location": "devDependencies",
+      "id": "package_json_typescript",
+      "community": 43,
+      "norm_label": "typescript - version 5.8.2"
+    },
+    {
+      "label": "index.html - HTML Root and Entry Point",
+      "file_type": "code",
+      "source_file": "index.html",
+      "source_location": "root",
+      "id": "index_html_root",
+      "community": 36,
+      "norm_label": "index.html - html root and entry point"
+    },
+    {
+      "label": "Open Graph Meta Tags - Static Sharing Preview",
+      "file_type": "rationale",
+      "source_file": "index.html",
+      "source_location": "head section",
+      "rationale": "Static og:title/description for WhatsApp/Telegram/iMessage sharing; intentionally not personalized per invitation since bots don't run JS",
+      "id": "index_html_meta_tags",
+      "community": 5,
+      "norm_label": "open graph meta tags - static sharing preview"
+    },
+    {
+      "label": "vercel.json - Single Page App Rewrite",
+      "file_type": "rationale",
+      "source_file": "vercel.json",
+      "source_location": "rewrites section",
+      "rationale": "Rewrites /((?!api/).*)  to /index.html for client-side routing; excludes /api/* to let API routes work",
+      "id": "vercel_json_spa_rewrite",
+      "community": 8,
+      "norm_label": "vercel.json - single page app rewrite"
+    },
+    {
+      "label": "vercel.json - CSP frame-ancestors Headers",
+      "file_type": "rationale",
+      "source_file": "vercel.json",
+      "source_location": "headers section",
+      "rationale": "Allows embedding from invitacionmx-catalogo.vercel.app, invitacionmx-landing.vercel.app, invitamx.online, localhost dev ports",
+      "id": "vercel_json_csp_headers",
+      "community": 5,
+      "norm_label": "vercel.json - csp frame-ancestors headers"
+    },
+    {
+      "label": ".env.example - Supabase Configuration",
+      "file_type": "rationale",
+      "source_file": ".env.example",
+      "source_location": "VITE_SUPABASE section",
+      "id": "env_example_supabase",
+      "community": 6,
+      "norm_label": ".env.example - supabase configuration"
+    },
+    {
+      "label": ".env.example - Gemini API Key",
+      "file_type": "rationale",
+      "source_file": ".env.example",
+      "source_location": "GEMINI_API_KEY section",
+      "rationale": "AI Studio boilerplate; not currently used in src/",
+      "id": "env_example_gemini",
+      "community": 35,
+      "norm_label": ".env.example - gemini api key"
+    },
+    {
+      "label": ".env.example - APP_URL Configuration",
+      "file_type": "rationale",
+      "source_file": ".env.example",
+      "source_location": "APP_URL section",
+      "id": "env_example_app_url",
+      "community": 34,
+      "norm_label": ".env.example - app_url configuration"
+    },
+    {
+      "label": "tsconfig.json - ES2022 Target",
+      "file_type": "rationale",
+      "source_file": "tsconfig.json",
+      "source_location": "compilerOptions",
+      "id": "tsconfig_target",
+      "community": 45,
+      "norm_label": "tsconfig.json - es2022 target"
+    },
+    {
+      "label": "tsconfig.json - JSX Configuration",
+      "file_type": "rationale",
+      "source_file": "tsconfig.json",
+      "source_location": "compilerOptions",
+      "rationale": "jsx: react-jsx with path alias @/* for root imports",
+      "id": "tsconfig_jsx",
+      "community": 5,
+      "norm_label": "tsconfig.json - jsx configuration"
+    },
+    {
+      "label": "README.md - AI Studio Setup Instructions",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": "root",
+      "id": "readme_ai_studio",
+      "community": 44,
+      "norm_label": "readme.md - ai studio setup instructions"
     }
   ],
   "links": [
@@ -3535,8 +4348,488 @@
       "source": "vercel",
       "target": "vercel_rewrites",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_project_overview",
+      "target": "claude_md_canonical_repo_warning",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source": "package_json_vite",
+      "target": "claude_md_project_overview",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "INFERRED",
+      "source_file": "vercel.json",
+      "source": "vercel_json_spa_rewrite",
+      "target": "claude_md_project_overview",
+      "confidence_score": 0.5
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_app_tsx",
+      "target": "claude_md_types_ts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_templates_ts",
+      "target": "claude_md_types_ts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_app_tsx",
+      "target": "claude_md_data_ts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_animated_opening_feature",
+      "target": "claude_md_templates_ts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_app_tsx",
+      "target": "claude_md_templates_ts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_templates_ts",
+      "target": "claude_md_whatsapp_integration",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_api_notify_telegram_ts",
+      "target": "claude_md_app_tsx",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_app_tsx",
+      "target": "claude_md_cloudinary_integration",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_app_tsx",
+      "target": "claude_md_supabase_integration",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_app_tsx",
+      "target": "claude_md_telegram_notifications_feature",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_main_tsx",
+      "target": "claude_md_app_tsx",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "INFERRED",
+      "source_file": "CLAUDE.md",
+      "confidence_score": 0.9,
+      "source": "claude_md_middleware_ts",
+      "target": "claude_md_app_tsx"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source": "package_json_react",
+      "target": "claude_md_app_tsx",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "INFERRED",
+      "source_file": "tsconfig.json",
+      "source": "tsconfig_jsx",
+      "target": "claude_md_app_tsx",
+      "confidence_score": 0.5
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_vercel_deployment",
+      "target": "claude_md_middleware_ts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_vercel_deployment",
+      "target": "claude_md_api_notify_telegram_ts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_api_admin_list_invitaciones_ts",
+      "target": "claude_md_invitaciones_table",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_vercel_deployment",
+      "target": "claude_md_api_admin_list_invitaciones_ts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_api_admin_abonos_ts",
+      "target": "claude_md_abonos_table",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_vercel_deployment",
+      "target": "claude_md_api_admin_abonos_ts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_invitation_data_structure",
+      "target": "claude_md_paquete_config",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_invitation_data_structure",
+      "target": "claude_md_tema_config",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_paquete_config",
+      "target": "claude_md_pricing_basico",
+      "confidence_score": 0.5
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_paquete_config",
+      "target": "claude_md_pricing_deluxe",
+      "confidence_score": 0.5
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_paquete_config",
+      "target": "claude_md_pricing_premium",
+      "confidence_score": 0.5
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_rsvp_tracking_feature",
+      "target": "claude_md_confirmaciones_table",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_pases_feature",
+      "target": "claude_md_pricing_pases_addon",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_qr_checkin_feature",
+      "target": "claude_md_pases_feature",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_qr_checkin_feature",
+      "target": "claude_md_checkins_table",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_qr_checkin_feature",
+      "target": "claude_md_pricing_qr_control",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_access_blocking_feature",
+      "target": "claude_md_invitaciones_table",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_intake_form_feature",
+      "target": "claude_md_invitaciones_table",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_rate_limiting_feature",
+      "target": "claude_md_intake_form_feature",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_rate_limiting_feature",
+      "target": "claude_md_avisos_pago_table",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_rate_limiting_feature",
+      "target": "claude_md_confirmaciones_table",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_mis_invitaciones_panel",
+      "target": "claude_md_confirmaciones_table",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_mis_invitaciones_panel",
+      "target": "claude_md_invitaciones_table",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_dashboard_ingresos",
+      "target": "claude_md_abonos_table",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_dashboard_ingresos",
+      "target": "claude_md_invitaciones_table",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_invitaciones_table",
+      "target": "claude_md_supabase_integration",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_confirmaciones_table",
+      "target": "claude_md_supabase_integration",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_abonos_table",
+      "target": "claude_md_supabase_integration",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_avisos_pago_table",
+      "target": "claude_md_supabase_integration",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_checkins_table",
+      "target": "claude_md_supabase_integration",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": ".env.example",
+      "source": "env_example_supabase",
+      "target": "claude_md_supabase_integration",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source": "package_json_supabase_js",
+      "target": "claude_md_supabase_integration",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "index.html",
+      "source": "index_html_meta_tags",
+      "target": "claude_md_whatsapp_integration",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "vercel.json",
+      "source": "vercel_json_csp_headers",
+      "target": "claude_md_vercel_deployment",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_state_diffing_architecture",
+      "target": "claude_md_base64_url_encoding",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_base64_url_encoding",
+      "target": "claude_md_localstorage_persistence",
+      "confidence_score": 0.5
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source": "package_json_html2canvas",
+      "target": "claude_md_pdf_download_feature",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source": "package_json_jspdf",
+      "target": "claude_md_pdf_download_feature",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_pricing_basico",
+      "target": "claude_md_pricing_pases_addon",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_pricing_premium",
+      "target": "claude_md_pricing_pases_addon",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_pricing_deluxe",
+      "target": "claude_md_pricing_pases_addon",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_payment_policy_deposit",
+      "target": "claude_md_delivery_policy_turnaround",
+      "confidence_score": 0.5
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "source_file": "CLAUDE.md",
+      "source": "claude_md_section_architecture",
+      "target": "claude_md_section_order_customization",
+      "confidence_score": 0.5
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "74b8429d567789a3843ed7b1c16b818683d6f98a"
+  "built_at_commit": "a8e65e0cc2f098e86bf26e5264f874406cde859d"
 }
