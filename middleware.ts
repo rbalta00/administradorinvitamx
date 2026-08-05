@@ -35,6 +35,9 @@ export const config = {
 };
 
 export default function middleware(request: Request) {
+  // Acceso completamente abierto - sin autenticación
+  return;
+
   const url = new URL(request.url);
   const params = url.searchParams;
 
