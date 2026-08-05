@@ -36,8 +36,13 @@ const construirUrlGoogleFonts = (tema: TemaConfig): string => {
   return `https://fonts.googleapis.com/css2?family=${segmentos}&display=swap`;
 };
 
-export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opciones?: { esDemoDeCatalogo?: boolean }): string {
+export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opciones?: { esDemoDeCatalogo?: boolean; esVistaPreviaEditor?: boolean }): string {
   const esDemoDeCatalogo = opciones?.esDemoDeCatalogo === true;
+  // El monitor de invitación del propio editor (App.tsx: actualizarVistaPrevia) renderiza este
+  // mismo HTML mientras el admin edita -- no es un invitado real abriendo su link. Se agrupa
+  // con esDemoDeCatalogo abajo (mismo candado, misma razón: sin esto, cada recarga del preview
+  // se auto-scrolleaba a "pases" 1.2s después, arrastrando al admin lejos de donde editaba).
+  const esVistaPreviaEditor = opciones?.esVistaPreviaEditor === true;
   // Invitaciones 100% a la medida: el tema "personalizado" acepta overrides de tipografía,
   // paleta de color y tipo de apertura definidos por el admin para ESA invitación en particular.
   // El resto de temas del catálogo no se ven afectados por esto.
@@ -1159,11 +1164,12 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       try {
         const huboPase = mostrarPaseFijo();
         // El auto-scroll a "pases" solo tiene sentido para un invitado real abriendo SU
-        // invitación (le enseña su pase de volada) -- las demos del catálogo siempre rellenan
-        // un invitado de muestra para poder enseñar esa sección, así que sin este candado el
-        // scroll se disparaba en TODAS las demos del catálogo, alejándolas de la portada del
-        // tema que se supone deben enseñar primero.
-        if (huboPase && !${esDemoDeCatalogo ? "true" : "false"}) {
+        // invitación (le enseña su pase de volada) -- las demos del catálogo y el monitor de
+        // invitación del editor siempre traen un invitado de muestra para poder enseñar esa
+        // sección, así que sin este candado el scroll se disparaba solo ahí también: en las
+        // demos alejándolas de la portada del tema, y en el editor arrastrando al admin lejos
+        // de donde estaba editando cada vez que el preview se recargaba.
+        if (huboPase && !${(esDemoDeCatalogo || esVistaPreviaEditor) ? "true" : "false"}) {
           // Hacer scroll suave hacia la sección de pases tras abrir la invitación
           setTimeout(() => {
             const pasesSection = document.querySelector('[data-section="pases"]');

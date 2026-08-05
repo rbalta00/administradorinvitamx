@@ -2155,7 +2155,7 @@ export default function App() {
       }
     }
 
-    const htmlString = generarHTMLFinal(datos, temaActual);
+    const htmlString = generarHTMLFinal(datos, temaActual, { esVistaPreviaEditor: true });
 
     if (yaAbierta) {
       const iframeEl = iframeRef.current;
@@ -2186,8 +2186,20 @@ export default function App() {
   // cambiar de mockup (cada uno pierde el srcdoc del anterior), así que sin esta dependencia el
   // iframe recién montado de Tablet/Escritorio nacía vacío y solo Móvil (el que ya traía
   // contenido del montaje inicial) parecía funcionar.
+  //
+  // El refresh está debounced (350ms desde la última tecla) a propósito: `datos` cambia en
+  // cada pulsación de teclado (los inputs son controlados), y cada refresh reemplaza el
+  // `srcdoc` completo del iframe -- eso reinicia la animación de caída y crea una carrera entre
+  // "leer el scroll del iframe viejo" y "restaurarlo en el nuevo" (ver actualizarVistaPrevia).
+  // Sin este debounce, escribir rápido hacía que la invitación pareciera saltar/scrollear sola
+  // en cada letra. Con el debounce, mientras escribes no se recarga nada (se sigue viendo la
+  // versión anterior, sin moverse) y se actualiza una sola vez al hacer una pausa -- suficiente
+  // para sentirse en tiempo real sin el parpadeo por tecla.
   useEffect(() => {
-    actualizarVistaPrevia();
+    const timer = setTimeout(() => {
+      actualizarVistaPrevia();
+    }, 350);
+    return () => clearTimeout(timer);
   }, [datos, temaActual, previewDevice]);
 
   // Aplicar plantilla completa predefinida de un paquete
