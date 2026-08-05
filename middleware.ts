@@ -58,16 +58,20 @@ export default function middleware(request: Request) {
   //     agregar más personas -- cada una entra con su propio usuario/contraseña por HTTP
   //     Basic Auth (el navegador pide "usuario" y "contraseña" por separado).
   const credencialesValidas = new Set<string>();
-  const adminPassword = process.env.ADMIN_PASSWORD;
+  const adminPassword = process.env.ADMIN_PASSWORD?.trim();
   if (adminPassword) {
-    credencialesValidas.add("Basic " + btoa(`admin:${adminPassword}`));
+    // Crear la credencial de Basic Auth: "admin:password" en base64
+    const encoded = Buffer.from(`admin:${adminPassword}`).toString('base64');
+    credencialesValidas.add(`Basic ${encoded}`);
   }
-  const adminUsers = process.env.ADMIN_USERS;
+
+  const adminUsers = process.env.ADMIN_USERS?.trim();
   if (adminUsers) {
     for (const par of adminUsers.split(",")) {
       const [usuario, password] = par.split(":");
-      if (usuario && password) {
-        credencialesValidas.add("Basic " + btoa(`${usuario.trim()}:${password.trim()}`));
+      if (usuario?.trim() && password?.trim()) {
+        const encoded = Buffer.from(`${usuario.trim()}:${password.trim()}`).toString('base64');
+        credencialesValidas.add(`Basic ${encoded}`);
       }
     }
   }
@@ -75,16 +79,18 @@ export default function middleware(request: Request) {
   // Si no se configuró ninguna variable de entorno, no bloqueamos el acceso (evita dejar el
   // editor inaccesible por un olvido de configuración) -- pero esto no debería pasar en producción.
   if (credencialesValidas.size === 0) {
+    console.warn("⚠️  No ADMIN_PASSWORD configured - access unrestricted");
     return;
   }
 
-  const authHeader = request.headers.get("authorization");
+  const authHeader = request.headers.get("authorization")?.trim();
 
   if (!authHeader || !credencialesValidas.has(authHeader)) {
-    return new Response("Acceso restringido", {
+    return new Response("Acceso restringido - Usuario o contraseña incorrectos", {
       status: 401,
       headers: {
         "WWW-Authenticate": 'Basic realm="Generador de Invitaciones XV - Acceso Admin"',
+        "Content-Type": "text/plain; charset=utf-8",
       },
     });
   }
