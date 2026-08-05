@@ -117,7 +117,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
 
       return `
       <div class="relative pl-10 pb-10 last:pb-0 itinerario-item">
-        <div class="absolute left-0 top-2 bg-white border-3 border-[${tema.colors.primary}] rounded-full p-1.5 z-10 text-[${tema.colors.accent}] shadow-md">
+        <div class="absolute left-0 top-2 bg-white border-[3px] border-[${tema.colors.primary}] rounded-full p-1.5 z-10 text-[${tema.colors.accent}] shadow-md">
           ${iconSvg}
         </div>
         ${index < datos.itinerario.length - 1 ? `<div class="absolute left-4 top-10 bottom-0 w-1 bg-gradient-to-b from-[${tema.colors.primary}] to-[${tema.colors.primary}]/30"></div>` : ""}
