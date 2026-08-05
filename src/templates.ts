@@ -94,7 +94,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
   // Generamos el listado de secciones del paquete, excluyendo las que el usuario haya desactivado manualmente
   const seccionesActivas = configPaquete.secciones.filter(sec => !datos.seccionesExcluidas?.includes(sec));
 
-  // Generamos los items del itinerario
+  // Generamos los items del itinerario con Timeline elegante
   const itinerarioHTML = (datos.itinerario || [])
     .map((item, index) => {
       // Iconos representativos basados en palabras clave comunes
@@ -111,16 +111,18 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       }
 
       return `
-      <div class="relative pl-8 pb-8 last:pb-0">
-        <div class="absolute left-0 top-1 bg-white border-2 border-[${tema.colors.primary}] rounded-full p-1.5 z-10 text-[${tema.colors.accent}]">
+      <div class="relative pl-10 pb-10 last:pb-0 itinerario-item">
+        <div class="absolute left-0 top-2 bg-white border-3 border-[${tema.colors.primary}] rounded-full p-1.5 z-10 text-[${tema.colors.accent}] shadow-md">
           ${iconSvg}
         </div>
-        ${index < datos.itinerario.length - 1 ? `<div class="absolute left-4 top-5 bottom-0 w-0.5 bg-[${tema.colors.border}]/50"></div>` : ""}
-        <div class="bg-white p-4 rounded-xl shadow-xs border border-gray-100 transform hover:scale-[1.02] transition">
-          <span class="inline-block px-3 py-1 bg-[${tema.colors.light}] text-[${tema.colors.accent}] font-semibold text-sm rounded-full mb-1">
-            ${item.hora} hrs
-          </span>
-          <h4 class="font-medium text-gray-800 text-[15px]">${item.evento}</h4>
+        ${index < datos.itinerario.length - 1 ? `<div class="absolute left-4 top-10 bottom-0 w-1 bg-gradient-to-b from-[${tema.colors.primary}] to-[${tema.colors.primary}]/30"></div>` : ""}
+        <div class="bg-white p-5 rounded-2xl shadow-md border-l-4 border-[${tema.colors.primary}] transform hover:scale-[1.03] hover:shadow-lg transition duration-300 backdrop-blur">
+          <div class="flex items-baseline gap-3">
+            <span class="inline-block px-4 py-2 bg-gradient-to-r from-[${tema.colors.light}] to-[${tema.colors.secondary}] text-[${tema.colors.primary}] font-bold text-sm rounded-full min-w-fit shadow-sm">
+              ${item.hora} hrs
+            </span>
+            <h4 class="font-semibold text-gray-800 text-[16px] flex-1">${item.evento}</h4>
+          </div>
         </div>
       </div>`;
     })
@@ -135,20 +137,29 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       </div>`)
     .join("");
 
-  // Galería de fotos
+  // Galería de fotos con efecto premium
   const galeriaFotosHTML = fotosFiltradas
     .map((foto, index) => `
-      <div class="group relative overflow-hidden rounded-2xl shadow-sm aspect-3/4 bg-gray-100 cursor-pointer" onclick="abrirLightbox(${index})">
-        <img src="${foto}" alt="Sophia XV Foto ${index + 1}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500 loading='lazy'" />
-        <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center">
-          <svg class="w-8 h-8 text-white drop-shadow-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7"></path></svg>
+      <div class="group relative overflow-hidden rounded-3xl shadow-lg aspect-3/4 bg-gradient-to-br from-gray-200 to-gray-300 cursor-pointer galeria-foto transform hover:-translate-y-2 transition-all duration-300" onclick="abrirLightbox(${index})">
+        <img src="${foto}" alt="Foto ${index + 1}" class="w-full h-full object-cover group-hover:scale-110 transition duration-500 loading='lazy'" />
+        <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center">
+          <div class="backdrop-blur-sm bg-white/20 p-4 rounded-full border border-white/40 shadow-xl">
+            <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7"></path></svg>
+          </div>
+        </div>
+        <div class="absolute top-3 right-3 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-xs font-semibold text-gray-700 shadow-md opacity-0 group-hover:opacity-100 transition duration-300">
+          ${index + 1}/${fotosFiltradas.length}
         </div>
       </div>`)
     .join("");
 
-  // Lista de padres y padrinos
-  const padresHTML = (datos.padres || []).map(p => `<p class="text-gray-800 font-medium text-[15px] py-0.5">${p}</p>`).join("");
-  const padrinosHTML = (datos.padrinos || []).map(p => `<p class="text-gray-800 font-medium text-[15px] py-0.5">${p}</p>`).join("");
+  // Lista de padres y padrinos con mejor formato
+  const padresHTML = (datos.padres || [])
+    .map(p => `<div class="py-2 px-4 bg-white/60 rounded-xl border border-borderTheme/20 backdrop-blur-sm"><p class="text-gray-800 font-semibold text-[15px]">${p}</p></div>`)
+    .join("");
+  const padrinosHTML = (datos.padrinos || [])
+    .map(p => `<div class="py-2.5 px-4 bg-gradient-to-r from-[${tema.colors.light}] to-white rounded-xl border border-[${tema.colors.border}]/40 shadow-sm backdrop-blur-sm"><p class="text-gray-800 font-semibold text-[15px]">${p}</p></div>`)
+    .join("");
 
   // Escapamos "<" para que un valor con "</script>" (ej. en un nombre de invitado) no pueda
   // cerrar prematuramente el <script> donde se inyecta este JSON y romper la página del invitado.
@@ -416,36 +427,42 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
   // Sección de contenido: portada
   const portadaSeccionHTML = isSectionActive("portada") ? `
     <section data-section="portada" class="relative min-h-[92vh] flex flex-col justify-between p-6 text-center overflow-hidden border-b border-borderTheme/10" style="background: ${tema.bgGradient};">
-      <!-- Decorativos de fondo según tema -->
-      <div class="absolute -top-10 -left-10 w-40 h-40 rounded-full bg-primary/10 blur-2xl"></div>
-      <div class="absolute -bottom-10 -right-10 w-40 h-40 rounded-full bg-accent/5 blur-2xl"></div>
-      
-      <!-- Orla Decorativa Superior -->
-      <div class="mt-8">
-        <p class="text-xs uppercase tracking-[0.3em] font-serif text-gray-500 mb-1">Mis XV Años</p>
-        <div class="w-16 h-[1px] bg-primary/60 mx-auto"></div>
+      <!-- Decorativos de fondo premium -->
+      <div class="absolute -top-20 -left-20 w-60 h-60 rounded-full bg-primary/15 blur-3xl animate-pulse-slow"></div>
+      <div class="absolute -bottom-20 -right-20 w-60 h-60 rounded-full bg-accent/10 blur-3xl animate-pulse-slow" style="animation-delay: 1s;"></div>
+      <div class="absolute top-1/3 right-10 w-32 h-32 rounded-full bg-secondary/10 blur-2xl"></div>
+
+      <!-- Orla Decorativa Superior Premium -->
+      <div class="mt-10 z-10 animate-fade-in">
+        <p class="text-xs uppercase tracking-[0.3em] font-serif text-gray-500 mb-2">Mis XV Años</p>
+        <div class="flex justify-center items-center gap-3 mb-1">
+          <div class="w-12 h-[1px] bg-gradient-to-r from-transparent to-primary/60"></div>
+          <span class="text-accent/80">${tema.decorativeEmoji}</span>
+          <div class="w-12 h-[1px] bg-gradient-to-l from-transparent to-primary/60"></div>
+        </div>
       </div>
 
-      <!-- Nombre central de la quinceañera -->
-      <div class="my-auto z-10 py-6">
-        <p class="text-sm font-serif text-gray-500 italic mb-2">¡Bienvenidos a mi fiesta!</p>
-        <h1 class="cursive-text text-6xl md:text-7xl mb-4">${datos.nombre}</h1>
-        <div class="flex items-center justify-center gap-2 mb-6">
-          <span class="w-8 h-[1px] bg-borderTheme"></span>
-          <span class="text-accent text-[10px] tracking-widest uppercase">⚜️ 15 Primaveras ⚜️</span>
-          <span class="w-8 h-[1px] bg-borderTheme"></span>
+      <!-- Nombre central de la quinceañera con animación -->
+      <div class="my-auto z-10 py-6 animate-fade-in" style="animation-delay: 0.2s;">
+        <p class="text-sm font-serif text-gray-500 italic mb-3 tracking-wide">¡Bienvenidos a mi celebración especial!</p>
+        <h1 class="cursive-text text-6xl md:text-7xl mb-5 drop-shadow-lg">${datos.nombre}</h1>
+        <div class="flex items-center justify-center gap-3 mb-8">
+          <span class="w-12 h-[1px] bg-gradient-to-r from-transparent to-borderTheme/60"></span>
+          <span class="text-accent text-[11px] tracking-widest uppercase font-semibold px-4 py-2 bg-white/30 backdrop-blur rounded-full border border-white/50">⚜️ 15 Primaveras ⚜️</span>
+          <span class="w-12 h-[1px] bg-gradient-to-l from-transparent to-borderTheme/60"></span>
         </div>
-        
-        <!-- Foto Principal de Portada si el usuario tiene fotos o una ilustración por defecto -->
+
+        <!-- Foto Principal con efecto premium -->
         ${datos.mostrarFotoPortada !== false ? `
           ${(datos.fotoPortada && datos.fotoPortada.trim() !== "") || fotosFiltradas.length > 0 ? `
-          <div class="relative w-64 h-64 mx-auto rounded-full overflow-hidden border-4 border-white shadow-xl mb-4">
+          <div class="relative w-64 h-64 mx-auto rounded-full overflow-hidden border-4 border-white shadow-2xl mb-6 ring-4 ring-primary/20 animate-float">
             <img src="${(datos.fotoPortada && datos.fotoPortada.trim() !== "") ? datos.fotoPortada.trim() : fotosFiltradas[0]}" alt="${datos.nombre}" class="w-full h-full object-cover">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent"></div>
           </div>
           ` : `
-          <div class="w-56 h-56 mx-auto rounded-full bg-[${tema.colors.light}] border-2 border-[${tema.colors.border}] flex items-center justify-center mb-6 shadow-inner animate-float">
+          <div class="w-56 h-56 mx-auto rounded-full bg-gradient-to-br from-[${tema.colors.light}] to-[${tema.colors.secondary}] border-4 border-white flex items-center justify-center mb-6 shadow-2xl animate-float ring-4 ring-primary/10">
             <div class="text-center p-4">
-              <span class="text-6xl text-accent/80 block mb-2">${tema.decorativeEmoji}</span>
+              <span class="text-7xl block mb-2 animate-bounce">${tema.decorativeEmoji}</span>
               <span class="font-serif text-[10px] uppercase tracking-widest text-accent text-xs">Mis XV Años</span>
             </div>
           </div>
@@ -453,12 +470,12 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         ` : ''}
       </div>
 
-      <!-- Fecha y llamada a scroll -->
-      <div class="mb-4 z-10 bg-white/45 backdrop-blur-xs p-4 rounded-2xl border border-white/60">
-        <h2 id="portada-fecha-visible" class="font-serif text-xl tracking-wider text-dark"></h2>
-        <div id="event-year" class="text-xs tracking-widest font-mono text-gray-500 mt-1">2026</div>
-        <div class="mt-4 animate-bounce text-gray-400">
-          <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 13l-7 7-7-7m14-6l-7 7-7-7"></path></svg>
+      <!-- Fecha y llamada a scroll elegante -->
+      <div class="mb-6 z-10 backdrop-blur-lg bg-white/40 p-5 rounded-2xl border border-white/70 shadow-lg animate-fade-in" style="animation-delay: 0.4s;">
+        <h2 id="portada-fecha-visible" class="font-serif text-lg tracking-wider text-dark font-semibold"></h2>
+        <div id="event-year" class="text-xs tracking-widest font-mono text-gray-600 mt-1.5 font-semibold">2026</div>
+        <div class="mt-5 animate-bounce text-gray-500">
+          <svg class="w-6 h-6 mx-auto drop-shadow-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 13l-7 7-7-7m14-6l-7 7-7-7"></path></svg>
         </div>
       </div>
     </section>
@@ -638,52 +655,54 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
     </section>
     ` : "";
 
-  // Sección de contenido: regalos
+  // Sección de contenido: regalos premium
   const regalosSeccionHTML = isSectionActive("regalos") ? `
     <section data-section="regalos" class="p-6 text-center">
-      <div class="bg-white rounded-3xl p-6 border border-gray-100 shadow-xs">
-        <div class="flex justify-center mb-3">
-          <span class="${tema.iconStyle}">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
-          </span>
+      <div class="gold-card rounded-3xl p-7 border border-borderTheme/30 shadow-lg">
+        <div class="flex justify-center mb-4">
+          <div class="w-16 h-16 rounded-full bg-gradient-to-br from-[${tema.colors.light}] to-[${tema.colors.secondary}] flex items-center justify-center shadow-lg border-2 border-white">
+            <svg class="w-8 h-8 text-[${tema.colors.accent}]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+          </div>
         </div>
-        <h3 class="font-serif text-lg text-dark font-bold mb-1">Caja de Regalos</h3>
-        <p class="text-xs text-gray-400 font-light uppercase tracking-wider mb-4">Muestras de Afecto</p>
-        
-        <p class="text-xs text-gray-500 font-light mb-4 line-clamp-3">El obsequio más grande es tu presencia, pero si deseas hacerme un detalle, te dejo mis opciones disponibles:</p>
-        
-        ${datos.mesaRegalos ? `
-        <div class="bg-[${tema.colors.light}] rounded-2xl p-4 border border-borderTheme/15 mb-4 text-left">
-          <span class="text-[10px] uppercase font-bold tracking-widest text-[#B89D4B] block mb-1">Mesa de Regalos</span>
-          <p class="text-sm font-semibold text-gray-700">${datos.mesaRegalos}</p>
-        </div>
-        ` : ""}
+        <h3 class="font-serif text-xl text-dark font-bold mb-2">Caja de Regalos</h3>
+        <p class="text-xs text-gray-500 font-light uppercase tracking-wider mb-5">Muestras de Afecto</p>
 
-        ${datos.datosBancarios ? `
-        <div class="bg-gray-50 rounded-2xl p-4 border border-gray-150 text-left relative">
-          <span class="text-[10px] uppercase font-bold tracking-widest text-gray-400 block mb-1">Transferencia Bancaria</span>
-          <p id="banco-info" class="text-xs font-mono text-gray-700 whitespace-pre-line leading-relaxed">${datos.datosBancarios}</p>
-          
-          <button onclick="copiarDatosTransferencia()" class="mt-3 w-full py-1.5 bg-white text-[11px] text-accent font-semibold flex items-center justify-center gap-1.5 border border-borderTheme/50 rounded-lg hover:bg-[${tema.colors.light}] transition cursor-pointer active:bg-gray-100">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
-            Copiar Datos Bancarios
-          </button>
+        <p class="text-sm text-gray-700 font-light mb-6 leading-relaxed">El obsequio más grande es tu presencia en este día tan especial, pero si deseas hacerme un detalle, te dejo mis opciones disponibles:</p>
+
+        <div class="space-y-3">
+          ${datos.mesaRegalos ? `
+          <div class="bg-gradient-to-r from-[${tema.colors.light}] to-white rounded-2xl p-5 border-2 border-borderTheme/25 text-left shadow-sm hover:shadow-md transition">
+            <span class="text-[10px] uppercase font-bold tracking-widest text-[${tema.colors.accent}] block mb-2">🎁 Mesa de Regalos</span>
+            <p class="text-sm font-semibold text-gray-800">${datos.mesaRegalos}</p>
+          </div>
+          ` : ""}
+
+          ${datos.datosBancarios ? `
+          <div class="bg-gradient-to-r from-gray-50 to-white rounded-2xl p-5 border-2 border-gray-200 text-left shadow-sm hover:shadow-md transition">
+            <span class="text-[10px] uppercase font-bold tracking-widest text-gray-600 block mb-2">💳 Transferencia Bancaria</span>
+            <p id="banco-info" class="text-xs font-mono text-gray-800 whitespace-pre-line leading-relaxed font-semibold bg-white/60 p-3 rounded-lg">${datos.datosBancarios}</p>
+
+            <button onclick="copiarDatosTransferencia()" class="mt-4 w-full py-2.5 bg-gradient-to-r from-[${tema.colors.primary}] to-[${tema.colors.accent}] text-white text-[12px] font-bold flex items-center justify-center gap-2 border border-white/30 rounded-xl hover:shadow-lg transition cursor-pointer active:scale-95 transform duration-200">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+              Copiar Datos Bancarios
+            </button>
+          </div>
+          ` : ""}
         </div>
-        ` : ""}
       </div>
     </section>
     ` : "";
 
-  // Sección de contenido: galeria
+  // Sección de contenido: galeria premium
   const galeriaSeccionHTML = isSectionActive("galeria") && fotosFiltradas.length > 0 ? `
     <section data-section="galeria" class="p-6">
-      <div class="text-center mb-6">
+      <div class="text-center mb-8">
         <span class="cursive-text text-3xl text-primary/80">Recuerdos Inolvidables</span>
-        <h3 class="font-serif text-xl text-dark">Mi Álbum de Fotos</h3>
-        <p class="text-[10px] uppercase tracking-widest text-gray-400 mt-0.5">Capturando el momento</p>
+        <h3 class="font-serif text-xl text-dark font-bold">Mi Álbum de Fotos</h3>
+        <p class="text-[10px] uppercase tracking-widest text-gray-400 mt-1">✨ Capturando momentos especiales ✨</p>
       </div>
 
-      <div class="grid grid-cols-2 gap-3 max-w-sm mx-auto">
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
         ${galeriaFotosHTML}
       </div>
     </section>
@@ -755,28 +774,39 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
     </section>
     ` : "";
 
-  // Sección de contenido: confirmacion
+  // Sección de contenido: confirmacion mejorada
   const confirmacionSeccionHTML = isSectionActive("confirmacion") ? `
     <section data-section="confirmacion" class="p-6 text-center">
-      <div class="bg-white rounded-3xl p-6 border border-gray-100 shadow-xs">
-        <span class="text-2xl mb-1 block">💌</span>
-        <h3 class="font-serif text-lg text-dark font-bold mb-1">Confirmación de Asistencia</h3>
-        <p class="text-xs text-gray-400 font-light uppercase tracking-wider mb-4">Tu lugar es especial</p>
-        
-        <p class="text-xs text-gray-500 font-light mb-6 px-4">Por favor envíanos tu confirmación de asistencia lo antes posible. Agradeceríamos tu aviso directo vía WhatsApp:</p>
-        
+      <div class="gold-card rounded-3xl p-7 border border-borderTheme/30 shadow-lg backdrop-blur">
+        <div class="flex justify-center mb-4">
+          <div class="text-4xl drop-shadow-lg animate-pulse-soft">💌</div>
+        </div>
+        <h3 class="font-serif text-xl text-dark font-bold mb-1">Confirmación de Asistencia</h3>
+        <p class="text-xs text-gray-500 font-light uppercase tracking-wider mb-5">Tu lugar es especial para nosotros</p>
+
+        <p class="text-sm text-gray-700 font-light mb-7 px-4 leading-relaxed">Por favor, envíanos tu confirmación de asistencia lo antes posible. Tus datos nos ayudarán a preparar el mejor evento:</p>
+
         <div class="space-y-3 max-w-xs mx-auto">
-          <input type="text" id="rsvp-nombre" placeholder="Nombre completo o Familia..." class="w-full px-4 py-2.5 text-xs text-gray-700 bg-gray-50 rounded-full border border-gray-200 focus:border-accent focus:bg-white outline-none transition" />
-          
-          <select id="rsvp-asistencia" class="w-full px-4 py-2.5 text-xs text-gray-700 bg-gray-50 rounded-full border border-gray-200 focus:border-accent focus:bg-white outline-none transition">
-            <option value="si">Confirmar: Sí, asistiré con gusto</option>
-            <option value="no">Disculparme: Lo siento, no podré asistir</option>
-          </select>
-          
-          <input type="number" id="rsvp-pases" placeholder="Número de personas..." min="1" max="10" class="w-full px-4 py-2.5 text-xs text-gray-700 bg-gray-50 rounded-full border border-gray-200 focus:border-accent focus:bg-white inline-block outline-none transition" />
-          
-          <button onclick="enviarRSVPWhatsApp()" class="mt-2 w-full py-3 bg-[#25D366] text-white font-serif uppercase tracking-widest text-xs rounded-full shadow-md hover:bg-[#20ba56] cursor-pointer transform active:scale-95 transition-all flex items-center justify-center gap-2">
-            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.413 9.863-9.864.001-2.641-1.026-5.124-2.89-6.991C16.576 1.884 14.09 1.856 11.997 1.856c-5.444 0-9.87 4.414-9.873 9.866-.001 1.768.487 3.491 1.417 5.011L2.553 21.05l4.094-1.074z"/></svg>
+          <div class="relative">
+            <input type="text" id="rsvp-nombre" placeholder="Nombre completo o Familia..." class="w-full px-5 py-3 text-sm text-gray-700 bg-white rounded-full border-2 border-borderTheme/40 focus:border-[${tema.colors.primary}] focus:bg-white outline-none transition shadow-sm placeholder-gray-400" />
+            <svg class="absolute right-4 top-3.5 w-5 h-5 text-gray-300 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+          </div>
+
+          <div class="relative">
+            <select id="rsvp-asistencia" class="w-full px-5 py-3 text-sm text-gray-700 bg-white rounded-full border-2 border-borderTheme/40 focus:border-[${tema.colors.primary}] focus:bg-white outline-none transition shadow-sm appearance-none cursor-pointer">
+              <option value="si">✅ Sí, asistiré con gusto</option>
+              <option value="no">❌ Lamentablemente no podré asistir</option>
+            </select>
+            <svg class="absolute right-4 top-3.5 w-5 h-5 text-gray-300 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+          </div>
+
+          <div class="relative">
+            <input type="number" id="rsvp-pases" placeholder="Número de personas..." min="1" max="10" class="w-full px-5 py-3 text-sm text-gray-700 bg-white rounded-full border-2 border-borderTheme/40 focus:border-[${tema.colors.primary}] focus:bg-white outline-none transition shadow-sm placeholder-gray-400" />
+            <svg class="absolute right-4 top-3.5 w-5 h-5 text-gray-300 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.856-1.487M15 10a3 3 0 11-6 0 3 3 0 016 0zM6 20H1v-2a6 6 0 016-6v0"></path></svg>
+          </div>
+
+          <button onclick="enviarRSVPWhatsApp()" class="mt-5 w-full py-3.5 bg-gradient-to-r from-[#25D366] to-[#20ba56] text-white font-serif font-bold uppercase tracking-widest text-sm rounded-full shadow-lg hover:shadow-xl hover:-translate-y-0.5 cursor-pointer transform active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 border border-white/30">
+            <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.413 9.863-9.864.001-2.641-1.026-5.124-2.89-6.991C16.576 1.884 14.09 1.856 11.997 1.856c-5.444 0-9.87 4.414-9.873 9.866-.001 1.768.487 3.491 1.417 5.011L2.553 21.05l4.094-1.074z"/></svg>
             Confirmar por WhatsApp
           </button>
         </div>
@@ -1023,18 +1053,49 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
     /* Animaciones sutiles y florituras */
     @keyframes floaty {
       0%, 100% { transform: translateY(0px) rotate(0deg); }
-      50% { transform: translateY(-8px) rotate(2deg); }
+      50% { transform: translateY(-12px) rotate(2deg); }
     }
     .animate-float {
-      animation: floaty 6s ease-in-out infinite;
+      animation: floaty 5s ease-in-out infinite;
     }
 
     @keyframes pulse-soft {
       0%, 100% { transform: scale(1); opacity: 0.9; }
-      50% { transform: scale(1.05); opacity: 1; }
+      50% { transform: scale(1.08); opacity: 1; }
     }
     .animate-pulse-soft {
       animation: pulse-soft 3s ease-in-out infinite;
+    }
+
+    @keyframes pulse-slow {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+    .animate-pulse-slow {
+      animation: pulse-slow 4s ease-in-out infinite;
+    }
+
+    @keyframes fade-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .animate-fade-in {
+      animation: fade-in 1s ease-in-out forwards;
+    }
+
+    /* Estilos mejorados para elementos premium */
+    .itinerario-item {
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .itinerario-item:hover {
+      transform: translateX(8px);
+    }
+
+    .galeria-foto {
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .galeria-foto:hover {
+      filter: brightness(1.05);
     }
 
     /* Scroll suave */
