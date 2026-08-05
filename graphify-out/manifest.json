@@ -1,0 +1,77 @@
+{
+  "api/admin/abonos.ts": {
+    "mtime": 1785815988.4500132,
+    "ast_hash": "15326a8ab8fc680685b29db50bdd1986",
+    "semantic_hash": "15326a8ab8fc680685b29db50bdd1986"
+  },
+  "api/admin/list-invitaciones.ts": {
+    "mtime": 1785815988.4505627,
+    "ast_hash": "2079e6f8c6c42a768161c3f2321b591c",
+    "semantic_hash": "2079e6f8c6c42a768161c3f2321b591c"
+  },
+  "api/notify-telegram.ts": {
+    "mtime": 1785815988.4505627,
+    "ast_hash": "2ac9615d556ff6c29d148e0dbf0025fa",
+    "semantic_hash": "2ac9615d556ff6c29d148e0dbf0025fa"
+  },
+  "metadata.json": {
+    "mtime": 1785815988.450956,
+    "ast_hash": "49721223c73c61485911b1b596e386c7",
+    "semantic_hash": "49721223c73c61485911b1b596e386c7"
+  },
+  "middleware.ts": {
+    "mtime": 1785815988.450956,
+    "ast_hash": "12a32b7e535fda583f2c506dc9f9fcf2",
+    "semantic_hash": "12a32b7e535fda583f2c506dc9f9fcf2"
+  },
+  "package.json": {
+    "mtime": 1785902559.8246334,
+    "ast_hash": "0542ae0eec8015f40d7f1cb26cb7d84d",
+    "semantic_hash": "0542ae0eec8015f40d7f1cb26cb7d84d"
+  },
+  "scripts/reset-admin-password.mjs": {
+    "mtime": 1785902559.8246334,
+    "ast_hash": "ac4c463181e9803d5ebadfc3e08c8e90",
+    "semantic_hash": "ac4c463181e9803d5ebadfc3e08c8e90"
+  },
+  "src/App.tsx": {
+    "mtime": 1785902559.8286333,
+    "ast_hash": "7f030a8f6aa2a426e005fa5d0151e523",
+    "semantic_hash": "7f030a8f6aa2a426e005fa5d0151e523"
+  },
+  "src/data.ts": {
+    "mtime": 1785902559.8286333,
+    "ast_hash": "3d11c83816ebdb4fd14882306eeb6725",
+    "semantic_hash": "3d11c83816ebdb4fd14882306eeb6725"
+  },
+  "src/main.tsx": {
+    "mtime": 1785815988.4587379,
+    "ast_hash": "2b36426d5ad7e08ef79746aa524f4fb7",
+    "semantic_hash": "2b36426d5ad7e08ef79746aa524f4fb7"
+  },
+  "src/templates.ts": {
+    "mtime": 1785902559.8286333,
+    "ast_hash": "f355348ad2ce4e01ce946cda992ba12b",
+    "semantic_hash": "f355348ad2ce4e01ce946cda992ba12b"
+  },
+  "src/types.ts": {
+    "mtime": 1785815988.4587379,
+    "ast_hash": "123e595d90a5d9a7fdd77cf2143f8586",
+    "semantic_hash": "123e595d90a5d9a7fdd77cf2143f8586"
+  },
+  "tsconfig.json": {
+    "mtime": 1785815988.4587379,
+    "ast_hash": "8827451c4e35790dd3f3538c265e7d15",
+    "semantic_hash": "8827451c4e35790dd3f3538c265e7d15"
+  },
+  "vercel.json": {
+    "mtime": 1785815988.464405,
+    "ast_hash": "3f37683d8b70bd528452e99f48e2acc1",
+    "semantic_hash": "3f37683d8b70bd528452e99f48e2acc1"
+  },
+  "vite.config.ts": {
+    "mtime": 1785815988.464405,
+    "ast_hash": "9c319043c25764dfe83b687f74637c6c",
+    "semantic_hash": "9c319043c25764dfe83b687f74637c6c"
+  }
+}
