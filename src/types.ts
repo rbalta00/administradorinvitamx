@@ -35,6 +35,9 @@ export interface InvitacionDatos {
    *  definido, se deriva de mostrarCajasSecciones (ver App.tsx/generarHTMLFinal) para no
    *  cambiarle el look a invitaciones guardadas antes de este campo. */
   estiloCajasSecciones?: "normal" | "sin_cajon" | "solo_borde";
+  /** Formato de la sección "Mi Álbum de Fotos". Si no está definido se usa "grid" (el look de
+   *  siempre), para no cambiarle el look a invitaciones guardadas antes de este campo. */
+  estiloGaleria?: "grid" | "carrusel";
   hashtag: string;
   whatsappConfirmacion: string;
   cancion: string;

@@ -36,8 +36,9 @@ const construirUrlGoogleFonts = (tema: TemaConfig): string => {
   return `https://fonts.googleapis.com/css2?family=${segmentos}&display=swap`;
 };
 
-export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opciones?: { esDemoDeCatalogo?: boolean; esVistaPreviaEditor?: boolean }): string {
+export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opciones?: { esDemoDeCatalogo?: boolean; esVistaPreviaEditor?: boolean; paraExportarPDF?: boolean }): string {
   const esDemoDeCatalogo = opciones?.esDemoDeCatalogo === true;
+  const paraExportarPDF = opciones?.paraExportarPDF === true;
   // El monitor de invitación del propio editor (App.tsx: actualizarVistaPrevia) renderiza este
   // mismo HTML mientras el admin edita -- no es un invitado real abriendo su link. Se agrupa
   // con esDemoDeCatalogo abajo (mismo candado, misma razón: sin esto, cada recarga del preview
@@ -146,6 +147,24 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
   const galeriaFotosHTML = fotosFiltradas
     .map((foto, index) => `
       <div class="group relative overflow-hidden rounded-3xl shadow-lg aspect-3/4 bg-gradient-to-br from-gray-200 to-gray-300 cursor-pointer galeria-foto transform hover:-translate-y-2 transition-all duration-300" onclick="abrirLightbox(${index})">
+        <img src="${foto}" alt="Foto ${index + 1}" class="w-full h-full object-cover group-hover:scale-110 transition duration-500 loading='lazy'" />
+        <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center">
+          <div class="backdrop-blur-sm bg-white/20 p-4 rounded-full border border-white/40 shadow-xl">
+            <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7"></path></svg>
+          </div>
+        </div>
+        <div class="absolute top-3 right-3 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-xs font-semibold text-gray-700 shadow-md opacity-0 group-hover:opacity-100 transition duration-300">
+          ${index + 1}/${fotosFiltradas.length}
+        </div>
+      </div>`)
+    .join("");
+
+  // Variante "carrusel" de la misma galería: una fila que se desliza en vez de crecer en alto.
+  // Mismas tarjetas/hover/onclick que la cuadrícula (reutiliza el lightbox de abajo tal cual),
+  // solo cambia el layout del contenedor -- ver "Formato de la Galería de Fotos" en el editor.
+  const galeriaFotosCarruselHTML = fotosFiltradas
+    .map((foto, index) => `
+      <div class="group relative overflow-hidden rounded-3xl shadow-lg aspect-3/4 min-w-[72%] sm:min-w-[46%] snap-center shrink-0 bg-gradient-to-br from-gray-200 to-gray-300 cursor-pointer galeria-foto transition-all duration-300" onclick="abrirLightbox(${index})">
         <img src="${foto}" alt="Foto ${index + 1}" class="w-full h-full object-cover group-hover:scale-110 transition duration-500 loading='lazy'" />
         <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center">
           <div class="backdrop-blur-sm bg-white/20 p-4 rounded-full border border-white/40 shadow-xl">
@@ -698,6 +717,16 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
     </section>
     ` : "";
 
+  // Formato de la sección de galería: "grid" (de siempre) o "carrusel" (fila que se desliza, no
+  // crece en alto) -- ver "estiloGaleria" en el editor. Si no está definido se usa "grid" para no
+  // cambiarle el look a invitaciones guardadas antes de este campo.
+  // paraExportarPDF SIEMPRE fuerza "grid" sin importar lo elegido: el PDF de regalo captura el
+  // iframe con html2canvas a un ancho fijo (ver handleDescargarPDF en App.tsx) -- un carrusel con
+  // overflow-x-auto solo mostraría la primera foto (y media) en esa captura, el resto del álbum
+  // quedaría cortado en silencio. Un PDF tampoco puede "deslizarse", así que grid es lo correcto
+  // ahí de todas formas, no solo un parche para el bug de la captura.
+  const estiloGaleriaEfectivo: "grid" | "carrusel" = !paraExportarPDF && datos.estiloGaleria === "carrusel" ? "carrusel" : "grid";
+
   // Sección de contenido: galeria premium
   const galeriaSeccionHTML = isSectionActive("galeria") && fotosFiltradas.length > 0 ? `
     <section data-section="galeria" class="p-6">
@@ -707,9 +736,18 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         <p class="text-[10px] uppercase tracking-widest text-gray-400 mt-1">✨ Capturando momentos especiales ✨</p>
       </div>
 
+      ${estiloGaleriaEfectivo === "carrusel" ? `
+      <div class="flex justify-end items-center gap-1 text-[10px] uppercase tracking-widest text-gray-400 max-w-2xl mx-auto mb-2 pr-1">
+        deslizar →
+      </div>
+      <div class="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-3 max-w-2xl mx-auto [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        ${galeriaFotosCarruselHTML}
+      </div>
+      ` : `
       <div class="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
         ${galeriaFotosHTML}
       </div>
+      `}
     </section>
     ` : "";
 

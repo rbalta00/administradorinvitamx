@@ -153,7 +153,8 @@ const KEY_MAP: Record<string, string> = {
   seccionesExcluidas: "se",
   mostrarAnimacionCaida: "mac",
   personalizacion: "pz",
-  controlAccesoQR: "cq"
+  controlAccesoQR: "cq",
+  estiloGaleria: "eg"
 };
 
 const SUB_KEY_MAP: Record<string, string> = {
@@ -544,6 +545,11 @@ const ESTILOS_CAJAS_SECCIONES: { id: "normal" | "sin_cajon" | "solo_borde"; nomb
   { id: "normal", nombre: "Con cajón", desc: "Fondo sólido/translúcido detrás del texto (como hoy)" },
   { id: "sin_cajon", nombre: "Sin cajón", desc: "El texto flota directo sobre el fondo del tema" },
   { id: "solo_borde", nombre: "Solo borde", desc: "Quita el relleno pero deja un marco delgado" }
+];
+
+const ESTILOS_GALERIA: { id: "grid" | "carrusel"; nombre: string; desc: string }[] = [
+  { id: "grid", nombre: "Cuadrícula", desc: "Todas las fotos a la vista, en columnas (como hoy)" },
+  { id: "carrusel", nombre: "Carrusel", desc: "Una fila que se desliza -- no crece en alto sin importar cuántas fotos tenga el álbum" }
 ];
 
 const PALETAS_ANIMACION: { id: string; nombre: string; simbolos: string[] }[] = [
@@ -2901,7 +2907,7 @@ export default function App() {
     setGenerandoPDF(true);
     let contenedorTemporal: HTMLIFrameElement | null = null;
     try {
-      const htmlCompleto = generarHTMLFinal(datos, temaActual);
+      const htmlCompleto = generarHTMLFinal(datos, temaActual, { paraExportarPDF: true });
 
       // Renderizamos la invitación en un iframe oculto, ya "abierta", para capturarla completa
       contenedorTemporal = document.createElement("iframe");
@@ -4631,6 +4637,34 @@ export default function App() {
                           {datos.mostrarAnimacionCaida !== false ? "ON" : "OFF"}
                         </span>
                       </label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* FORMATO DE LA GALERÍA DE FOTOS */}
+                <div className="border-t border-slate-200 pt-6">
+                  <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-pink-500 animate-pulse"></span>
+                    Formato de la Galería de Fotos
+                  </h3>
+                  <div className="p-4 bg-rose-50/20 border border-pink-100 rounded-xl">
+                    <span className="block text-xs font-bold text-slate-800">
+                      Cómo se muestra "Mi Álbum de Fotos"
+                    </span>
+                    <span className="block text-[11px] text-slate-500 leading-normal mt-0.5 mb-2">
+                      El carrusel conviene con álbumes grandes (Deluxe, 10-14 fotos): la sección no crece en alto sin importar cuántas fotos tenga.
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {ESTILOS_GALERIA.map(e => (
+                        <button
+                          key={e.id}
+                          onClick={() => setDatos(prev => ({ ...prev, estiloGaleria: e.id }))}
+                          className={`text-left p-3 rounded-xl border-2 transition cursor-pointer ${(datos.estiloGaleria || "grid") === e.id ? "border-pink-500 bg-pink-50/40" : "border-slate-200 bg-white hover:border-slate-300"}`}
+                        >
+                          <span className="block text-xs font-bold text-slate-700">{e.nombre}</span>
+                          <span className="block text-[10px] text-slate-500 mt-0.5">{e.desc}</span>
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>
