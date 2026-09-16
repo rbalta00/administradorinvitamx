@@ -2707,6 +2707,17 @@ export default function App() {
     }
     setCreandoNuevoCliente(true);
     try {
+      // Cargar los fondos personalizados globales
+      let customBgs = {};
+      try {
+        const savedBgs = localStorage.getItem('xv_fondos_personalizados');
+        if (savedBgs) {
+          customBgs = JSON.parse(savedBgs);
+        }
+      } catch (e) {
+        console.error("Error al leer fondos personalizados:", e);
+      }
+
       const nuevosDatos: InvitacionDatos = {
         paquete: nuevoClientePaquete,
         tema: "dorado-clasico",
@@ -2728,6 +2739,7 @@ export default function App() {
         cancion: "",
         linkPersonalizado: "",
         invitados: [],
+        bgImages: customBgs,
         // "pases" es a la carte en Básico/Premium (apagada por default), incluida en Deluxe.
         seccionesExcluidas: nuevoClientePaquete === "deluxe" ? [] : ["pases"]
       };
