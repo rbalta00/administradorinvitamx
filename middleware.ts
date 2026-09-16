@@ -22,6 +22,16 @@
 // Los archivos estáticos del build (/assets/*) también se dejan pasar siempre, si no el propio
 // navegador no podría ni cargar el JS/CSS para pintar la pantalla de login.
 //
+// El manifest.json, los íconos y el service worker (sw.js) TAMBIÉN se dejan pasar sin
+// contraseña (2026-09-16) -- no por comodidad, es un requisito real: el chequeo interno de
+// Chrome de "¿esta página se puede instalar como app?" (lo que decide si dispara
+// beforeinstallprompt) hace su propio fetch de estos archivos por separado del navegador
+// normal, y ese fetch interno NO manda las credenciales de Basic Auth que sí trae cualquier
+// fetch normal de la página. Antes de este cambio, esos archivos devolvían 401 a ese chequeo
+// interno (confirmado con curl sin credenciales) y por eso el botón "Instalar app" nunca
+// aparecía pese a que el manifest/íconos/service worker estaban bien configurados -- Chrome
+// simplemente nunca terminaba de confirmar que el sitio fuera instalable.
+//
 // Las funciones serverless públicas (/api/*, ej. notify-telegram) también se excluyen: las
 // llaman visitantes anónimos desde páginas públicas (RSVP del invitado, intake del cliente,
 // demo del catálogo) que nunca traen credenciales de Basic Auth -- bug real detectado el
@@ -34,7 +44,8 @@
 // que sí deben pasar por el mismo Basic Auth que protege el resto del editor.
 
 export const config = {
-  matcher: "/((?!assets/|api/(?!admin/)).*)",
+  matcher:
+    "/((?!assets/|api/(?!admin/)|manifest\\.json$|icon-192\\.png$|icon-512\\.png$|apple-touch-icon\\.png$|sw\\.js$).*)",
 };
 
 export default function middleware(request: Request) {
