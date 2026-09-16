@@ -29,7 +29,8 @@ import {
   X,
   Palette,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  LogOut
 } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 import { InvitacionDatos, TemaConfig } from "./types";
@@ -241,7 +242,8 @@ const encodeState = (obj: any): string => {
         if (Array.isArray(val)) {
           mini[shortKey] = val.map((item: any) => ({
             n: item.nombre,
-            p: item.pases
+            p: item.pases,
+            ...(item.mesa ? { m: item.mesa } : {})
           }));
         }
       } else {
@@ -300,7 +302,8 @@ const decodeState = (str: string): any => {
         if (Array.isArray(val)) {
           result[fullKey] = val.map((item: any) => ({
             nombre: item.n || "",
-            pases: item.p || 2
+            pases: item.p || 2,
+            ...(item.m ? { mesa: item.m } : {})
           }));
         }
       } else {
@@ -1506,6 +1509,152 @@ function CheckinPage({ invitacionId, famNombre }: { invitacionId: string | null;
   );
 }
 
+// "Recuperar acceso" (?recuperar=1): la salida de emergencia para cuando se te olvida
+// ADMIN_PASSWORD y no tienes a mano la CLI de Vercel para correr scripts/reset-admin-password.mjs.
+// Tres pasos: pedir un código de un solo uso (llega por correo a ADMIN_RECOVERY_EMAIL, ver
+// api/recovery/request.ts), escribirlo, y si es correcto el servidor genera una contraseña
+// nueva, la sube a Vercel y redeploya (api/recovery/confirm.ts) -- mismo resultado que el script,
+// pero sin depender de tener la CLI autenticada en esta máquina en particular.
+function RecoveryPage() {
+  const [paso, setPaso] = useState<"inicio" | "codigo" | "listo">("inicio");
+  const [token, setToken] = useState("");
+  const [codigo, setCodigo] = useState("");
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [passwordNueva, setPasswordNueva] = useState("");
+  const [copiado, setCopiado] = useState(false);
+
+  const handlePedirCodigo = async () => {
+    setCargando(true);
+    setError(null);
+    try {
+      const r = await fetch("/api/recovery/request", { method: "POST" });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || "No se pudo enviar el código.");
+      setToken(data.token);
+      setPaso("codigo");
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const handleConfirmarCodigo = async () => {
+    if (codigo.trim().length !== 6) {
+      setError("El código tiene 6 dígitos.");
+      return;
+    }
+    setCargando(true);
+    setError(null);
+    try {
+      const r = await fetch("/api/recovery/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, code: codigo.trim() }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || "No se pudo confirmar el código.");
+      setPasswordNueva(data.password);
+      setPaso("listo");
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const handleCopiar = () => {
+    navigator.clipboard.writeText(passwordNueva).then(() => {
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    });
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="max-w-sm w-full bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
+        <div className="text-center mb-5">
+          <span className="text-3xl block mb-2">🔑</span>
+          <h1 className="text-lg font-bold text-slate-800">Recuperar acceso al editor</h1>
+        </div>
+
+        {paso === "inicio" && (
+          <>
+            <p className="text-xs text-slate-500 text-center mb-5">
+              Se mandará un código de un solo uso por correo. Al confirmarlo se genera una contraseña nueva para el editor y se aplica sola -- ya no hace falta correr nada en una terminal.
+            </p>
+            <button
+              onClick={handlePedirCodigo}
+              disabled={cargando}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-bold py-2.5 rounded-lg transition"
+            >
+              {cargando ? "Enviando..." : "Enviarme un código"}
+            </button>
+          </>
+        )}
+
+        {paso === "codigo" && (
+          <>
+            <p className="text-xs text-slate-500 text-center mb-4">
+              Revisa tu correo -- te llegó un código de 6 dígitos, vence en 10 minutos.
+            </p>
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              value={codigo}
+              onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ""))}
+              placeholder="000000"
+              className="w-full text-center text-2xl tracking-[0.5em] font-mono px-3 py-3 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-indigo-500 mb-4"
+              autoFocus
+            />
+            <button
+              onClick={handleConfirmarCodigo}
+              disabled={cargando || codigo.length !== 6}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-bold py-2.5 rounded-lg transition"
+            >
+              {cargando ? "Confirmando..." : "Confirmar y generar contraseña nueva"}
+            </button>
+            <button
+              onClick={handlePedirCodigo}
+              disabled={cargando}
+              className="w-full text-xs text-slate-400 hover:text-slate-600 mt-3"
+            >
+              Reenviar código
+            </button>
+          </>
+        )}
+
+        {paso === "listo" && (
+          <>
+            <p className="text-xs text-slate-500 text-center mb-3">
+              Listo -- ya se aplicó y el sitio se está redesplegando. Esta es tu nueva contraseña (usuario <strong>admin</strong>):
+            </p>
+            <div className="flex items-center gap-2 mb-4">
+              <code className="flex-1 text-sm font-mono bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 break-all">{passwordNueva}</code>
+              <button
+                onClick={handleCopiar}
+                className="shrink-0 text-xs font-bold bg-slate-100 hover:bg-slate-200 rounded-lg px-3 py-2.5 transition"
+              >
+                {copiado ? "✓" : "Copiar"}
+              </button>
+            </div>
+            <p className="text-[11px] text-amber-600 font-semibold text-center mb-4">
+              Guárdala ya en tu gestor de contraseñas -- no se puede volver a ver después de esto.
+            </p>
+            <p className="text-[11px] text-slate-400 text-center">
+              Espera medio minuto a que termine el redeploy y entra normal a <a href="/" className="underline">administradorinvitamx.vercel.app</a>.
+            </p>
+          </>
+        )}
+
+        {error && <p className="text-xs font-semibold text-red-600 text-center mt-4">{error}</p>}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   // Cargar estado inicial desde la URL si existe o desde localStorage, o el editor precargado
   const getInitialState = (): { initialDatos: InvitacionDatos; initialTemaId: string; isView: boolean; isCatalog: boolean; initialCatalogTemaId: string | null; isEmbed: boolean } => {
@@ -1629,6 +1778,9 @@ export default function App() {
   const isCheckinMode = queryParams.get('checkin') === '1';
   const checkinInvitacionId = queryParams.get('iid');
   const checkinFamNombre = queryParams.get('fam');
+
+  // "Recuperar acceso" (?recuperar=1) -- ver RecoveryPage más arriba.
+  const isRecoveryMode = queryParams.get('recuperar') === '1';
 
   // Estado principal de los datos de la invitación
   const [datos, setDatos] = useState<InvitacionDatos>(initialDatos);
@@ -3467,6 +3619,15 @@ export default function App() {
     }));
   };
 
+  // Invitados: Asignar/editar mesa (acomodo de mesas) -- texto libre, opcional. Vacío = sin
+  // asignar, no se muestra nada en el pase del invitado (ver mostrarPaseFijo en templates.ts).
+  const handleActualizarMesaInvitado = (index: number, mesa: string) => {
+    setDatos(prev => ({
+      ...prev,
+      invitados: (prev.invitados || []).map((item, i) => i === index ? { ...item, mesa } : item)
+    }));
+  };
+
   // Invitados: Parsear una línea de texto libre en { nombre, pases }. Acepta el formato en el
   // que el cliente naturalmente mande su lista (copiado/pegado de Excel/Sheets, Word, o
   // escrito a mano en WhatsApp) — no exigimos un archivo ni un formato específico:
@@ -3658,6 +3819,10 @@ export default function App() {
 
   if (isCheckinMode) {
     return <CheckinPage invitacionId={checkinInvitacionId} famNombre={checkinFamNombre} />;
+  }
+
+  if (isRecoveryMode) {
+    return <RecoveryPage />;
   }
 
   if (isIntakeMode) {
@@ -4260,6 +4425,23 @@ export default function App() {
             <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${datos.paquete === "deluxe" ? "bg-white/25" : "bg-black/20"}`}>
               {datos.paquete === "deluxe" ? "Incluido" : "A la carte"}
             </span>
+          </button>
+
+          <button
+            onClick={() => {
+              // No hay sesión real de servidor que cerrar (el login es HTTP Basic Auth, sin
+              // cookies) -- el navegador simplemente recuerda el usuario/contraseña que ya
+              // funcionaron para este dominio. El truco estándar para "olvidarlos" es navegar
+              // con credenciales a propósito inválidas en la URL: el navegador descarta las
+              // buenas y, en la siguiente carga, vuelve a pedir usuario y contraseña.
+              const { protocol, host } = window.location;
+              window.location.href = `${protocol}//logout:${Date.now()}@${host}/`;
+            }}
+            title="Cierra tu sesión de este navegador -- te va a volver a pedir usuario y contraseña"
+            className="px-3.5 py-2 bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+          >
+            <LogOut className="w-3.5 h-3.5 text-rose-500" />
+            <span>Cerrar sesión</span>
           </button>
         </div>
       </header>
@@ -5879,14 +6061,18 @@ export default function App() {
 
                   {/* Listado */}
                   <div className="space-y-2">
-                    <span className="text-[11px] uppercase font-bold text-slate-500 block mb-2">
+                    <span className="text-[11px] uppercase font-bold text-slate-500 block">
                       Invitados inscritos ({datos.invitados?.length || 0}):
+                    </span>
+                    <span className="text-[10px] text-slate-400 block mb-2">
+                      El campo "Mesa" es opcional (texto libre, ej. "Mesa 5") -- si se deja vacío, el pase del invitado no muestra nada de acomodo.
                     </span>
 
                     {datos.invitados && datos.invitados.length > 0 ? (
                       <div className="max-h-72 overflow-y-auto space-y-1.5 border border-slate-200 rounded-lg p-2 bg-slate-50">
                         {datos.invitados.map((item, index) => (
-                          <div key={index} className="flex items-center justify-between p-2 bg-white rounded border border-slate-250 hover:bg-slate-100">
+                          <div key={index} className="p-2 bg-white rounded border border-slate-250 hover:bg-slate-100 space-y-1.5">
+                          <div className="flex items-center justify-between">
                             <div>
                               <span className="text-xs font-semibold text-slate-800">{item.nombre}</span>
                               <span className="ml-2 text-[10px] text-indigo-600 font-extrabold font-mono">({item.pases} pases)</span>
@@ -5927,6 +6113,17 @@ export default function App() {
                                 <Trash2 className="w-3.5 h-3.5 text-rose-500" />
                               </button>
                             </div>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[9px] uppercase tracking-widest text-slate-400 font-bold shrink-0">Mesa</span>
+                            <input
+                              type="text"
+                              value={item.mesa || ""}
+                              onChange={(e) => handleActualizarMesaInvitado(index, e.target.value)}
+                              placeholder="Sin asignar"
+                              className="flex-1 min-w-0 px-2 py-1 bg-slate-50 border border-slate-200 rounded text-[11px] text-slate-700 outline-none focus:border-indigo-500"
+                            />
+                          </div>
                           </div>
                         ))}
                       </div>

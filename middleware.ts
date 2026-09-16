@@ -16,6 +16,9 @@
 //   - ?catalog=true / ?catalogo=true -> catálogo de temas de demostración
 //   - ?intake=1              -> formulario público para que el cliente capture sus datos/fotos
 //   - ?checkin=1             -> control de acceso QR (à la carte) para quien controla la puerta
+//   - ?recuperar=1           -> recuperar acceso si se te olvidó ADMIN_PASSWORD (tiene que ser
+//     público por definición: es justo la puerta para cuando no puedes entrar por la de siempre;
+//     está protegida por su propio código de un solo uso mandado por correo, ver api/recovery/*)
 // Los archivos estáticos del build (/assets/*) también se dejan pasar siempre, si no el propio
 // navegador no podría ni cargar el JS/CSS para pintar la pantalla de login.
 //
@@ -44,7 +47,8 @@ export default function middleware(request: Request) {
     params.get("catalog") === "true" ||
     params.get("catalogo") === "true" ||
     params.get("intake") === "1" ||
-    params.get("checkin") === "1";
+    params.get("checkin") === "1" ||
+    params.get("recuperar") === "1";
 
   if (esVistaPublica) {
     return;

@@ -803,6 +803,10 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
             <span class="text-[10px] text-gray-400 uppercase tracking-widest font-semibold block">Pases Reservados</span>
             <span id="pase-cantidad" class="text-3xl font-bold text-accent font-serif">2</span>
           </div>
+          <div id="pase-mesa-bloque" class="hidden mb-2">
+            <span class="text-[10px] text-gray-400 uppercase tracking-widest font-semibold">Mesa</span>
+            <span id="pase-mesa-texto" class="ml-1.5 text-sm font-bold text-dark font-serif"></span>
+          </div>
           <p class="text-[10px] text-gray-400 italic font-mono mt-1">Presenta esta invitación digital para tu ingreso</p>
           <div id="qr-acceso-bloque" class="hidden mt-4 pt-3 border-t border-borderTheme/30">
             <img id="qr-acceso-img" src="" alt="Código QR de acceso" width="150" height="150" class="mx-auto rounded-xl border border-gray-200 bg-white p-1.5" />
@@ -1524,6 +1528,19 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         document.getElementById('pase-cantidad').innerText = invitado.pases;
         resultadoBloque.classList.remove('hidden');
         sinCoincidencia.classList.add('hidden');
+
+        // Acomodo de mesas: "mesa" es texto libre y opcional -- si no se asignó, el bloque se
+        // queda oculto y el pase se ve exactamente igual que antes de este campo.
+        const mesaBloque = document.getElementById('pase-mesa-bloque');
+        const mesaTexto = document.getElementById('pase-mesa-texto');
+        if (mesaBloque && mesaTexto) {
+          if (invitado.mesa) {
+            mesaTexto.innerText = invitado.mesa;
+            mesaBloque.classList.remove('hidden');
+          } else {
+            mesaBloque.classList.add('hidden');
+          }
+        }
 
         // Complemento à la carte "Control de Acceso QR": el QR es solo un link de check-in
         // (?checkin=1&iid=...&fam=...) convertido a imagen por un servicio público -- no hay

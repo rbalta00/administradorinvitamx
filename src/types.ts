@@ -45,6 +45,9 @@ export interface InvitacionDatos {
   invitados: Array<{
     nombre: string;
     pases: number;
+    /** Acomodo de mesas: texto libre ("Mesa 5", "Familia Gómez", etc.), opcional -- si no está
+     *  asignada no se muestra nada en el pase del invitado. */
+    mesa?: string;
   }>;
   /** Complemento à la carte "Control de Acceso QR" (requiere que la sección "pases" esté
    *  activa -- ver toggle junto a SeccionesToggleList en App.tsx). Cuando es true, cada pase
