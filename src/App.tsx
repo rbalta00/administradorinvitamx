@@ -2424,7 +2424,20 @@ export default function App() {
       mostrarToast("Esta invitación se guardó antes de esta función y no tiene el estado completo disponible para recargar.", "error");
       return;
     }
-    setDatos(row.datos_completos);
+    // No reemplazar bgImages a ciegas con la foto congelada de ESTA invitación -- los fondos
+    // personalizados son compartidos entre todas las invitaciones (viven en Supabase por tema,
+    // no por invitación) y pueden haberse agregado/actualizado DESPUÉS de que esta invitación
+    // se guardó por última vez. Sin este merge, cada vez que se reabre una invitación vieja
+    // "desaparecían" de la pantalla los fondos más recientes (el archivo seguía intacto en
+    // Cloudinary/Supabase, solo dejaba de verse el link guardado en el editor) hasta volver a
+    // subirlos a mano.
+    setDatos({
+      ...row.datos_completos,
+      bgImages: {
+        ...(row.datos_completos.bgImages || {}),
+        ...(datos.bgImages || {}),
+      },
+    });
     setSelectedTemaId(row.datos_completos.tema || "dorado-clasico");
     setSupabaseRowId(row.id);
     try { localStorage.setItem("xv_supabase_row_id", row.id); } catch {}
@@ -2463,7 +2476,15 @@ export default function App() {
         mostrarToast("No se pudo duplicar la invitación", "error");
         return;
       }
-      setDatos(row.datos_completos);
+      // Mismo merge que handleAbrirInvitacionGuardada -- no pisar los fondos personalizados
+      // compartidos con la foto vieja congelada en esta invitación duplicada.
+      setDatos({
+        ...row.datos_completos,
+        bgImages: {
+          ...(row.datos_completos.bgImages || {}),
+          ...(datos.bgImages || {}),
+        },
+      });
       setSelectedTemaId(row.datos_completos.tema || "dorado-clasico");
       setSupabaseRowId(nuevaFila.id);
       try { localStorage.setItem("xv_supabase_row_id", nuevaFila.id); } catch {}
