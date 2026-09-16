@@ -46,6 +46,16 @@
       <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
     </div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Registra el service worker mínimo (public/sw.js) -- sin esto, Chrome/Edge nunca
+      // consideran el sitio instalable y el botón "Instalar app" del editor nunca aparece,
+      // sin importar que el manifest.json ya esté bien configurado.
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/sw.js").catch(() => {});
+        });
+      }
+    </script>
   </body>
 </html>
 
