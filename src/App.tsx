@@ -4476,21 +4476,37 @@ export default function App() {
             </span>
           </button>
 
-          {instalarPrompt && (
-            <button
-              onClick={async () => {
+          <button
+            onClick={async () => {
+              // Caso ideal: Chrome/Edge sí dispararon beforeinstallprompt y lo tenemos
+              // guardado -- instalación real de un click.
+              if (instalarPrompt) {
                 instalarPrompt.prompt();
                 await instalarPrompt.userChoice;
                 (window as any).__deferredInstallPrompt = null;
                 setInstalarPrompt(null);
-              }}
-              title="Instala esta app en tu celular o PC -- queda como un acceso directo, sin necesidad de abrir el navegador"
-              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
-            >
-              <Smartphone className="w-3.5 h-3.5 text-white" />
-              <span>Instalar app</span>
-            </button>
-          )}
+                return;
+              }
+              // Ese evento del navegador es poco confiable en la práctica (no siempre se
+              // dispara aunque el sitio cumpla todos los requisitos) -- en vez de esconder el
+              // botón cuando no llega, se explican los pasos manuales según el dispositivo,
+              // que siempre funcionan.
+              const ua = navigator.userAgent;
+              const esIOS = /iPhone|iPad|iPod/.test(ua);
+              const esAndroid = /Android/.test(ua);
+              const mensaje = esIOS
+                ? 'Para instalarla en iPhone/iPad:\n\n1. Toca el botón "Compartir" (el cuadrito con la flecha hacia arriba) en Safari\n2. Elige "Agregar a inicio"'
+                : esAndroid
+                ? 'Para instalarla en este celular:\n\n1. Toca el menú ⋮ (tres puntos) de Chrome, arriba a la derecha\n2. Elige "Instalar app" o "Agregar a pantalla de inicio"'
+                : 'Para instalarla en esta computadora:\n\n1. Toca el menú ⋮ (tres puntos) de Chrome/Edge, arriba a la derecha de la ventana del navegador\n2. Elige "Instalar Invitaciones XV..." (o "Convertir en app")';
+              alert(mensaje);
+            }}
+            title="Instala esta app en tu celular o PC -- queda como un acceso directo, sin necesidad de abrir el navegador"
+            className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+          >
+            <Smartphone className="w-3.5 h-3.5 text-white" />
+            <span>Instalar app</span>
+          </button>
 
           <button
             onClick={() => {
