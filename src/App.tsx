@@ -2424,7 +2424,25 @@ export default function App() {
       mostrarToast("Esta invitación se guardó antes de esta función y no tiene el estado completo disponible para recargar.", "error");
       return;
     }
-    setDatos(row.datos_completos);
+    // Cargar los fondos personalizados globales que se hayan guardado
+    let customBgs = {};
+    try {
+      const savedBgs = localStorage.getItem('xv_fondos_personalizados');
+      if (savedBgs) {
+        customBgs = JSON.parse(savedBgs);
+      }
+    } catch (e) {
+      console.error("Error al leer fondos personalizados:", e);
+    }
+
+    // Mergear fondos: primero los globales, luego los específicos de la invitación
+    setDatos({
+      ...row.datos_completos,
+      bgImages: {
+        ...customBgs,
+        ...(row.datos_completos.bgImages || {})
+      }
+    });
     setSelectedTemaId(row.datos_completos.tema || "dorado-clasico");
     setSupabaseRowId(row.id);
     try { localStorage.setItem("xv_supabase_row_id", row.id); } catch {}
