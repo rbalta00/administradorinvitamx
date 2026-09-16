@@ -2481,7 +2481,24 @@ export default function App() {
         mostrarToast("No se pudo duplicar la invitación", "error");
         return;
       }
-      setDatos(row.datos_completos);
+      // Cargar los fondos personalizados globales para mergearlos
+      let customBgs = {};
+      try {
+        const savedBgs = localStorage.getItem('xv_fondos_personalizados');
+        if (savedBgs) {
+          customBgs = JSON.parse(savedBgs);
+        }
+      } catch (e) {
+        console.error("Error al leer fondos personalizados:", e);
+      }
+
+      setDatos({
+        ...row.datos_completos,
+        bgImages: {
+          ...customBgs,
+          ...(row.datos_completos.bgImages || {})
+        }
+      });
       setSelectedTemaId(row.datos_completos.tema || "dorado-clasico");
       setSupabaseRowId(nuevaFila.id);
       try { localStorage.setItem("xv_supabase_row_id", nuevaFila.id); } catch {}
