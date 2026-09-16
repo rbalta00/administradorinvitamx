@@ -72,6 +72,7 @@ interface InvitacionGuardadaRow {
   bloqueada: boolean;
   motivo_bloqueo: string | null;
   checkin_pagado: boolean;
+  creado_por: string | null;
 }
 
 // Estatus del pedido (columna `estado`), en el orden en que normalmente avanza una venta.
@@ -320,7 +321,7 @@ const decodeState = (str: string): any => {
 // Función para guardar en Supabase (agregar ANTES de export default function App)
 // Si se pasa `existingId`, actualiza esa fila en vez de crear una nueva — evita que guardar
 // varias veces mientras se edita la MISMA invitación acumule filas duplicadas en la tabla.
-async function guardarEnSupabase(datosInvitacion: InvitacionDatos, temaActual: TemaConfig, shareUrl?: string, existingId?: string | null) {
+async function guardarEnSupabase(datosInvitacion: InvitacionDatos, temaActual: TemaConfig, shareUrl?: string, existingId?: string | null, creadoPor?: string | null) {
   // Verificar que Supabase esté cargado
   if (!window.supabaseClient) {
     throw new Error('Supabase no está disponible');
@@ -361,9 +362,12 @@ async function guardarEnSupabase(datosInvitacion: InvitacionDatos, temaActual: T
   let ultimoError = new Error('Ocurrió un error al guardar en Supabase.');
   for (let intento = 1; intento <= intentosTotales; intento++) {
     try {
+      // creado_por solo se manda al INSERTAR una fila nueva -- nunca en el update, para que
+      // guardar cambios en una invitación ya existente no le "robe" la autoría a quien la creó
+      // originalmente, sin importar quién sea el que la esté editando ahora.
       const query = existingId
         ? supabase.from('invitaciones').update(datosParaGuardar).eq('id', existingId).select()
-        : supabase.from('invitaciones').insert([datosParaGuardar]).select();
+        : supabase.from('invitaciones').insert([{ ...datosParaGuardar, creado_por: creadoPor || null }]).select();
 
       const { data, error } = await query;
       if (error) throw error;
@@ -2165,6 +2169,17 @@ export default function App() {
     }
   });
 
+  // Usuario con el que se entró al editor (isaac/vladimir/nidia/admin), leído del mismo header
+  // de Basic Auth que ya mandó el navegador -- ver api/whoami.ts. Se usa para etiquetar quién
+  // creó cada invitación nueva en "Mis Invitaciones", y para el filtro "Mías / Todas".
+  const [usuarioActual, setUsuarioActual] = useState<string | null>(null);
+  useEffect(() => {
+    fetch('/api/whoami')
+      .then(r => r.json())
+      .then(d => setUsuarioActual(d.usuario || null))
+      .catch(() => setUsuarioActual(null));
+  }, []);
+
   // Estado para controles de copiado temporal
   const [htmlCopiado, setHtmlCopiado] = useState(false);
   const [datosCopiados, setDatosCopiados] = useState(false);
@@ -2205,6 +2220,10 @@ export default function App() {
   const [busquedaInvitaciones, setBusquedaInvitaciones] = useState("");
   const [filtroEstatusInvitaciones, setFiltroEstatusInvitaciones] = useState("todos");
   const [filtroRapidoInvitaciones, setFiltroRapidoInvitaciones] = useState<"ninguno" | "pendientes" | "proximos" | "urgentes">("ninguno");
+  // "Mías / Todas" -- todos ven el trabajo de todos por default (no se ocultan invitaciones
+  // entre isaac/vladimir/nidia), este filtro es solo para que cada quien pueda ubicar rápido
+  // lo suyo sin tener que buscarlo entre el resto.
+  const [filtroCreadorInvitaciones, setFiltroCreadorInvitaciones] = useState<"todas" | "mias">("todas");
 
   // Estado para el "Dashboard de Ingresos": totales y desglose histórico de ingresos, aparte
   // del detalle por-invitación que ya vive en "Mis Invitaciones". Usa la tabla `abonos`
@@ -2623,7 +2642,7 @@ export default function App() {
     }
     const temaDuplicado = temas.find(t => t.id === row.datos_completos!.tema) || temas[0];
     try {
-      const nuevaFila = await guardarEnSupabase(row.datos_completos, temaDuplicado, row.link_invitacion || undefined, null);
+      const nuevaFila = await guardarEnSupabase(row.datos_completos, temaDuplicado, row.link_invitacion || undefined, null, usuarioActual);
       if (!nuevaFila?.id) {
         mostrarToast("No se pudo duplicar la invitación", "error");
         return;
@@ -2887,7 +2906,7 @@ export default function App() {
         seccionesExcluidas: nuevoClientePaquete === "deluxe" ? [] : ["pases"]
       };
       const temaConfig = temas.find(t => t.id === "dorado-clasico") || temas[0];
-      const nuevaFila = await guardarEnSupabase(nuevosDatos, temaConfig, undefined, null);
+      const nuevaFila = await guardarEnSupabase(nuevosDatos, temaConfig, undefined, null, usuarioActual);
       if (!nuevaFila?.id) {
         mostrarToast("No se pudo crear el cliente", "error");
         return;
@@ -4298,6 +4317,7 @@ export default function App() {
   const invitacionesFiltradas = (() => {
     const q = busquedaInvitaciones.trim().toLowerCase();
     return listaInvitaciones.filter(row => {
+      if (filtroCreadorInvitaciones === "mias" && row.creado_por !== usuarioActual) return false;
       if (filtroEstatusInvitaciones !== "todos" && (row.estado || "cotizacion") !== filtroEstatusInvitaciones) return false;
       if (filtroRapidoInvitaciones === "pendientes" && !invitacionTienePendiente(row)) return false;
       if (filtroRapidoInvitaciones === "proximos" && !invitacionEsProxima(row)) return false;
@@ -4399,7 +4419,7 @@ export default function App() {
           <button
             onClick={() => {
               const finalLink = getShareUrl();
-              guardarEnSupabase(datos, temaActual, finalLink, supabaseRowId)
+              guardarEnSupabase(datos, temaActual, finalLink, supabaseRowId, usuarioActual)
                 .then((row) => {
                   if (row?.id) {
                     setSupabaseRowId(row.id);
@@ -6798,6 +6818,22 @@ export default function App() {
                   <option value="todos">Todos los estatus</option>
                   {ESTATUS_PEDIDO.map(e => <option key={e.id} value={e.id}>{e.label}</option>)}
                 </select>
+                {usuarioActual && (
+                  <div className="flex border border-slate-200 rounded-lg overflow-hidden shrink-0">
+                    <button
+                      onClick={() => setFiltroCreadorInvitaciones("todas")}
+                      className={`px-3 py-2 text-xs font-semibold transition ${filtroCreadorInvitaciones === "todas" ? "bg-indigo-600 text-white" : "bg-slate-50 text-slate-600 hover:bg-slate-100"}`}
+                    >
+                      Todas
+                    </button>
+                    <button
+                      onClick={() => setFiltroCreadorInvitaciones("mias")}
+                      className={`px-3 py-2 text-xs font-semibold transition ${filtroCreadorInvitaciones === "mias" ? "bg-indigo-600 text-white" : "bg-slate-50 text-slate-600 hover:bg-slate-100"}`}
+                    >
+                      Mías
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -6834,6 +6870,9 @@ export default function App() {
                               </span>
                             ) : (
                               <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-500 text-[9px] font-bold">📋 Sin respuesta del cliente</span>
+                            )}
+                            {row.creado_por && (
+                              <span className="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[9px] font-bold uppercase">👤 {row.creado_por}</span>
                             )}
                           </div>
                           <span className="block text-[11px] text-slate-500 mt-0.5">
