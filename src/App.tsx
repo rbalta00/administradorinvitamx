@@ -2180,6 +2180,26 @@ export default function App() {
       .catch(() => setUsuarioActual(null));
   }, []);
 
+  // Botón "Instalar app" propio en vez de que cada quien tenga que encontrar el icono chiquito
+  // del navegador. Chrome/Edge/Android avisan con el evento beforeinstallprompt -- lo guardamos
+  // y lo disparamos nosotros al hacer clic. Safari/iOS no tiene este evento (no existe API para
+  // instalar por código ahí), así que en iPhone el botón simplemente nunca aparece y ese usuario
+  // sigue el paso manual de "Compartir -> Agregar a inicio".
+  const [instalarPrompt, setInstalarPrompt] = useState<any>(null);
+  useEffect(() => {
+    const onBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setInstalarPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', onBeforeInstall);
+    const onInstalled = () => setInstalarPrompt(null);
+    window.addEventListener('appinstalled', onInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBeforeInstall);
+      window.removeEventListener('appinstalled', onInstalled);
+    };
+  }, []);
+
   // Estado para controles de copiado temporal
   const [htmlCopiado, setHtmlCopiado] = useState(false);
   const [datosCopiados, setDatosCopiados] = useState(false);
@@ -4446,6 +4466,21 @@ export default function App() {
               {datos.paquete === "deluxe" ? "Incluido" : "A la carte"}
             </span>
           </button>
+
+          {instalarPrompt && (
+            <button
+              onClick={async () => {
+                instalarPrompt.prompt();
+                await instalarPrompt.userChoice;
+                setInstalarPrompt(null);
+              }}
+              title="Instala esta app en tu celular o PC -- queda como un acceso directo, sin necesidad de abrir el navegador"
+              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+            >
+              <Smartphone className="w-3.5 h-3.5 text-white" />
+              <span>Instalar app</span>
+            </button>
+          )}
 
           <button
             onClick={() => {
