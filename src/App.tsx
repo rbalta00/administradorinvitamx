@@ -2185,14 +2185,23 @@ export default function App() {
   // y lo disparamos nosotros al hacer clic. Safari/iOS no tiene este evento (no existe API para
   // instalar por código ahí), así que en iPhone el botón simplemente nunca aparece y ese usuario
   // sigue el paso manual de "Compartir -> Agregar a inicio".
-  const [instalarPrompt, setInstalarPrompt] = useState<any>(null);
+  const [instalarPrompt, setInstalarPrompt] = useState<any>(
+    () => (window as any).__deferredInstallPrompt || null
+  );
   useEffect(() => {
+    // Por si el evento ya se había capturado en index.html antes de que este componente
+    // montara (ver ese archivo) -- lo recoge aquí también, no solo en el useState inicial,
+    // por si llega justo entre el primer render y este efecto.
+    if ((window as any).__deferredInstallPrompt && !instalarPrompt) {
+      setInstalarPrompt((window as any).__deferredInstallPrompt);
+    }
     const onBeforeInstall = (e: Event) => {
       e.preventDefault();
+      (window as any).__deferredInstallPrompt = e;
       setInstalarPrompt(e);
     };
     window.addEventListener('beforeinstallprompt', onBeforeInstall);
-    const onInstalled = () => setInstalarPrompt(null);
+    const onInstalled = () => { (window as any).__deferredInstallPrompt = null; setInstalarPrompt(null); };
     window.addEventListener('appinstalled', onInstalled);
     return () => {
       window.removeEventListener('beforeinstallprompt', onBeforeInstall);
@@ -4472,6 +4481,7 @@ export default function App() {
               onClick={async () => {
                 instalarPrompt.prompt();
                 await instalarPrompt.userChoice;
+                (window as any).__deferredInstallPrompt = null;
                 setInstalarPrompt(null);
               }}
               title="Instala esta app en tu celular o PC -- queda como un acceso directo, sin necesidad de abrir el navegador"

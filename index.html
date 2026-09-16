@@ -55,6 +55,16 @@
           navigator.serviceWorker.register("/sw.js").catch(() => {});
         });
       }
+      // Captura beforeinstallprompt lo antes posible, ANTES de que React termine de montar --
+      // si el navegador dispara este evento mientras la app todavía está cargando/hidratando,
+      // el listener de App.tsx llega tarde y el evento se pierde para siempre (no se puede
+      // volver a disparar). Aquí queda guardado en window para que App.tsx lo recoja apenas
+      // monte, además de seguir escuchando por si llega después.
+      window.__deferredInstallPrompt = null;
+      window.addEventListener("beforeinstallprompt", (e) => {
+        e.preventDefault();
+        window.__deferredInstallPrompt = e;
+      });
     </script>
   </body>
 </html>
