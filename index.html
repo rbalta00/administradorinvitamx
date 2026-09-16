@@ -17,6 +17,18 @@
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="🌸 Invitación Digital de XV Años" />
     <meta name="twitter:description" content="Toca para ver la invitación interactiva: fecha, ubicación, itinerario y más." />
+
+    <!-- PWA: permite "Agregar a pantalla de inicio" en celular/PC para el editor admin. Se
+         sirve desde el mismo index.html que las vistas públicas (invitado, catálogo, intake)
+         porque toda la app vive en una sola SPA -- no afecta esas vistas, solo hace que TODO el
+         sitio sea instalable, y nadie más que el equipo (isaac/vladimir/nidia) va a entrar a
+         instalar el editor en primer lugar. -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#4f46e5" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Invitaciones XV" />
   </head>
   <body>
     <div id="root">
