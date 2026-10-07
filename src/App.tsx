@@ -6660,7 +6660,8 @@ export default function App() {
               <p className="text-sm text-slate-500 py-8 text-center">No hay fondos guardados aún. Sube fondos para cada tema.</p>
             ) : (
               <div className="space-y-3">
-                {Object.entries(datos.bgImages || {}).map(([temaId, url]) => {
+                {Object.entries(datos.bgImages || {}).map(([temaId, urlRaw]) => {
+                  const url = String(urlRaw);
                   const tema = temas.find(t => t.id === temaId);
                   return (
                     <div key={temaId} className="border border-slate-200 rounded-xl p-4 bg-slate-50">
