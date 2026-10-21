@@ -1814,6 +1814,7 @@ export default function App() {
 
         if (error) {
           console.warn('Error al cargar fondos desde Supabase:', error.message);
+          mostrarToast('⚠️ No se pudieron cargar los fondos guardados: ' + error.message, 'error');
           return;
         }
 
@@ -1834,8 +1835,9 @@ export default function App() {
             console.warn('Error al guardar fondos en localStorage:', err);
           }
         }
-      } catch (err) {
+      } catch (err: any) {
         console.warn('Error al cargar fondos desde Supabase:', err);
+        mostrarToast('⚠️ No se pudieron cargar los fondos guardados: ' + (err?.message || 'error de red'), 'error');
       } finally {
         setCargandoFondos(false);
       }
@@ -2104,54 +2106,34 @@ export default function App() {
     }
   };
 
-  const handleBgImageUrlChange = (url: string) => {
-    // Solo permitir cambios si el URL es válido y diferente al actual
-    if (!url.trim()) return;
-
-    // Guardar en el almacenamiento persistente global de fondos
-    try {
-      const savedBgs = localStorage.getItem('xv_fondos_personalizados');
-      const customBgs = savedBgs ? JSON.parse(savedBgs) : {};
-      customBgs[selectedTemaId] = url;
-      localStorage.setItem('xv_fondos_personalizados', JSON.stringify(customBgs));
-    } catch (err) {
-      console.error("Error al guardar fondo personalizado en localStorage:", err);
+  // Guarda el link del campo "pegar link directo" en Supabase (igual que el botón de guardar
+  // enlace). Se llama al perder el foco, no en cada tecla, para no guardar URLs a medio escribir.
+  const handleGuardarUrlDirecta = async () => {
+    const url = (borradorUrlFondo ?? '').trim();
+    if (!url) {
+      setBorradorUrlFondo(null);
+      return;
+    }
+    if (!/^https?:\/\//i.test(url)) {
+      mostrarToast('El link debe empezar con http:// o https://', 'error');
+      return;
+    }
+    if (url === datos.bgImages?.[selectedTemaId]) {
+      setBorradorUrlFondo(null);
+      return;
     }
 
-    setDatos(prev => {
-      const currentBgImages = prev.bgImages || {};
-      return {
-        ...prev,
-        bgImages: {
-          ...currentBgImages,
-          [selectedTemaId]: url
-        }
-      };
-    });
-  };
-
-  const handleClearBgImage = () => {
-    // Eliminar del almacenamiento persistente global de fondos
     try {
-      const savedBgs = localStorage.getItem('xv_fondos_personalizados');
-      if (savedBgs) {
-        const customBgs = JSON.parse(savedBgs);
-        delete customBgs[selectedTemaId];
-        localStorage.setItem('xv_fondos_personalizados', JSON.stringify(customBgs));
-      }
-    } catch (err) {
-      console.error("Error al limpiar fondo de localStorage:", err);
-    }
-
-    setDatos(prev => {
-      const currentBgImages = { ...(prev.bgImages || {}) };
-      delete currentBgImages[selectedTemaId];
-      return {
+      await guardarFondoEnSupabase(selectedTemaId, url);
+      setDatos(prev => ({
         ...prev,
-        bgImages: currentBgImages
-      };
-    });
-    mostrarToast(`Se ha restablecido el fondo por defecto del tema "${temaActual.nombre}".`, "info");
+        bgImages: { ...(prev.bgImages || {}), [selectedTemaId]: url }
+      }));
+      setBorradorUrlFondo(null);
+      mostrarToast(`✅ Fondo guardado y sincronizado para "${temaActual.nombre}"`, 'success');
+    } catch (err: any) {
+      mostrarToast('❌ No se pudo guardar el fondo en Supabase: ' + err.message, 'error');
+    }
   };
 
   // Estado para la pestaña de configuración activa en el panel lateral
@@ -2217,6 +2199,8 @@ export default function App() {
   // Estado para mostrar modal de fondos guardados
   const [mostrarFondosGuardados, setMostrarFondosGuardados] = useState(false);
   const [cargandoFondos, setCargandoFondos] = useState(true);
+  // Texto que el usuario está escribiendo en "pegar link directo" (null = mostrar el fondo guardado)
+  const [borradorUrlFondo, setBorradorUrlFondo] = useState<string | null>(null);
 
   // Estado para el panel "Mis Invitaciones": lista de invitaciones de clientes guardadas en
   // Supabase, para poder reabrirlas y seguir editándolas, borrarlas, o marcar hasta cuándo
@@ -4859,15 +4843,17 @@ export default function App() {
                     </button>
 
                     <div className="space-y-1">
-                      <span className="block text-[10px] font-semibold text-slate-500">O pegar link directo (se actualiza automáticamente):</span>
+                      <span className="block text-[10px] font-semibold text-slate-500">O pegar link directo (se guarda al salir del campo):</span>
                       <input
                         type="text"
-                        value={datos.bgImages?.[selectedTemaId] && !datos.bgImages[selectedTemaId].startsWith("data:") ? datos.bgImages[selectedTemaId] : ""}
-                        onChange={(e) => handleBgImageUrlChange(e.target.value)}
+                        value={borradorUrlFondo ?? (datos.bgImages?.[selectedTemaId] && !datos.bgImages[selectedTemaId].startsWith("data:") ? datos.bgImages[selectedTemaId] : "")}
+                        onChange={(e) => setBorradorUrlFondo(e.target.value)}
+                        onBlur={handleGuardarUrlDirecta}
+                        onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
                         placeholder="El fondo se mostrará aquí al subir..."
                         className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-700 text-[11px] outline-none font-mono"
                       />
-                      <span className="text-[9px] text-slate-500 italic">💾 Los fondos se guardan automáticamente y persisten para cada tema</span>
+                      <span className="text-[9px] text-slate-500 italic">💾 Los fondos se guardan en la nube y persisten para cada tema</span>
                     </div>
                   </div>
                 </div>
