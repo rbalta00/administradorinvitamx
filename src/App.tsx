@@ -4361,10 +4361,16 @@ export default function App() {
           </div>
         </div>
 
-        {/* ACCIONES DEL FORMULARIO */}
+        {/* ACCIONES DEL FORMULARIO -- agrupadas por propósito (reordenado 2026-10-20, antes
+            eran 11 botones sueltos en una sola fila sin ningún orden lógico, con "Limpiar"
+            -destructivo- mezclado en medio de los demás): 1) trabajar en esta invitación,
+            2) exportar/copiar, 3) paneles de navegación, 4) cuenta/dispositivo, y 5) Limpiar
+            aislado al final (mismo rojo de antes) para que no se preste a un click accidental
+            entre los botones de uso normal. */}
         <div id="control-panel-actions" className="flex items-center gap-2 flex-wrap">
-          <button 
-            onClick={actualizarVistaPrevia} 
+          {/* Grupo 1: trabajar en esta invitación */}
+          <button
+            onClick={actualizarVistaPrevia}
             className={`px-3.5 py-2 ${generandoEnlace ? 'bg-emerald-650 text-white border-emerald-600 font-extrabold scale-102 shadow-md' : 'bg-white hover:bg-indigo-50/20 hover:border-indigo-200 text-slate-700 border border-slate-200'} text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all duration-300 cursor-pointer shadow-sm`}
             title="Sincronizar y generar enlace con tus cambios actuales"
           >
@@ -4372,31 +4378,27 @@ export default function App() {
             <span>{generandoEnlace ? "¡Sincronizado! ✨" : "Generar invitación"}</span>
           </button>
 
-          <button 
-            onClick={handleCopiarHTML} 
-            className={`px-3.5 py-2 ${htmlCopiado ? 'bg-emerald-600 text-white' : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'} text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm`}
+          <button
+            onClick={() => {
+              const finalLink = getShareUrl();
+              guardarEnSupabase(datos, temaActual, finalLink, supabaseRowId, usuarioActual)
+                .then((row) => {
+                  if (row?.id) {
+                    setSupabaseRowId(row.id);
+                    try { localStorage.setItem('xv_supabase_row_id', row.id); } catch {}
+                  }
+                  mostrarToast('✅ Guardado en Supabase correctamente', 'success');
+                })
+                .catch(() => mostrarToast('❌ Error al guardar', 'error'));
+            }}
+            className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-sm transition cursor-pointer"
           >
-            {htmlCopiado ? <Check className="w-3.5 h-3.5 text-white" /> : <Copy className="w-3.5 h-3.5 text-slate-500" />}
-            <span>{htmlCopiado ? "Copiado" : "Copiar HTML"}</span>
+            <span>💾 Guardar en Supabase</span>
           </button>
 
-          <button 
-            onClick={handleCopiarDatos} 
-            className={`px-3.5 py-2 ${datosCopiados ? 'bg-emerald-600 text-white' : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'} text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm`}
-            title="Copiar configuración JSON del cliente"
-          >
-            {datosCopiados ? <Check className="w-3.5 h-3.5 text-white" /> : <Clipboard className="w-3.5 h-3.5 text-slate-500" />}
-            <span>{datosCopiados ? "JSON Copiado" : "Copiar Datos"}</span>
-          </button>
+          <div className="w-px h-6 bg-slate-200 mx-1" />
 
-          <button 
-            onClick={handleLimpiarFormulario} 
-            className="px-3.5 py-2 bg-white border border-slate-200 hover:bg-rose-50 text-rose-600 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
-          >
-            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-            <span>Limpiar</span>
-          </button>
-
+          {/* Grupo 2: exportar / copiar */}
           <button
             onClick={handleDescargarHTML}
             className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-sm transition cursor-pointer transform active:scale-95"
@@ -4406,6 +4408,39 @@ export default function App() {
             <span>Descargar index.html</span>
           </button>
 
+          <button
+            onClick={handleDescargarPDF}
+            disabled={generandoPDF}
+            title={datos.paquete === "deluxe" ? "Incluido sin costo extra en el paquete Deluxe" : "Complemento a la carta en este paquete — confirma que el cliente ya lo pagó antes de entregarlo"}
+            className="px-5 py-2 bg-rose-500 hover:bg-rose-600 disabled:bg-rose-300 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-sm transition cursor-pointer transform active:scale-95"
+          >
+            <FileText className="w-4 h-4 text-white" />
+            <span>{generandoPDF ? "Generando PDF..." : "🎁 Descargar PDF de Regalo"}</span>
+            <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${datos.paquete === "deluxe" ? "bg-white/25" : "bg-black/20"}`}>
+              {datos.paquete === "deluxe" ? "Incluido" : "A la carte"}
+            </span>
+          </button>
+
+          <button
+            onClick={handleCopiarHTML}
+            className={`px-3.5 py-2 ${htmlCopiado ? 'bg-emerald-600 text-white' : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'} text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm`}
+          >
+            {htmlCopiado ? <Check className="w-3.5 h-3.5 text-white" /> : <Copy className="w-3.5 h-3.5 text-slate-500" />}
+            <span>{htmlCopiado ? "Copiado" : "Copiar HTML"}</span>
+          </button>
+
+          <button
+            onClick={handleCopiarDatos}
+            className={`px-3.5 py-2 ${datosCopiados ? 'bg-emerald-600 text-white' : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'} text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm`}
+            title="Copiar configuración JSON del cliente"
+          >
+            {datosCopiados ? <Check className="w-3.5 h-3.5 text-white" /> : <Clipboard className="w-3.5 h-3.5 text-slate-500" />}
+            <span>{datosCopiados ? "JSON Copiado" : "Copiar Datos"}</span>
+          </button>
+
+          <div className="w-px h-6 bg-slate-200 mx-1" />
+
+          {/* Grupo 3: paneles de navegación */}
           <button
             onClick={() => {
               setMostrarMisInvitaciones(true);
@@ -4429,37 +4464,9 @@ export default function App() {
             <span>💰 Ingresos</span>
           </button>
 
-          <button
-            onClick={() => {
-              const finalLink = getShareUrl();
-              guardarEnSupabase(datos, temaActual, finalLink, supabaseRowId, usuarioActual)
-                .then((row) => {
-                  if (row?.id) {
-                    setSupabaseRowId(row.id);
-                    try { localStorage.setItem('xv_supabase_row_id', row.id); } catch {}
-                  }
-                  mostrarToast('✅ Guardado en Supabase correctamente', 'success');
-                })
-                .catch(() => mostrarToast('❌ Error al guardar', 'error'));
-            }}
-            className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-sm transition cursor-pointer"
-          >
-            <span>💾 Guardar en Supabase</span>
-          </button>
+          <div className="w-px h-6 bg-slate-200 mx-1" />
 
-          <button
-            onClick={handleDescargarPDF}
-            disabled={generandoPDF}
-            title={datos.paquete === "deluxe" ? "Incluido sin costo extra en el paquete Deluxe" : "Complemento a la carta en este paquete — confirma que el cliente ya lo pagó antes de entregarlo"}
-            className="px-5 py-2 bg-rose-500 hover:bg-rose-600 disabled:bg-rose-300 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-sm transition cursor-pointer transform active:scale-95"
-          >
-            <FileText className="w-4 h-4 text-white" />
-            <span>{generandoPDF ? "Generando PDF..." : "🎁 Descargar PDF de Regalo"}</span>
-            <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${datos.paquete === "deluxe" ? "bg-white/25" : "bg-black/20"}`}>
-              {datos.paquete === "deluxe" ? "Incluido" : "A la carte"}
-            </span>
-          </button>
-
+          {/* Grupo 4: cuenta / dispositivo */}
           <button
             onClick={async () => {
               // Caso ideal: Chrome/Edge sí dispararon beforeinstallprompt y lo tenemos
@@ -4507,6 +4514,17 @@ export default function App() {
           >
             <LogOut className="w-3.5 h-3.5 text-rose-500" />
             <span>Cerrar sesión</span>
+          </button>
+
+          <div className="w-px h-6 bg-slate-200 mx-1" />
+
+          {/* Grupo 5: destructivo, aislado a propósito al final */}
+          <button
+            onClick={handleLimpiarFormulario}
+            className="px-3.5 py-2 bg-white border border-slate-200 hover:bg-rose-50 text-rose-600 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+            <span>Limpiar</span>
           </button>
         </div>
       </header>
