@@ -4344,8 +4344,12 @@ export default function App() {
   return (
     <div className="lg:h-screen lg:overflow-hidden min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
 
-      {/* HEADER PRINCIPAL DE LA HERRAMIENTA PRIVADA */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4 shrink-0 shadow-sm">
+      {/* HEADER PRINCIPAL DE LA HERRAMIENTA PRIVADA -- antes compartía esta franja con los 11
+          botones de acción (ver nota 2026-10-20 más abajo), ocupando una fila entera por
+          encima de los dos paneles. Movidos al panel izquierdo (ver "ACCIONES DEL FORMULARIO"
+          dentro del <aside>) para que el header quede angosto y el panel derecho (Monitor de
+          Invitación) tenga todo el alto disponible para mostrar la invitación completa. */}
+      <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center shrink-0 shadow-sm">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-indigo-600 rounded-xl shadow-sm">
             <Sparkles className="w-6 h-6 text-white" />
@@ -4360,14 +4364,23 @@ export default function App() {
             <p className="text-xs text-slate-500">Diseña, compila y exporta invitaciones de 15 años profesionales en segundos.</p>
           </div>
         </div>
+      </header>
+
+      {/* DASHBOARD PRINCIPAL DE TRABAJO */}
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row lg:overflow-hidden">
+
+        {/* PANEL IZQUIERDO: SECCIONES DE CONFIGURACIÓN Y FORMULARIO */}
+        <aside className="w-full lg:w-[48%] xl:w-[45%] border-r border-slate-200 flex flex-col bg-white shrink-0 lg:h-full lg:overflow-hidden">
 
         {/* ACCIONES DEL FORMULARIO -- agrupadas por propósito (reordenado 2026-10-20, antes
             eran 11 botones sueltos en una sola fila sin ningún orden lógico, con "Limpiar"
-            -destructivo- mezclado en medio de los demás): 1) trabajar en esta invitación,
-            2) exportar/copiar, 3) paneles de navegación, 4) cuenta/dispositivo, y 5) Limpiar
-            aislado al final (mismo rojo de antes) para que no se preste a un click accidental
-            entre los botones de uso normal. */}
-        <div id="control-panel-actions" className="flex items-center gap-2 flex-wrap">
+            -destructivo- mezclado en medio de los demás; movidas aquí al panel izquierdo el
+            mismo día, a pedido del usuario, para dejar el panel derecho dedicado solo al
+            Monitor de Invitación): 1) trabajar en esta invitación, 2) exportar/copiar,
+            3) paneles de navegación, 4) cuenta/dispositivo, y 5) Limpiar aislado al final
+            (mismo rojo de antes) para que no se preste a un click accidental entre los
+            botones de uso normal. */}
+        <div id="control-panel-actions" className="flex items-center gap-2 flex-wrap p-3 border-b border-slate-200 bg-slate-50/50 shrink-0">
           {/* Grupo 1: trabajar en esta invitación */}
           <button
             onClick={actualizarVistaPrevia}
@@ -4527,14 +4540,7 @@ export default function App() {
             <span>Limpiar</span>
           </button>
         </div>
-      </header>
 
-      {/* DASHBOARD PRINCIPAL DE TRABAJO */}
-      <div className="flex-1 min-h-0 flex flex-col lg:flex-row lg:overflow-hidden">
-        
-        {/* PANEL IZQUIERDO: SECCIONES DE CONFIGURACIÓN Y FORMULARIO */}
-        <aside className="w-full lg:w-[48%] xl:w-[45%] border-r border-slate-200 flex flex-col bg-white shrink-0 lg:h-full lg:overflow-hidden">
-          
           {/* BARRA DE PESTAÑAS DEL EXPEDIENTE */}
           <div className="flex border-b border-slate-200 bg-white overflow-x-auto no-scrollbar whitespace-nowrap scroll-smooth shrink-0">
             <button 
