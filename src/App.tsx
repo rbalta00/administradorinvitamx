@@ -30,7 +30,9 @@ import {
   Palette,
   ArrowUp,
   ArrowDown,
-  LogOut
+  LogOut,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 import { InvitacionDatos, TemaConfig } from "./types";
@@ -481,7 +483,7 @@ const LazyIframe = memo(({ t, index, datos }: { t: any; index: number; datos: an
       <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-100 text-slate-800 select-none pointer-events-none">
         <div className="animate-pulse flex flex-col items-center gap-1.5">
           <div className="w-5 h-5 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin" />
-          <span className="text-[8px] text-indigo-650/80 font-bold uppercase tracking-widest">Cargando...</span>
+          <span className="text-[8px] text-indigo-700/80 font-bold uppercase tracking-widest">Cargando...</span>
         </div>
       </div>
     );
@@ -2282,6 +2284,13 @@ export default function App() {
 
   // Referencia al iframe para actualizar la vista previa de forma aislada
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Referencia a la barra de pestañas del expediente -- tiene 9 pestañas y en pantallas
+  // normales solo caben ~6, las demas (Álbum, Lista Pases, A Medida) quedaban accesibles
+  // solo arrastrando un scroll horizontal nativo, sin ninguna flecha visible que avisara
+  // que habia mas pestañas. Revision de usabilidad 2026-11-02: se agregan flechas reales
+  // que mueven este scroll, para que nadie nuevo se pierda esas 3 pestañas.
+  const tabsScrollRef = useRef<HTMLDivElement>(null);
 
   // Tema seleccionado real
   const temaActual = temas.find(t => t.id === selectedTemaId) || temas[0];
@@ -4380,11 +4389,17 @@ export default function App() {
             3) paneles de navegación, 4) cuenta/dispositivo, y 5) Limpiar aislado al final
             (mismo rojo de antes) para que no se preste a un click accidental entre los
             botones de uso normal. */}
-        <div id="control-panel-actions" className="flex items-center gap-2 flex-wrap p-3 border-b border-slate-200 bg-slate-50/50 shrink-0">
-          {/* Grupo 1: trabajar en esta invitación */}
+        <div id="control-panel-actions" className="flex items-start gap-x-4 gap-y-2 flex-wrap p-3 border-b border-slate-200 bg-slate-50/50 shrink-0">
+          {/* Grupo 1: trabajar en esta invitación. Revision de usabilidad 2026-11-02: cada
+              grupo ahora lleva su propia mini-etiqueta encima, en vez de depender solo de un
+              separador de 1px que se vuelve invisible en cuanto los botones hacen wrap a una
+              nueva fila (pasa seguido, son 11 botones en un panel angosto). */}
+          <div className="flex flex-col gap-1">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 px-0.5">Esta invitación</span>
+            <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={actualizarVistaPrevia}
-            className={`px-3.5 py-2 ${generandoEnlace ? 'bg-emerald-650 text-white border-emerald-600 font-extrabold scale-102 shadow-md' : 'bg-white hover:bg-indigo-50/20 hover:border-indigo-200 text-slate-700 border border-slate-200'} text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all duration-300 cursor-pointer shadow-sm`}
+            className={`px-3.5 py-2 ${generandoEnlace ? 'bg-emerald-600 text-white border-emerald-600 font-extrabold scale-102 shadow-md' : 'bg-white hover:bg-indigo-50/20 hover:border-indigo-200 text-slate-700 border border-slate-200'} text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all duration-300 cursor-pointer shadow-sm`}
             title="Sincronizar y generar enlace con tus cambios actuales"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${generandoEnlace ? 'text-white animate-spin' : 'text-indigo-600'}`} />
@@ -4408,9 +4423,12 @@ export default function App() {
           >
             <span>💾 Guardar en Supabase</span>
           </button>
+            </div>
+          </div>
 
-          <div className="w-px h-6 bg-slate-200 mx-1" />
-
+          <div className="flex flex-col gap-1">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 px-0.5">Exportar / copiar</span>
+            <div className="flex items-center gap-2 flex-wrap">
           {/* Grupo 2: exportar / copiar */}
           <button
             onClick={handleDescargarHTML}
@@ -4450,9 +4468,12 @@ export default function App() {
             {datosCopiados ? <Check className="w-3.5 h-3.5 text-white" /> : <Clipboard className="w-3.5 h-3.5 text-slate-500" />}
             <span>{datosCopiados ? "JSON Copiado" : "Copiar Datos"}</span>
           </button>
+            </div>
+          </div>
 
-          <div className="w-px h-6 bg-slate-200 mx-1" />
-
+          <div className="flex flex-col gap-1">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 px-0.5">Ver todo</span>
+            <div className="flex items-center gap-2 flex-wrap">
           {/* Grupo 3: paneles de navegación */}
           <button
             onClick={() => {
@@ -4476,9 +4497,12 @@ export default function App() {
           >
             <span>💰 Ingresos</span>
           </button>
+            </div>
+          </div>
 
-          <div className="w-px h-6 bg-slate-200 mx-1" />
-
+          <div className="flex flex-col gap-1">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 px-0.5">Cuenta / dispositivo</span>
+            <div className="flex items-center gap-2 flex-wrap">
           {/* Grupo 4: cuenta / dispositivo */}
           <button
             onClick={async () => {
@@ -4528,10 +4552,14 @@ export default function App() {
             <LogOut className="w-3.5 h-3.5 text-rose-500" />
             <span>Cerrar sesión</span>
           </button>
+            </div>
+          </div>
 
-          <div className="w-px h-6 bg-slate-200 mx-1" />
-
-          {/* Grupo 5: destructivo, aislado a propósito al final */}
+          {/* Grupo 5: destructivo, aislado a propósito al final -- ml-auto lo empuja a su
+              propia esquina para que nunca quede pegado a los botones de uso normal. */}
+          <div className="flex flex-col gap-1 ml-auto">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 px-0.5">&nbsp;</span>
+            <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={handleLimpiarFormulario}
             className="px-3.5 py-2 bg-white border border-slate-200 hover:bg-rose-50 text-rose-600 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
@@ -4539,11 +4567,26 @@ export default function App() {
             <Trash2 className="w-3.5 h-3.5 text-rose-500" />
             <span>Limpiar</span>
           </button>
+            </div>
+          </div>
         </div>
 
-          {/* BARRA DE PESTAÑAS DEL EXPEDIENTE */}
-          <div className="flex border-b border-slate-200 bg-white overflow-x-auto no-scrollbar whitespace-nowrap scroll-smooth shrink-0">
-            <button 
+          {/* BARRA DE PESTAÑAS DEL EXPEDIENTE -- con flechas reales a los lados: son 9
+              pestañas y en pantallas normales solo caben ~6, asi que antes las ultimas 3
+              (Álbum, Lista Pases, A Medida) solo eran alcanzables arrastrando un scroll
+              horizontal nativo sin ningun indicio visible de que existieran. */}
+          <div className="flex items-stretch border-b border-slate-200 bg-white shrink-0">
+            <button
+              type="button"
+              onClick={() => tabsScrollRef.current?.scrollBy({ left: -220, behavior: "smooth" })}
+              className="px-1.5 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-slate-50 border-r border-slate-100 shrink-0 cursor-pointer"
+              aria-label="Ver pestañas anteriores"
+              title="Ver pestañas anteriores"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <div ref={tabsScrollRef} className="flex overflow-x-auto no-scrollbar whitespace-nowrap scroll-smooth flex-1 min-w-0">
+            <button
               onClick={() => setPanelPestana("ajustes")}
               className={`px-4 py-3.5 text-xs font-bold border-b-2 flex items-center gap-1.5 transition cursor-pointer ${panelPestana === "ajustes" ? "border-indigo-600 text-indigo-600 bg-indigo-50/20" : "border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50/50"}`}
               id="pestana-ajustes"
@@ -4606,6 +4649,16 @@ export default function App() {
             >
               <Palette className="w-3.5 h-3.5" />
               <span>A Medida</span>
+            </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => tabsScrollRef.current?.scrollBy({ left: 220, behavior: "smooth" })}
+              className="px-1.5 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-slate-50 border-l border-slate-100 shrink-0 cursor-pointer"
+              aria-label="Ver más pestañas"
+              title="Ver más pestañas"
+            >
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
 
@@ -5239,7 +5292,7 @@ export default function App() {
                 <h3 className="text-sm font-semibold text-indigo-600 mb-2">Información Esencial</h3>
                 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-650 mb-1.5">Nombre de la Quinceañera *</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Nombre de la Quinceañera *</label>
                   <input
                     type="text"
                     value={datos.nombre}
@@ -5251,7 +5304,7 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-650 mb-1.5">Fecha y Hora del Evento Principal *</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Fecha y Hora del Evento Principal *</label>
                   <input
                     type="datetime-local"
                     value={datos.fecha ? datos.fecha.substring(0, 16) : ""}
@@ -5262,7 +5315,7 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-650 mb-1.5">Mensaje de Bienvenida / Agradecimiento</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Mensaje de Bienvenida / Agradecimiento</label>
                   <textarea
                     rows={4}
                     value={datos.mensajeBienvenida}
@@ -5273,7 +5326,7 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-650 mb-1.5">Hashtag de Redes Sociales (Opcional)</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Hashtag de Redes Sociales (Opcional)</label>
                   <input
                     type="text"
                     value={datos.hashtag}
@@ -5284,7 +5337,7 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-650 mb-1.5">WhatsApp de Confirmación de Asistencia (Lada + Número)*</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">WhatsApp de Confirmación de Asistencia (Lada + Número)*</label>
                   <input
                     type="text"
                     value={datos.whatsappConfirmacion}
@@ -5296,7 +5349,7 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-650 mb-1.5">Enlace a Música de Fondo (Debe ser un .mp3 público)*</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Enlace a Música de Fondo (Debe ser un .mp3 público)*</label>
                   <input
                     type="text"
                     value={datos.cancion}
@@ -5332,7 +5385,7 @@ export default function App() {
                     <div className="space-y-4 animate-fadeIn">
                       {/* Subir archivo local */}
                       <div className="space-y-2">
-                        <span className="block text-xs font-semibold text-slate-650">Subir nueva Foto de Portada (Directo a Cloudinary)</span>
+                        <span className="block text-xs font-semibold text-slate-700">Subir nueva Foto de Portada (Directo a Cloudinary)</span>
                         <label className="flex flex-col items-center justify-center p-3 border border-dashed border-pink-200 bg-white rounded-lg hover:bg-pink-50/50 cursor-pointer transition">
                           <Upload className="w-5 h-5 text-pink-600 mb-1" />
                           <span className="text-xs text-rose-700 font-bold">
@@ -5350,7 +5403,7 @@ export default function App() {
 
                       {/* URL o visualización */}
                       <div>
-                        <label className="block text-xs font-semibold text-slate-650 mb-1">
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
                           Enlace/URL de Foto para Portada (Opcional)
                         </label>
                         <input
@@ -6370,7 +6423,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => { setPreviewDevice("mobile"); setPreviewZoom(0.85); }}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${previewDevice === "mobile" ? "bg-white text-indigo-650 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${previewDevice === "mobile" ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
                 title="Simulador de Smartphone Celular"
               >
                 <Smartphone className="w-3.5 h-3.5" />
@@ -6379,7 +6432,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => { setPreviewDevice("tablet"); setPreviewZoom(0.65); }}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${previewDevice === "tablet" ? "bg-white text-indigo-650 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${previewDevice === "tablet" ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
                 title="Simulador de Tablet / iPad"
               >
                 <Tablet className="w-3.5 h-3.5" />
@@ -6388,7 +6441,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setPreviewDevice("desktop")}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${previewDevice === "desktop" ? "bg-white text-indigo-650 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${previewDevice === "desktop" ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
                 title="Simulador de Pantalla Completa Escritorio"
               >
                 <Monitor className="w-3.5 h-3.5" />
@@ -6591,7 +6644,7 @@ export default function App() {
       {toast && (
         <div className="fixed bottom-5 right-5 z-[100] max-w-sm bg-white border border-slate-150 rounded-2xl shadow-xl p-4 flex items-start gap-3 animate-slideIn animate-duration-300">
           <div className={`p-1.5 rounded-lg shrink-0 ${
-            toast.tipo === "success" ? "bg-emerald-50 text-emerald-650" :
+            toast.tipo === "success" ? "bg-emerald-50 text-emerald-700" :
             toast.tipo === "error" ? "bg-rose-50 text-rose-600" :
             "bg-blue-50 text-blue-600"
           }`}>
