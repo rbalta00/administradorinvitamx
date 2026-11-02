@@ -30,9 +30,7 @@ import {
   Palette,
   ArrowUp,
   ArrowDown,
-  LogOut,
-  ChevronLeft,
-  ChevronRight
+  LogOut
 } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 import { InvitacionDatos, TemaConfig } from "./types";
@@ -597,7 +595,7 @@ const SeccionesToggleList = memo(({ secciones, seccionesExcluidas, onToggle, onM
   // "apertura" y "cierre" quedan fijas al inicio/final: no muestran flechas de reordenar.
   const movibles = secciones.filter(s => s !== "apertura" && s !== "cierre");
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-1">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
       {secciones.map(secName => {
         const isExcluded = seccionesExcluidas?.includes(secName);
         const isEnabled = !isExcluded;
@@ -2284,13 +2282,6 @@ export default function App() {
 
   // Referencia al iframe para actualizar la vista previa de forma aislada
   const iframeRef = useRef<HTMLIFrameElement>(null);
-
-  // Referencia a la barra de pestañas del expediente -- tiene 9 pestañas y en pantallas
-  // normales solo caben ~6, las demas (Álbum, Lista Pases, A Medida) quedaban accesibles
-  // solo arrastrando un scroll horizontal nativo, sin ninguna flecha visible que avisara
-  // que habia mas pestañas. Revision de usabilidad 2026-11-02: se agregan flechas reales
-  // que mueven este scroll, para que nadie nuevo se pierda esas 3 pestañas.
-  const tabsScrollRef = useRef<HTMLDivElement>(null);
 
   // Tema seleccionado real
   const temaActual = temas.find(t => t.id === selectedTemaId) || temas[0];
@@ -4379,7 +4370,7 @@ export default function App() {
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row lg:overflow-hidden">
 
         {/* PANEL IZQUIERDO: SECCIONES DE CONFIGURACIÓN Y FORMULARIO */}
-        <aside className="w-full lg:w-[48%] xl:w-[45%] border-r border-slate-200 flex flex-col bg-white shrink-0 lg:h-full lg:overflow-hidden">
+        <aside className="w-full lg:w-[48%] xl:w-[45%] border-r border-slate-200 flex flex-col bg-white shrink-0 lg:h-full lg:overflow-y-auto">
 
         {/* ACCIONES DEL FORMULARIO -- agrupadas por propósito (reordenado 2026-10-20, antes
             eran 11 botones sueltos en una sola fila sin ningún orden lógico, con "Limpiar"
@@ -4571,21 +4562,10 @@ export default function App() {
           </div>
         </div>
 
-          {/* BARRA DE PESTAÑAS DEL EXPEDIENTE -- con flechas reales a los lados: son 9
-              pestañas y en pantallas normales solo caben ~6, asi que antes las ultimas 3
-              (Álbum, Lista Pases, A Medida) solo eran alcanzables arrastrando un scroll
-              horizontal nativo sin ningun indicio visible de que existieran. */}
-          <div className="flex items-stretch border-b border-slate-200 bg-white shrink-0">
-            <button
-              type="button"
-              onClick={() => tabsScrollRef.current?.scrollBy({ left: -220, behavior: "smooth" })}
-              className="px-1.5 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-slate-50 border-r border-slate-100 shrink-0 cursor-pointer"
-              aria-label="Ver pestañas anteriores"
-              title="Ver pestañas anteriores"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <div ref={tabsScrollRef} className="flex overflow-x-auto no-scrollbar whitespace-nowrap scroll-smooth flex-1 min-w-0">
+          {/* BARRA DE PESTAÑAS DEL EXPEDIENTE -- en vez de scroll horizontal interno
+              (que duplicaba el scroll general del panel), las pestañas se acomodan en
+              varias filas si no caben, así las 9 quedan visibles sin arrastrar nada. */}
+          <div className="flex items-stretch flex-wrap border-b border-slate-200 bg-white shrink-0">
             <button
               onClick={() => setPanelPestana("ajustes")}
               className={`px-4 py-3.5 text-xs font-bold border-b-2 flex items-center gap-1.5 transition cursor-pointer ${panelPestana === "ajustes" ? "border-indigo-600 text-indigo-600 bg-indigo-50/20" : "border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50/50"}`}
@@ -4650,20 +4630,13 @@ export default function App() {
               <Palette className="w-3.5 h-3.5" />
               <span>A Medida</span>
             </button>
-            </div>
-            <button
-              type="button"
-              onClick={() => tabsScrollRef.current?.scrollBy({ left: 220, behavior: "smooth" })}
-              className="px-1.5 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-slate-50 border-l border-slate-100 shrink-0 cursor-pointer"
-              aria-label="Ver más pestañas"
-              title="Ver más pestañas"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
           </div>
 
-          {/* CONTENIDOR DEL FORMULARIO CON SCROLL */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* CONTENIDOR DEL FORMULARIO -- sin su propio scroll: ahora forma parte del
+              scroll general del panel izquierdo junto con los botones de arriba y las
+              pestañas, en vez de quedar como una barra interna aparte (pedido 2026-11-02:
+              "que haya solo un scroll de todo"). */}
+          <div className="flex-1 p-6 space-y-6">
 
             {/* TAB 1: PAQUETES Y TEMAS */}
             {panelPestana === "ajustes" && (
