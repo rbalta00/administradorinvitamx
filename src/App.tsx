@@ -3146,10 +3146,15 @@ export default function App() {
   // necesidad de tenerla abierta en el editor -- mismo espíritu que handleEnviarLinkPago /
   // handleEnviarFormularioDatos. Pedido 2026-11-02: poder mandar la vista previa desde "Mis
   // Invitaciones" (vía "👤 Administrar cliente") sin pasar por "Abrir en editor" primero.
+  // Siempre en modo "muestra" (pedido 2026-11-02: "vista previa temporal con marca de agua, 1
+  // semana de duración") -- a diferencia de getShareUrl() del editor, que manda el link FINAL
+  // permanente (para cuando ya se entregó de verdad), este botón manda desde "Mis Invitaciones"
+  // sin que el admin tenga que acordarse de activar el toggle "Muestra" -- siempre protegido.
   const getShareUrlDesdeFila = (row: InvitacionGuardadaRow): string | null => {
     if (!row.datos_completos) return null;
     const datosListos = { ...row.datos_completos, tema: row.tema_elegido || row.datos_completos.tema, invitados: [] };
-    return `${window.location.origin}/?v=1&d=${encodeState(datosListos)}&iid=${encodeURIComponent(row.id)}`;
+    const exp = Date.now() + MUESTRA_DIAS_VIGENCIA * 24 * 60 * 60 * 1000;
+    return `${window.location.origin}/?v=1&d=${encodeState(datosListos)}&iid=${encodeURIComponent(row.id)}&muestra=1&exp=${exp}`;
   };
 
   const handleEnviarPreviewWhatsApp = (row: InvitacionGuardadaRow) => {
@@ -3163,7 +3168,7 @@ export default function App() {
       return;
     }
     const numeroLimpio = row.telefono_whatsapp.replace(/[^0-9]/g, "");
-    const msg = `¡Hola! 🌸 Aquí está la vista previa de tu invitación de XV Años de *${row.nombre_quinceanera || "tu evento"}*:\n${url}`;
+    const msg = `¡Hola! 🌸 Aquí está la vista previa (temporal, válida ${MUESTRA_DIAS_VIGENCIA} días) de tu invitación de XV Años de *${row.nombre_quinceanera || "tu evento"}*:\n${url}`;
     window.open(`https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(msg)}`, "_blank");
   };
 
@@ -3600,7 +3605,7 @@ export default function App() {
   // (revisión del lado del cliente en isViewMode más abajo — no es seguridad real, solo un
   // límite práctico) y muestran un banner de "MUESTRA" sobre la invitación mientras estén
   // vigentes.
-  const MUESTRA_DIAS_VIGENCIA = 5;
+  const MUESTRA_DIAS_VIGENCIA = 7; // 1 semana (pedido 2026-11-02, antes 5 días)
   const aplicarModoMuestra = (url: string): string => {
     if (!esEnlaceMuestra) return url;
     const exp = Date.now() + MUESTRA_DIAS_VIGENCIA * 24 * 60 * 60 * 1000;
@@ -3997,7 +4002,15 @@ export default function App() {
             🎀 Esta es una MUESTRA — así se vería tu invitación real con tus datos completos.
             <a href="https://api.whatsapp.com/send?phone=${encodeURIComponent(numeroContacto)}&text=${encodeURIComponent("¡Hola! Vi la muestra de mi invitación y quiero continuar 🌸")}" style="color:#fff !important;text-decoration:underline;margin-left:6px;" target="_blank" rel="noopener">Contáctanos para continuar</a>
           </div>`;
-        htmlContent = htmlContent.replace(/<body([^>]*)>/i, `<body$1>${bannerHTML}`);
+        // Marca de agua tileada (pedido 2026-11-02, "vista previa temporal con marca de agua"):
+        // patrón SVG de texto repetido como fondo, en una capa fija por encima de TODA la
+        // invitación (pointer-events:none para no estorbar ningún click/tap real debajo). Más
+        // difícil de recortar/reusar que solo el banner de arriba, que una captura de pantalla
+        // bien encuadrada podía evitar.
+        const watermarkSvg = `<svg xmlns='http://www.w3.org/2000/svg' width='260' height='160'><text x='0' y='90' font-size='22' fill='%234f46e5' fill-opacity='0.14' font-family='sans-serif' font-weight='700' transform='rotate(-28 130 80)'>VISTA PREVIA</text></svg>`;
+        const watermarkHTML = `
+          <div style="position:fixed !important;inset:0 !important;z-index:2147483646 !important;opacity:1 !important;visibility:visible !important;pointer-events:none !important;background-image:url(&quot;data:image/svg+xml,${encodeURIComponent(watermarkSvg)}&quot;);background-repeat:repeat;"></div>`;
+        htmlContent = htmlContent.replace(/<body([^>]*)>/i, `<body$1>${bannerHTML}${watermarkHTML}`);
       }
 
       document.open();
@@ -4176,9 +4189,10 @@ export default function App() {
               };
               const handleEnviarDemoPersonalizada = () => {
                 const datosParaLink = { ...datosDemoPersonalizada, seccionesExcluidas: seccionesExcluidasPorPaquete };
-                // Reutiliza el mismo candado real de "Muestra (5 días)" que ya usa el admin
-                // (ver aplicarModoMuestra/muestraExpirada) -- después de 5 días el link deja de
-                // mostrar la invitación y en su lugar aparece el CTA de "contactar para comprar".
+                // Reutiliza el mismo candado real de "Muestra (1 semana)" que ya usa el admin
+                // (ver aplicarModoMuestra/muestraExpirada) -- después de MUESTRA_DIAS_VIGENCIA
+                // días el link deja de mostrar la invitación y en su lugar aparece el CTA de
+                // "contactar para comprar".
                 const exp = Date.now() + MUESTRA_DIAS_VIGENCIA * 24 * 60 * 60 * 1000;
                 const linkPersonalizado = `${window.location.origin}/?v=1&d=${encodeState(datosParaLink)}&muestra=1&exp=${exp}`;
                 const msg = `¡Hola! Así se vería mi invitación de XV años (tema "${temaDemoSel.nombre}", paquete ${paquetes[catalogDemoPaquete].nombre}${catalogDemoNombre.trim() ? `, a nombre de ${catalogDemoNombre.trim()}` : ""}): ${linkPersonalizado}`;
@@ -4225,7 +4239,7 @@ export default function App() {
                         >
                           Enviar mi demo por WhatsApp 💬
                         </button>
-                        <span className="text-[9px] text-slate-400">Ese link es válido por 5 días</span>
+                        <span className="text-[9px] text-slate-400">Ese link es válido por {MUESTRA_DIAS_VIGENCIA} días</span>
                       </div>
                     )}
                   </div>
@@ -5374,7 +5388,7 @@ export default function App() {
                                 : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                             }`}
                           >
-                            🎀 Muestra (5 días)
+                            🎀 Muestra ({MUESTRA_DIAS_VIGENCIA} días)
                           </button>
                         </div>
                         {esEnlaceMuestra && (
