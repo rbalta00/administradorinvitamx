@@ -2,6 +2,12 @@
 <img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
 </div>
 
+# Generador de Invitaciones XV
+
+**¿Vas a usar el editor para generar invitaciones de clientes (no a tocar el código)?** Lee **[docs/guia-de-uso.md](docs/guia-de-uso.md)** en vez de este archivo.
+
+Lo de abajo es el boilerplate de Google AI Studio, solo para levantar el proyecto localmente como desarrollador.
+
 # Run and deploy your AI Studio app
 
 This contains everything you need to run your app locally.

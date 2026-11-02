@@ -17,6 +17,16 @@ If asked to "open the generator" or "fix the generator" without a repo specified
 
 **Scope discipline:** when working in this repo, stay inside it. Don't read from, write to, or cross-reference the duplicate repos listed above as if they shared state with this one — they don't (separate Supabase usage, separate deploys, separately diverged code), even though they started from the same template.
 
+### Usability review pass (2026-11-02)
+
+The owner asked for a review of the editor aimed at making it usable by someone new, with the explicit goal "que cualquiera entienda cómo generar las invitaciones que vamos a vender." Findings and fixes, in case the same questions come up again:
+
+- **New end-user doc**: `docs/guia-de-uso.md` — there was previously zero documentation written for a non-developer operator (`README.md` was AI-Studio boilerplate, this file is dev/architecture-only). README now points to it at the top.
+- **Fixed the `-650` invalid Tailwind shade** (`text-indigo-650`, `text-slate-650`, `bg-emerald-650`, `text-emerald-650`) in all ~14 remaining spots flagged as a known pending cleanup earlier in this file (see the "Found while building the above" bullet further down) — most visibly, the Móvil/Tablet/Escritorio device-preview toggle now actually shows its active-state color.
+- **The 9-tab bar (`panelPestana`) overflows on normal screen widths** — only ~6 tabs fit, the rest (Álbum, Lista Pases, A Medida) were only reachable by dragging a native horizontal scrollbar with no visible affordance that more tabs existed. Added real `ChevronLeft`/`ChevronRight` buttons (`tabsScrollRef`) on both sides that scroll the tab strip on click.
+- **The 11 action buttons** (`#control-panel-actions`) were already organized into 5 logical groups in code (with comments), but visually only separated by a 1px divider that becomes invisible the moment buttons wrap to a new row (happens often — 11 buttons in a narrow panel). Each group now has its own small uppercase label above it ("Esta invitación" / "Exportar / copiar" / "Ver todo" / "Cuenta / dispositivo"), and "Limpiar" (destructive) is pushed to its own corner with `ml-auto` so it's never visually adjacent to normal-use buttons.
+- Not touched, flagged as a larger/riskier change not requested: splitting `App.tsx` (~6700+ lines, the entire editor UI inline, no per-tab components) into smaller files.
+
 ### Planned future work (not started — wait for explicit go-ahead)
 
 The user's eventual plan (stated 2026-07-27, timeline not yet set):
