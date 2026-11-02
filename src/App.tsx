@@ -2705,8 +2705,8 @@ export default function App() {
 
   // Muestra/oculta las confirmaciones (RSVP) de una fila en el panel "Mis Invitaciones",
   // cargándolas de Supabase la primera vez que se expande (luego quedan en caché en el estado).
-  const toggleConfirmacionesInvitacion = async (row: InvitacionGuardadaRow) => {
-    if (invitacionExpandidaId === row.id) {
+  const toggleConfirmacionesInvitacion = async (row: InvitacionGuardadaRow, forzarAbrir = false) => {
+    if (!forzarAbrir && invitacionExpandidaId === row.id) {
       setInvitacionExpandidaId(null);
       return;
     }
@@ -2989,9 +2989,10 @@ export default function App() {
 
   // Abre/cierra el panel de Pagos y estatus, y de paso trae los avisos de pago del cliente
   // pendientes de revisar para esa invitación (solo la primera vez que se abre).
-  const togglePagosInvitacion = async (row: InvitacionGuardadaRow) => {
-    const abriendo = invitacionPagosExpandidaId !== row.id;
-    setInvitacionPagosExpandidaId(prev => prev === row.id ? null : row.id);
+  const togglePagosInvitacion = async (row: InvitacionGuardadaRow, forzarAbrir = false) => {
+    const abriendo = forzarAbrir || invitacionPagosExpandidaId !== row.id;
+    if (!forzarAbrir) setInvitacionPagosExpandidaId(prev => prev === row.id ? null : row.id);
+    else setInvitacionPagosExpandidaId(row.id);
     if (!abriendo || avisosPagoPorInvitacion[row.id] || !window.supabaseClient) return;
     try {
       const { data, error } = await window.supabaseClient
@@ -3141,6 +3142,31 @@ export default function App() {
   // api.whatsapp.com/send con el texto ya listo en el cuadro, nunca lo manda solo; el admin
   // sigue teniendo que darle "Enviar" él mismo). Pedido 2026-11-02: tener textos listos para
   // no escribirlos de cero cada vez, sin necesidad de abrir esta invitación en el editor.
+  // Arma el link general (sin invitado específico) DIRECTO desde la fila guardada, sin
+  // necesidad de tenerla abierta en el editor -- mismo espíritu que handleEnviarLinkPago /
+  // handleEnviarFormularioDatos. Pedido 2026-11-02: poder mandar la vista previa desde "Mis
+  // Invitaciones" (vía "👤 Administrar cliente") sin pasar por "Abrir en editor" primero.
+  const getShareUrlDesdeFila = (row: InvitacionGuardadaRow): string | null => {
+    if (!row.datos_completos) return null;
+    const datosListos = { ...row.datos_completos, tema: row.tema_elegido || row.datos_completos.tema, invitados: [] };
+    return `${window.location.origin}/?v=1&d=${encodeState(datosListos)}&iid=${encodeURIComponent(row.id)}`;
+  };
+
+  const handleEnviarPreviewWhatsApp = (row: InvitacionGuardadaRow) => {
+    const url = getShareUrlDesdeFila(row);
+    if (!url) {
+      mostrarToast("Esta invitación se guardó antes de esta función y no tiene el estado completo disponible para compartir.", "error");
+      return;
+    }
+    if (!row.telefono_whatsapp?.trim()) {
+      mostrarToast("Esta invitación no tiene un número de WhatsApp guardado", "error");
+      return;
+    }
+    const numeroLimpio = row.telefono_whatsapp.replace(/[^0-9]/g, "");
+    const msg = `¡Hola! 🌸 Aquí está la vista previa de tu invitación de XV Años de *${row.nombre_quinceanera || "tu evento"}*:\n${url}`;
+    window.open(`https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(msg)}`, "_blank");
+  };
+
   const handleEnviarMensajePredefinido = (row: InvitacionGuardadaRow, texto: string) => {
     if (!row.telefono_whatsapp?.trim()) {
       mostrarToast("Esta invitación no tiene un número de WhatsApp guardado", "error");
@@ -3148,6 +3174,25 @@ export default function App() {
     }
     const numeroLimpio = row.telefono_whatsapp.replace(/[^0-9]/g, "");
     window.open(`https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(texto)}`, "_blank");
+  };
+
+  // Botón único "Administrar cliente" (pedido 2026-11-02: "ademas de abrir el editor... un
+  // boton de administrar ese cliente con toda su informacion y para comunicarnos con el y
+  // todo") -- en vez de duplicar los 3 paneles ya construidos (Pagos y estatus / Mensajes /
+  // Ver confirmaciones), este botón simplemente los abre los TRES a la vez usando los mismos
+  // toggles de siempre (con forzarAbrir=true para que nunca los cierre por accidente si solo
+  // alguno ya estaba abierto). Vuelve a cerrarlos todos si ya estaban los tres abiertos.
+  const handleAdministrarCliente = (row: InvitacionGuardadaRow) => {
+    const yaAbierto = invitacionPagosExpandidaId === row.id && invitacionMensajesExpandidaId === row.id && invitacionExpandidaId === row.id;
+    if (yaAbierto) {
+      setInvitacionPagosExpandidaId(null);
+      setInvitacionMensajesExpandidaId(null);
+      setInvitacionExpandidaId(null);
+      return;
+    }
+    togglePagosInvitacion(row, true);
+    setInvitacionMensajesExpandidaId(row.id);
+    toggleConfirmacionesInvitacion(row, true);
   };
 
   // Complemento à la carte "Control de Acceso QR": manda el link GENERAL de check-in
@@ -7177,6 +7222,7 @@ export default function App() {
                           </div>
                           <span className="block text-[11px] text-slate-500 mt-0.5">
                             {tema?.nombre || row.tema_elegido || "Sin tema"} · {row.fecha_fiesta ? new Date(row.fecha_fiesta + "T00:00:00").toLocaleDateString("es-MX") : "Sin fecha"}
+                            {row.telefono_whatsapp?.trim() && <> · 📱 {row.telefono_whatsapp}</>}
                           </span>
                           {!row.datos_completos && (
                             <span className="block text-[10px] text-amber-600 font-semibold mt-1">⚠️ Guardada antes de esta función — solo se puede ver el resumen, no reabrir para editar.</span>
@@ -7189,6 +7235,13 @@ export default function App() {
                             className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-[10px] font-bold rounded-lg transition"
                           >
                             Abrir en editor
+                          </button>
+                          <button
+                            onClick={() => handleAdministrarCliente(row)}
+                            title="Abre toda la información de este cliente: pagos/saldo, mensajes predeterminados y confirmaciones"
+                            className="px-3 py-1.5 bg-white hover:bg-violet-50 border border-violet-200 text-violet-700 text-[10px] font-bold rounded-lg transition"
+                          >
+                            👤 Administrar cliente
                           </button>
                           <button
                             onClick={() => handleDuplicarInvitacionGuardada(row)}
@@ -7526,6 +7579,18 @@ export default function App() {
                         return (
                           <div className="mt-3 pt-3 border-t border-slate-200/60 space-y-2">
                             <p className="text-[10px] text-slate-400">Abre WhatsApp con el número guardado de este cliente y el texto ya listo -- tú le das "Enviar".</p>
+                            <div className="p-2.5 bg-indigo-50/60 border border-indigo-200 rounded-lg">
+                              <p className="text-[11px] font-bold text-indigo-800 mb-1">📤 Vista previa de su invitación</p>
+                              <p className="text-[11px] text-indigo-600 leading-relaxed mb-2">Manda el link de SU invitación tal cual está guardada ahora mismo, sin necesidad de abrirla en el editor primero.</p>
+                              <button
+                                onClick={() => handleEnviarPreviewWhatsApp(row)}
+                                disabled={!row.datos_completos}
+                                className="px-2.5 py-1 bg-[#25D366] hover:bg-[#20ba56] disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg text-[10px] font-bold transition"
+                              >
+                                Abrir en WhatsApp
+                              </button>
+                              {!row.datos_completos && <p className="text-[10px] text-amber-600 mt-1">Guardada antes de esta función -- ábrela en el editor y guárdala de nuevo para poder compartirla desde aquí.</p>}
+                            </div>
                             {disponibles.map(m => (
                               <div key={m.id} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
                                 <p className="text-[11px] font-bold text-slate-700 mb-1">{m.nombre}</p>
