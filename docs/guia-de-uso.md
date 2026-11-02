@@ -20,11 +20,11 @@ Esto crea el registro del cliente en Supabase **de inmediato** (antes de diseña
 
 ## 3. Las 9 pestañas del expediente (orden recomendado)
 
-Estas son las secciones donde capturas los datos de la invitación. Si no ves todas, usa las flechas `‹` `›` a los lados de la barra de pestañas — hay 9 y no caben todas a la vez.
+Estas son las secciones donde capturas los datos de la invitación. Son 9 — si tu pantalla no es muy ancha, se acomodan solas en varias filas, no hace falta arrastrar ni buscar flechas.
 
 | # | Pestaña | Qué captura aquí |
 |---|---------|-------------------|
-| 1 | **Tema/Paquete** | El paquete contratado (define cuántas fotos caben y qué secciones están disponibles), el tema visual (de los 12 diseños o "Personalizado"), y qué secciones quieres prender/apagar en esta invitación específica. Empieza siempre aquí. |
+| 1 | **Tema/Paquete** | El paquete contratado (define cuántas fotos caben y qué secciones están disponibles), el tema visual (de los 13 diseños o "Personalizado"), y qué secciones quieres prender/apagar en esta invitación específica. Empieza siempre aquí. |
 | 2 | **Quinceañera** | Nombre, fecha y hora del evento, mensaje de bienvenida, hashtag, WhatsApp para confirmaciones, enlace de música de fondo, foto de portada. |
 | 3 | **Direcciones** | Ubicación de la ceremonia y de la recepción, con su link a Google Maps. |
 | 4 | **Agenda y Vestido** | El itinerario/programa del evento (hora por hora) y el código de vestimenta. |
@@ -56,6 +56,7 @@ Están agrupados por lo que hacen — cada grupo tiene su propia etiqueta:
   - *Ingresos*: dashboard de cobros totales, histórico mensual y lo que falta por cobrar, de todos los clientes (no solo el que tienes abierto).
 - **Cuenta / dispositivo**
   - *Instalar app*: instala el editor como app en tu celular/computadora (acceso directo, sin abrir el navegador cada vez).
+  - *📖 Manual de uso*: abre este manual completo en una pestaña nueva — también sirve para capacitar a alguien que apenas está aprendiendo a usar el editor.
   - *Cerrar sesión*: cierra tu sesión en este navegador (te va a volver a pedir usuario y contraseña).
 - **Limpiar** (en rojo, separado a propósito): borra el formulario actual para empezar de cero. Úsalo con cuidado — no es lo mismo que eliminar un cliente guardado.
 
@@ -77,8 +78,8 @@ Están agrupados por lo que hacen — cada grupo tiene su propia etiqueta:
 
 ## 8. Preguntas frecuentes
 
-**¿Por qué no veo todas las pestañas?**
-Hay 9 y la pantalla no las muestra todas a la vez — usa las flechas `‹` `›` a los lados de la barra de pestañas, o arrastra con el mouse/dedo.
+**¿Por qué las pestañas se ven en varias filas?**
+Son 9 y en pantallas angostas no caben en una sola línea — se acomodan solas en la fila de abajo, es normal, no falta ninguna.
 
 **Cambié algo pero el link que compartí no se actualizó.**
 Los links ya compartidos NO se actualizan solos. Tienes que generar y volver a compartir un link nuevo cada vez que cambies algo después de haber entregado.

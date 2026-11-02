@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manual de Usuario — Panel InvitaMX</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+        color: #2b2b3a;
+        background: #f7f7fb;
+        line-height: 1.65;
+    }
+    .layout { display:flex; max-width: 1200px; margin: 0 auto; }
+    nav.toc {
+        width: 260px;
+        flex-shrink: 0;
+        padding: 28px 18px;
+        position: sticky;
+        top: 0;
+        align-self: flex-start;
+        height: 100vh;
+        overflow-y: auto;
+        border-right: 1px solid #e6e3f0;
+    }
+    nav.toc .brand {
+        display:flex; align-items:center; gap:8px;
+        font-weight:800; color:#4f46e5; font-size:1.1em; margin-bottom: 22px;
+    }
+    nav.toc a {
+        display:block;
+        font-size: 0.85em;
+        color:#5b5b70;
+        text-decoration:none;
+        padding: 7px 10px;
+        border-radius: 6px;
+        margin-bottom: 2px;
+    }
+    nav.toc a:hover { background:#eeecfb; color:#4f46e5; }
+    nav.toc .sub { padding-left: 22px; font-size: 0.8em; }
+    main { flex:1; padding: 36px 48px 80px; max-width: 860px; }
+    .header {
+        margin-bottom: 36px;
+        padding-bottom: 22px;
+        border-bottom: 2px solid #e6e3f0;
+    }
+    .header h1 {
+        font-size: 2em;
+        color: #1a1a2e;
+        margin-bottom: 8px;
+    }
+    .header p { color:#6b6b80; font-size: 1.05em; }
+    .badge-row { margin-top:14px; display:flex; gap:8px; flex-wrap:wrap; }
+    .badge {
+        background:#eeecfb; color:#4f46e5; font-weight:700; font-size:0.78em;
+        padding:5px 12px; border-radius:999px;
+    }
+    section { margin-bottom: 42px; }
+    section h2 {
+        font-size: 1.5em;
+        color: #1a1a2e;
+        margin-bottom: 14px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #e6e3f0;
+        scroll-margin-top: 20px;
+    }
+    section h3 {
+        font-size: 1.15em;
+        color: #4f46e5;
+        margin: 22px 0 10px;
+        scroll-margin-top: 20px;
+    }
+    p { margin-bottom: 12px; color:#3a3a4a; }
+    ul, ol { margin: 0 0 14px 22px; color:#3a3a4a; }
+    li { margin-bottom: 6px; }
+    code {
+        background:#eeecfb; color:#4f46e5; padding:2px 6px; border-radius:4px;
+        font-size:0.9em; font-family: "Courier New", monospace;
+    }
+    .tab-card {
+        background:#fff; border:1px solid #e6e3f0; border-radius:10px;
+        padding:18px 20px; margin: 14px 0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .tab-card .tab-title {
+        display:flex; align-items:center; gap:10px;
+        font-weight:800; color:#1a1a2e; font-size:1.05em; margin-bottom:8px;
+    }
+    .tab-number {
+        background:#4f46e5; color:#fff; width:26px; height:26px; border-radius:50%;
+        display:flex; align-items:center; justify-content:center; font-size:0.8em; font-weight:800;
+        flex-shrink:0;
+    }
+    .field-list { margin-top: 10px; }
+    .field-list li { font-size:0.95em; }
+    .field-list b { color:#1a1a2e; }
+    .tip {
+        background:#eef7ee; border-left:4px solid #4caf50; padding:12px 16px;
+        border-radius:6px; margin:14px 0; font-size:0.95em; color:#2e5d2e;
+    }
+    .warning {
+        background:#fff8e6; border-left:4px solid #e6a817; padding:12px 16px;
+        border-radius:6px; margin:14px 0; font-size:0.95em; color:#6b4e00;
+    }
+    .steps { counter-reset: step; list-style:none; margin-left:0; }
+    .steps li {
+        counter-increment: step;
+        position:relative;
+        padding-left: 38px;
+        margin-bottom: 14px;
+    }
+    .steps li:before {
+        content: counter(step);
+        position:absolute; left:0; top:0;
+        background:#4f46e5; color:#fff; width:26px; height:26px; border-radius:50%;
+        display:flex; align-items:center; justify-content:center; font-size:0.8em; font-weight:800;
+    }
+    table { width:100%; border-collapse: collapse; margin:14px 0; font-size:0.92em; }
+    th, td { text-align:left; padding:9px 12px; border-bottom:1px solid #e6e3f0; }
+    th { color:#4f46e5; font-size:0.82em; text-transform:uppercase; letter-spacing:0.03em; }
+    .footer { margin-top: 60px; padding-top:20px; border-top:1px solid #e6e3f0; color:#9a9aad; font-size:0.85em; text-align:center; }
+    @media (max-width: 860px) {
+        .layout { flex-direction:column; }
+        nav.toc { width:100%; height:auto; position:static; border-right:none; border-bottom:1px solid #e6e3f0; }
+        main { padding: 28px 20px 60px; }
+    }
+</style>
+</head>
+<body>
+<div class="layout">
+    <nav class="toc">
+        <div class="brand">🌸 InvitaMX</div>
+        <a href="#intro">1. Qué es esto</a>
+        <a href="#entrar">2. Cómo entrar</a>
+        <a href="#primeros-pasos">3. Primeros pasos</a>
+        <a href="#pestanas">4. Las 9 pestañas del editor</a>
+        <a href="#pestanas" class="sub">4.1 Tema/Paquete</a>
+        <a href="#pestanas" class="sub">4.2 Quinceañera</a>
+        <a href="#pestanas" class="sub">4.3 Direcciones</a>
+        <a href="#pestanas" class="sub">4.4 Agenda y Vestido</a>
+        <a href="#pestanas" class="sub">4.5 Familia</a>
+        <a href="#pestanas" class="sub">4.6 Regalos</a>
+        <a href="#pestanas" class="sub">4.7 Álbum</a>
+        <a href="#pestanas" class="sub">4.8 Lista Pases</a>
+        <a href="#pestanas" class="sub">4.9 A Medida</a>
+        <a href="#vista-previa">5. Vista previa</a>
+        <a href="#guardar-compartir">6. Guardar y compartir</a>
+        <a href="#mis-invitaciones">7. Mis Invitaciones</a>
+        <a href="#ingresos">8. Dashboard de Ingresos</a>
+        <a href="#equipo">9. Trabajo en equipo</a>
+        <a href="#faq">10. Preguntas frecuentes</a>
+    </nav>
+
+    <main>
+        <div class="header">
+            <h1>Manual de Usuario — Panel InvitaMX</h1>
+            <p>Guía completa para crear, personalizar y administrar invitaciones digitales de XV años.</p>
+            <div class="badge-row">
+                <span class="badge">administradorinvitamx.vercel.app</span>
+                <span class="badge">3 usuarios: isaac / vladimir / nidia</span>
+                <span class="badge">Instalable como app</span>
+            </div>
+        </div>
+
+        <section id="intro">
+            <h2>1. Qué es esto</h2>
+            <p>Este panel sirve para armar la invitación digital de cada cliente (fecha, lugar, fotos, música, etc.), guardarla, y generar el link que se le manda por WhatsApp. También lleva el control de qué clientes hay, cuánto han pagado, y quién confirmó asistencia.</p>
+            <p>No es necesario saber programar ni diseño — todo se hace con formularios y botones, como llenar un documento.</p>
+        </section>
+
+        <section id="entrar">
+            <h2>2. Cómo entrar</h2>
+            <p>Abre <code>administradorinvitamx.vercel.app</code> en tu navegador (celular o computadora). El navegador te va a pedir <b>usuario y contraseña</b> — esto es distinto a un login normal de página: es un cuadro que pone el propio navegador antes de mostrar nada.</p>
+            <table>
+                <tr><th>Usuario</th><th>Contraseña</th></tr>
+                <tr><td>isaac</td><td>isaac3333</td></tr>
+                <tr><td>vladimir</td><td>vladimir2222</td></tr>
+                <tr><td>nidia</td><td>nidia1111</td></tr>
+            </table>
+            <p>Cada quien entra con el suyo — puedes usar el mismo usuario desde varias computadoras o celulares al mismo tiempo sin problema.</p>
+            <div class="tip">💡 ¿Quieres tenerlo como un ícono en tu celular o escritorio, como una app? Ver la sección <a href="#equipo">9. Trabajo en equipo</a>.</div>
+        </section>
+
+        <section id="primeros-pasos">
+            <h2>3. Primeros pasos</h2>
+            <p>Cuando entras, se abre el <b>editor</b> — el formulario grande donde armas una invitación. Hay dos formas de empezar a trabajar en un cliente:</p>
+            <h3>A) Cliente nuevo</h3>
+            <ol class="steps">
+                <li>Ve al botón <b>"Mis Invitaciones"</b> (arriba a la derecha).</li>
+                <li>Dale a <b>"+ Nuevo Cliente"</b>.</li>
+                <li>Escribe el nombre y teléfono del cliente y elige el paquete (Básico/Premium/Deluxe).</li>
+                <li>Se crea de inmediato con estatus "Cotización" y queda listado — ya puedes ir llenando el resto del diseño con calma.</li>
+            </ol>
+            <h3>B) Retomar un cliente que ya existe</h3>
+            <ol class="steps">
+                <li>Ve a <b>"Mis Invitaciones"</b>.</li>
+                <li>Búscalo por nombre o filtra por estatus.</li>
+                <li>Dale <b>"Abrir en editor"</b> — carga todo su diseño tal como estaba.</li>
+            </ol>
+            <div class="warning">⚠️ El editor guarda tus cambios <b>solo en tu navegador</b> mientras trabajas. Para que queden a salvo y disponibles desde cualquier otra computadora, tienes que darle <b>"💾 Guardar en Supabase"</b> (ver sección 6) — si cierras sin guardar, se puede perder lo que llevas.</div>
+        </section>
+
+        <section id="pestanas">
+            <h2>4. Las 9 pestañas del editor</h2>
+            <p>El formulario está dividido en 9 pestañas, en la parte izquierda de la pantalla. Cada una controla una parte distinta de la invitación.</p>
+
+            <div class="tab-card">
+                <div class="tab-title"><span class="tab-number">1</span>Tema/Paquete</div>
+                <p>Aquí decides el paquete (Básico $499 / Premium $799 / Deluxe $1,199) y el diseño visual.</p>
+                <ul class="field-list">
+                    <li><b>Selección de Paquete:</b> cambia cuántas fotos caben y qué secciones están disponibles.</li>
+                    <li><b>Personalizar Secciones Habilitadas:</b> apaga/prende y reordena (↑↓) cada sección de la invitación final (ceremonia, itinerario, regalos, etc.) sin afectar el precio — apagar secciones no da descuento.</li>
+                    <li><b>Control de Acceso QR:</b> complemento de pago aparte, requiere tener "Pases" activado primero — cada pase de familia trae un código QR para registrar su entrada en la puerta.</li>
+                    <li><b>Tema de la Invitación:</b> elige entre los 13 diseños del catálogo (Dorado Clásico, Vuelo de Mariposas, Místico Celestial, etc.) o el tema "Personalizado" (pestaña 4.9).</li>
+                    <li><b>Fondo del Tema:</b> puedes subir una imagen de fondo propia para el tema elegido (se sube directo a Cloudinary y se recuerda para la próxima vez que uses ese tema).</li>
+                </ul>
+            </div>
+
+            <div class="tab-card">
+                <div class="tab-title"><span class="tab-number">2</span>Quinceañera</div>
+                <p>Los datos básicos del evento.</p>
+                <ul class="field-list">
+                    <li><b>Nombre de la Quinceañera*</b></li>
+                    <li><b>Fecha y Hora del Evento Principal*</b> — se usa para la cuenta regresiva.</li>
+                    <li><b>Mensaje de Bienvenida / Agradecimiento</b></li>
+                    <li><b>Hashtag de Redes Sociales</b> (opcional)</li>
+                    <li><b>WhatsApp de Confirmación de Asistencia*</b> — a dónde le llegan las confirmaciones de los invitados (con código de país, ej. 521...).</li>
+                    <li><b>Enlace a Música de Fondo</b> — un link directo a un archivo .mp3 público.</li>
+                    <li><b>Foto de Portada Principal</b> — puedes subirla desde tu computadora o pegar un link de imagen. Se puede apagar si no hay foto.</li>
+                </ul>
+            </div>
+
+            <div class="tab-card">
+                <div class="tab-title"><span class="tab-number">3</span>Direcciones</div>
+                <p>Ubicación de la Ceremonia (Templo/Iglesia) y la Recepción (Salón o Finca): dirección física completa, hora de cada una, y el enlace para compartir de Google Maps.</p>
+            </div>
+
+            <div class="tab-card">
+                <div class="tab-title"><span class="tab-number">4</span>Agenda y Vestido</div>
+                <ul class="field-list">
+                    <li><b>Cronograma de Eventos Dinámico:</b> agrega/elimina eventos del itinerario (hora + actividad) en el orden que quieras.</li>
+                    <li><b>Regla o Código para la Invitación:</b> el dress code / vestimenta.</li>
+                    <li><b>Colores Sugeridos e Inspiración</b></li>
+                </ul>
+            </div>
+
+            <div class="tab-card">
+                <div class="tab-title"><span class="tab-number">5</span>Familia</div>
+                <p>Padres de la Quinceañera y Padrinos de Honor (solo disponible en paquetes Premium y Deluxe).</p>
+            </div>
+
+            <div class="tab-card">
+                <div class="tab-title"><span class="tab-number">6</span>Regalos</div>
+                <p>Mesa de Regalos (Liverpool, Amazon, Palacio, etc.) y Datos Bancarios para Transferencia — el invitado puede tocar "Copiar Datos Bancarios" desde la invitación en vez de transcribir la CLABE a mano (solo Premium/Deluxe).</p>
+            </div>
+
+            <div class="tab-card">
+                <div class="tab-title"><span class="tab-number">7</span>Álbum</div>
+                <ul class="field-list">
+                    <li><b>Fondo de la Invitación:</b> mismo control de fondo por tema que en la pestaña 1 (viven en el mismo lugar, cualquiera de las dos lo actualiza).</li>
+                    <li><b>Galería de fotos:</b> sube hasta el máximo de fotos del paquete (4 / 8 / 14). Formato "grid" (cuadrícula) o "carrusel" (una fila que se desliza) — se elige aparte.</li>
+                </ul>
+            </div>
+
+            <div class="tab-card">
+                <div class="tab-title"><span class="tab-number">8</span>Lista Pases</div>
+                <p>Solo funciona si "Pases Personalizados de Invitados" está activado (pestaña 1). Aquí capturas la lista de familias invitadas:</p>
+                <ul class="field-list">
+                    <li>Pega la lista en texto libre (como la mandaría el cliente por WhatsApp o copiada de Excel) — el sistema la interpreta sola en "Familia, número de pases".</li>
+                    <li><b>Mesa:</b> campo opcional, texto libre (ej. "Mesa 5") — si se llena, aparece en el pase digital de esa familia.</li>
+                    <li>Cada invitado/familia puede tener su propio link personalizado para enviarle por WhatsApp.</li>
+                </ul>
+            </div>
+
+            <div class="tab-card">
+                <div class="tab-title"><span class="tab-number">9</span>A Medida</div>
+                <p>Solo aplica si el tema elegido es "Personalizado 🎨" — para invitaciones 100% a la medida en vez de un diseño del catálogo. Permite elegir una paleta de colores base (Dorado, Lila Mariposa, Rosa Acuarela, Verde Botánico, Rosa Glam, Terracota Boho, Rosa Coquette, o Neutro) como punto de partida.</p>
+            </div>
+        </section>
+
+        <section id="vista-previa">
+            <h2>5. Vista previa</h2>
+            <p>En la parte derecha de la pantalla se ve cómo va quedando la invitación en vivo, mientras llenas el formulario. Hay 3 simuladores para ver cómo se vería en cada dispositivo:</p>
+            <ul>
+                <li>📱 <b>Simulador de Smartphone Celular</b> (la vista más importante — casi todos los invitados la abren desde el celular)</li>
+                <li>📟 <b>Simulador de Tablet / iPad</b></li>
+                <li>🖥️ <b>Simulador de Pantalla Completa Escritorio</b></li>
+            </ul>
+        </section>
+
+        <section id="guardar-compartir">
+            <h2>6. Guardar y compartir</h2>
+            <p>Estos botones están arriba, en la barra superior del editor:</p>
+            <table>
+                <tr><th>Botón</th><th>Qué hace</th></tr>
+                <tr><td><b>Generar invitación</b> (o "¡Sincronizado! ✨")</td><td>Actualiza el link/enlace con tus cambios más recientes. Hazlo cada vez que termines de editar algo importante.</td></tr>
+                <tr><td><b>💾 Guardar en Supabase</b></td><td>Guarda el cliente en la base de datos compartida — <b>indispensable</b> para que aparezca en "Mis Invitaciones" y no se pierda si cierras el navegador.</td></tr>
+                <tr><td><b>Copiar HTML</b></td><td>Copia el código completo de la invitación (uso técnico, casi nunca se necesita).</td></tr>
+                <tr><td><b>Copiar Datos</b></td><td>Copia la configuración en formato JSON (respaldo técnico).</td></tr>
+                <tr><td><b>Descargar index.html</b></td><td>Descarga la invitación como un archivo que se puede abrir sin internet.</td></tr>
+                <tr><td><b>🎁 Descargar PDF de Regalo</b></td><td>Genera un PDF de la invitación como recuerdo (incluido gratis en Deluxe, à la carte en los otros paquetes).</td></tr>
+                <tr><td><b>Mis Invitaciones</b></td><td>Abre el listado de todos los clientes guardados (ver sección 7).</td></tr>
+                <tr><td><b>💰 Ingresos</b></td><td>Abre el dashboard de ingresos del negocio (ver sección 8).</td></tr>
+                <tr><td><b>📖 Manual de uso</b></td><td>Abre este mismo manual en una pestaña nueva — útil para consultarlo sin perder tu trabajo, o para mandárselo a alguien que se está capacitando.</td></tr>
+                <tr><td><b>Limpiar</b></td><td>Borra todo el formulario actual — úsalo con cuidado, no se puede deshacer.</td></tr>
+            </table>
+            <div class="tip">💡 El link real para mandarle al cliente/invitados sale de "Generar invitación" — ese es el que se comparte por WhatsApp, no el botón de descargar HTML.</div>
+        </section>
+
+        <section id="mis-invitaciones">
+            <h2>7. Mis Invitaciones</h2>
+            <p>Aquí vive el control de <b>todos los clientes guardados</b>, de los 3 usuarios juntos.</p>
+            <ul>
+                <li><b>Buscar</b> por nombre de la quinceañera o tema, y <b>filtrar</b> por estatus (Cotización → Anticipo pagado → En diseño → Entregada → Evento pasado → Archivada).</li>
+                <li>Chips rápidos: <b>urgentes</b> (evento próximo + debe), <b>con saldo pendiente</b>, <b>evento en los próximos 14 días</b>.</li>
+                <li><b>Mías / Todas:</b> filtra para ver solo lo que tú creaste, o el trabajo de los 3 juntos (por default se ve todo — nadie tiene nada oculto).</li>
+                <li>Cada tarjeta muestra una insignia 👤 con quién creó esa invitación.</li>
+                <li><b>Pagos y estatus:</b> precio total, cuánto ha pagado el cliente, y checkboxes de si ya pagó pases/PDF.</li>
+                <li><b>Link de pago:</b> puedes pegar un link de Mercado Pago/PayPal.me generado aparte y mandárselo al cliente por WhatsApp con un clic.</li>
+                <li><b>Formulario para el cliente (intake):</b> le mandas un link para que el cliente llene sus propios datos (fecha, fotos, itinerario) sin que tú tengas que capturarlo todo a mano.</li>
+                <li><b>Ver confirmaciones (RSVP):</b> lista de quién ya confirmó que va, con cuántas personas.</li>
+                <li><b>🔒 Apagar/Encender acceso:</b> bloquea el link de un cliente puntual (ej. ya pasó el evento, o hay un problema de pago) sin borrar nada.</li>
+                <li><b>Duplicar, Descargar respaldo (JSON), Eliminar registro.</b></li>
+                <li><b>🗄️ Respaldo completo:</b> descarga un JSON con todos los clientes guardados, de un jalón.</li>
+            </ul>
+        </section>
+
+        <section id="ingresos">
+            <h2>8. Dashboard de Ingresos</h2>
+            <p>Botón "💰 Ingresos" en la barra superior — totales de todo el negocio (no solo el cliente que tengas abierto): cuánto se ha cobrado históricamente, desglose mes por mes, cuánto falta por cobrar, y cuánto se ha cobrado por cada paquete.</p>
+        </section>
+
+        <section id="equipo">
+            <h2>9. Trabajo en equipo</h2>
+            <h3>Cerrar sesión</h3>
+            <p>Botón rojo "Cerrar sesión" arriba a la derecha — te vuelve a pedir usuario y contraseña. Útil si comparten una misma computadora y quieren cambiar de usuario.</p>
+            <h3>Instalar como app</h3>
+            <p>Botón azul "Instalar app" (junto a "Cerrar sesión") — aparece solo si tu navegador lo permite (Chrome/Edge/Android). Le das clic y queda como un ícono en tu celular o escritorio, se abre directo sin tener que buscar la página cada vez.</p>
+            <p>En <b>iPhone (Safari)</b> ese botón no aparece — ahí es manual: botón de compartir (□↑) → "Agregar a inicio".</p>
+            <div class="tip">💡 Todos ven el trabajo de todos por diseño — no hay nada oculto entre isaac/vladimir/nidia. El filtro "Mías/Todas" es solo para ubicar rápido lo propio, no para separar el trabajo.</div>
+        </section>
+
+        <section id="faq">
+            <h2>10. Preguntas frecuentes</h2>
+            <h3>Hice cambios y no aparecen en el link que mandé</h3>
+            <p>Dale clic a "Generar invitación" después de cualquier cambio — el link no se actualiza solo mientras escribes.</p>
+            <h3>Cerré el navegador y perdí lo que llevaba</h3>
+            <p>Acuérdate de darle "💾 Guardar en Supabase" seguido mientras trabajas, no solo al final.</p>
+            <h3>No me deja entrar / pide usuario y contraseña de nuevo</h3>
+            <p>Revisa que estés escribiendo bien tu usuario (todo en minúsculas) y tu contraseña exacta de la tabla en la sección 2.</p>
+            <h3>¿Puedo cambiar de paquete a medio diseño?</h3>
+            <p>Sí, desde la pestaña "Tema/Paquete" — al bajar de paquete puede que se apaguen automáticamente secciones que ya no están disponibles (ej. Familia/Regalos si bajas a Básico).</p>
+        </section>
+
+        <div class="footer">
+            <p>Manual generado para el equipo de InvitaMX (administradorinvitamx.vercel.app)</p>
+            <p>Si el panel cambia más adelante (nuevas secciones, temas, precios), este manual puede quedar desactualizado — avísenle a quien lo administra para actualizarlo.</p>
+        </div>
+    </main>
+</div>
+</body>
+</html>

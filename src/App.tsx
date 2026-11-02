@@ -4527,6 +4527,16 @@ export default function App() {
             <span>Instalar app</span>
           </button>
 
+          <a
+            href="/manual.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Manual de uso completo -- cómo entrar, las 9 pestañas del editor, guardar/compartir, Mis Invitaciones. Útil para capacitar a alguien nuevo."
+            className="px-3.5 py-2 bg-white hover:bg-indigo-50/20 text-slate-700 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+          >
+            <span>📖 Manual de uso</span>
+          </a>
+
           <button
             onClick={() => {
               // No hay sesión real de servidor que cerrar (el login es HTTP Basic Auth, sin
