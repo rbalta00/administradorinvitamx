@@ -1925,9 +1925,7 @@ export default function App() {
 
   const { initialDatos, initialTemaId, isView: isViewMode, isCatalog: isCatalogInitial, initialCatalogTemaId, isEmbed: isEmbedMode } = getInitialState();
 
-  // Detectar parámetro ?catalog=true para mostrar el catálogo
   const queryParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
-  const isCatalogMode_url = queryParams.get('catalog') === 'true';
 
   // Modo "formulario de datos del cliente" (?intake=1&iid=<id de la fila en Supabase>): un link
   // público (sin login) que el admin le manda al cliente desde "Mis Invitaciones" en cuanto
@@ -1948,11 +1946,6 @@ export default function App() {
 
   // Estado principal de los datos de la invitación
   const [datos, setDatos] = useState<InvitacionDatos>(initialDatos);
-
-  // Sincronizar modo con parámetro: ?catalog=true muestra catálogo, sin parámetro muestra generador
-  useEffect(() => {
-    setIsCatalogMode(isCatalogMode_url);
-  }, [isCatalogMode_url]);
 
   // Cargar fondos personalizados desde Supabase al iniciar. Esta carga es asíncrona (red),
   // así que `datos.bgImages` empieza vacío durante uno o dos segundos en cada carga de página
@@ -2310,6 +2303,17 @@ export default function App() {
       return null;
     }
   });
+  // Marca de tiempo de "el cliente llenó su formulario" (intake_actualizado_en) tal como estaba
+  // cuando el admin abrió ESTA invitación en el editor -- se compara contra el valor en vivo
+  // antes de "Guardar en Supabase" (ver handleGuardarEnSupabase) para detectar si el cliente
+  // guardó su propio ?intake=1 mientras el admin tenía el editor abierto con datos viejos en
+  // memoria. Antes "Guardar en Supabase" pisaba datos_completos entero sin leer nada primero --
+  // a diferencia de IntakeForm.handleEnviar, que sí hace lectura-fusión-escritura. Hallazgo
+  // real, 2026-11-02. `undefined` = baseline desconocido (ej. editor recargado desde el
+  // respaldo local del navegador, sin pasar por "Abrir en editor") -- en ese caso no se avisa,
+  // para no dar falsos positivos; `null` SÍ es un baseline conocido (significa "el cliente
+  // todavía no había llenado su intake cuando se abrió esta invitación").
+  const [intakeBaselineAlAbrir, setIntakeBaselineAlAbrir] = useState<string | null | undefined>(undefined);
 
   // Usuario con el que se entró al editor (isaac/vladimir/nidia/admin), leído del mismo header
   // de Basic Auth que ya mandó el navegador -- ver api/whoami.ts. Se usa para etiquetar quién
@@ -2627,6 +2631,7 @@ export default function App() {
         // Nueva invitación: si se guarda en Supabase de nuevo, debe crear una fila nueva,
         // no seguir actualizando la fila de la invitación anterior.
         setSupabaseRowId(null);
+        setIntakeBaselineAlAbrir(null);
         try { localStorage.removeItem('xv_supabase_row_id'); } catch {}
         mostrarToast("¡El formulario ha sido reiniciado! 💮", "info");
       }
@@ -2785,10 +2790,58 @@ export default function App() {
     });
     setSelectedTemaId(row.datos_completos.tema || "dorado-clasico");
     setSupabaseRowId(row.id);
+    setIntakeBaselineAlAbrir(row.intake_actualizado_en || null);
     try { localStorage.setItem("xv_supabase_row_id", row.id); } catch {}
     setMostrarMisInvitaciones(false);
     setPanelPestana("ajustes");
     mostrarToast(`Invitación de "${row.nombre_quinceanera || "cliente"}" cargada en el editor ✏️`, "success");
+  };
+
+  // "Guardar en Supabase" con chequeo de conflicto -- antes este botón llamaba a
+  // guardarEnSupabase() directo, que sobrescribe datos_completos entero sin leer nada primero.
+  // Si el cliente llenó su propio ?intake=1 (ceremonia, padrinos, fotos) mientras el admin
+  // tenía el editor abierto con datos viejos en memoria, "Guardar en Supabase" pisaba eso en
+  // silencio -- último que escribe gana, sin ningún aviso. Hallazgo real, 2026-11-02. Solo se
+  // puede detectar si se conoce el baseline (ver intakeBaselineAlAbrir); si no se conoce (ej.
+  // editor recargado desde el respaldo local sin pasar por "Abrir en editor"), se guarda
+  // directo, igual que antes, en vez de bloquear con un chequeo que no se puede hacer bien.
+  const handleGuardarEnSupabase = async () => {
+    const procederAGuardar = async () => {
+      const finalLink = getShareUrl();
+      try {
+        const row = await guardarEnSupabase(datos, temaActual, finalLink, supabaseRowId, usuarioActual);
+        if (row?.id) {
+          setSupabaseRowId(row.id);
+          setIntakeBaselineAlAbrir(row.intake_actualizado_en ?? null);
+          try { localStorage.setItem('xv_supabase_row_id', row.id); } catch {}
+        }
+        mostrarToast('✅ Guardado en Supabase correctamente', 'success');
+      } catch {
+        mostrarToast('❌ Error al guardar', 'error');
+      }
+    };
+
+    if (supabaseRowId && intakeBaselineAlAbrir !== undefined && window.supabaseClient) {
+      const { data } = await window.supabaseClient
+        .from('invitaciones')
+        .select('intake_actualizado_en')
+        .eq('id', supabaseRowId)
+        .maybeSingle();
+      const intakeEnVivo = data?.intake_actualizado_en || null;
+      if (intakeEnVivo !== intakeBaselineAlAbrir) {
+        setConfirmModal({
+          titulo: "El cliente actualizó su formulario",
+          mensaje: "El cliente llenó o actualizó su propio formulario (fecha, ceremonia, padrinos, fotos, etc.) " +
+            "después de que abriste esta invitación en el editor. Si guardas ahora, tus cambios de aquí van a " +
+            "sobrescribir lo que el cliente acaba de capturar. Para no perderlo: cierra esto, abre la invitación " +
+            "de nuevo desde \"Mis Invitaciones\" (así traes lo más reciente), y vuelve a hacer tus cambios. ¿Guardar " +
+            "de todos modos y perder lo que el cliente capturó?",
+          onAceptar: procederAGuardar
+        });
+        return;
+      }
+    }
+    await procederAGuardar();
   };
 
   // Descarga un respaldo del CONTENIDO completo de una invitación (todo InvitacionDatos: fotos,
@@ -2832,6 +2885,7 @@ export default function App() {
       });
       setSelectedTemaId(row.datos_completos.tema || "dorado-clasico");
       setSupabaseRowId(nuevaFila.id);
+      setIntakeBaselineAlAbrir(null); // fila nueva (copia) -- sin intake propio todavia, nada con que pueda chocar
       try { localStorage.setItem("xv_supabase_row_id", nuevaFila.id); } catch {}
       setMostrarMisInvitaciones(false);
       setPanelPestana("ajustes");
@@ -2856,6 +2910,7 @@ export default function App() {
           setListaInvitaciones(prev => prev.filter(r => r.id !== row.id));
           if (supabaseRowId === row.id) {
             setSupabaseRowId(null);
+            setIntakeBaselineAlAbrir(null);
             try { localStorage.removeItem("xv_supabase_row_id"); } catch {}
           }
           mostrarToast("Invitación eliminada del panel", "success");
@@ -2944,12 +2999,19 @@ export default function App() {
       const base: Partial<InvitacionDatos> = fila?.datos_completos || {};
       const maxFotosNuevo = paquetes[nuevoPaquete].maxFotos;
       const sinPases = (base.seccionesExcluidas || []).filter(s => s !== "pases");
-      const seccionesExcluidasNuevas = (nuevoPaquete !== "deluxe" && !row.pases_pagado) ? [...sinPases, "pases"] : sinPases;
+      const pasesQuedaExcluido = nuevoPaquete !== "deluxe" && !row.pases_pagado;
+      const seccionesExcluidasNuevas = pasesQuedaExcluido ? [...sinPases, "pases"] : sinPases;
+      // Mismo criterio que el toggle manual de "pases" en el editor (ver ~línea 2042): si
+      // "pases" se excluye, el Control de Acceso QR no puede seguir activo -- depende de que
+      // haya pases para escanear. Sin esto, un Deluxe con QR activado que se baja de paquete
+      // se quedaba con controlAccesoQR:true y checkin_pagado marcado pero sin pases que lo
+      // sustenten (hallazgo real, 2026-11-02).
       const actualizado: Partial<InvitacionDatos> = {
         ...base,
         paquete: nuevoPaquete,
         fotos: (base.fotos || []).slice(0, maxFotosNuevo),
-        seccionesExcluidas: seccionesExcluidasNuevas
+        seccionesExcluidas: seccionesExcluidasNuevas,
+        controlAccesoQR: pasesQuedaExcluido ? false : base.controlAccesoQR
       };
       const { error: errUpdate } = await window.supabaseClient
         .from("invitaciones")
@@ -3135,6 +3197,7 @@ export default function App() {
       setDatos(nuevosDatos);
       setSelectedTemaId("dorado-clasico");
       setSupabaseRowId(nuevaFila.id);
+      setIntakeBaselineAlAbrir(null); // fila nueva -- sin intake propio todavia
       try { localStorage.setItem("xv_supabase_row_id", nuevaFila.id); } catch {}
       setMostrarNuevoCliente(false);
       setMostrarMisInvitaciones(false);
@@ -4060,6 +4123,24 @@ export default function App() {
     }
   }, [isViewMode, datos, temaActual, esVistaDeMuestra, muestraExpirada, bloqueoCheck.listo, bloqueoCheck.bloqueada]);
 
+  // Los modos de ruta (vista pública, embed, checkin, recuperación, intake, catálogo) son
+  // banderas independientes leídas cada una de su propio query param -- nunca se valida que
+  // sean mutuamente excluyentes. Hoy funciona porque cada link que la propia app genera trae
+  // un solo parámetro, pero si alguna vez llegan combinados (copiado a mano, un parámetro
+  // nuevo agregado sin revisar esta cadena, etc.), el primero de la cadena gana en silencio y
+  // el resto nunca se renderiza, sin ningún aviso de "modo ambiguo". Guardia agregada
+  // 2026-11-02 -- no cambia el comportamiento de ningún link válido de hoy (siempre trae un
+  // solo modo), solo evita que una combinación futura falle en silencio.
+  if ([isViewMode, isEmbedMode, isCheckinMode, isRecoveryMode, isIntakeMode, isCatalogMode].filter(Boolean).length > 1) {
+    return (
+      <div className="w-screen h-screen fixed inset-0 flex flex-col items-center justify-center bg-slate-50 z-50 px-6 text-center gap-2">
+        <span className="text-4xl mb-2">⚠️</span>
+        <p className="text-sm font-semibold text-slate-700">Este link no es válido: combina más de un modo a la vez.</p>
+        <p className="text-xs text-slate-500 max-w-xs">Pide un link nuevo a quien te lo compartió.</p>
+      </div>
+    );
+  }
+
   if (isViewMode && bloqueoCheck.listo && bloqueoCheck.bloqueada) {
     const esEventoPasado = bloqueoCheck.motivo === "evento_pasado";
     return (
@@ -4691,18 +4772,7 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => {
-              const finalLink = getShareUrl();
-              guardarEnSupabase(datos, temaActual, finalLink, supabaseRowId, usuarioActual)
-                .then((row) => {
-                  if (row?.id) {
-                    setSupabaseRowId(row.id);
-                    try { localStorage.setItem('xv_supabase_row_id', row.id); } catch {}
-                  }
-                  mostrarToast('✅ Guardado en Supabase correctamente', 'success');
-                })
-                .catch(() => mostrarToast('❌ Error al guardar', 'error'));
-            }}
+            onClick={handleGuardarEnSupabase}
             className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-sm transition cursor-pointer"
           >
             <span>💾 Guardar en Supabase</span>
