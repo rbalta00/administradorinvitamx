@@ -4342,7 +4342,7 @@ export default function App() {
   })();
 
   return (
-    <div className="lg:h-screen lg:overflow-hidden min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
 
       {/* HEADER PRINCIPAL DE LA HERRAMIENTA PRIVADA -- antes compartía esta franja con los 11
           botones de acción (ver nota 2026-10-20 más abajo), ocupando una fila entera por
@@ -4367,10 +4367,10 @@ export default function App() {
       </header>
 
       {/* DASHBOARD PRINCIPAL DE TRABAJO */}
-      <div className="flex-1 min-h-0 flex flex-col lg:flex-row lg:overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
 
         {/* PANEL IZQUIERDO: SECCIONES DE CONFIGURACIÓN Y FORMULARIO */}
-        <aside className="w-full lg:w-[48%] xl:w-[45%] border-r border-slate-200 flex flex-col bg-white shrink-0 lg:h-full lg:overflow-y-auto">
+        <aside className="w-full lg:w-[48%] xl:w-[45%] border-r border-slate-200 flex flex-col bg-white shrink-0">
 
         {/* ACCIONES DEL FORMULARIO -- agrupadas por propósito (reordenado 2026-10-20, antes
             eran 11 botones sueltos en una sola fila sin ningún orden lógico, con "Limpiar"
