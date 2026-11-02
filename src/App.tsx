@@ -2922,6 +2922,47 @@ export default function App() {
     }
   };
 
+  // Cambia el paquete de una invitación ya guardada directo desde "Mis Invitaciones", sin
+  // tener que abrir el editor completo -- pedido explícito del usuario (2026-11-02): poder
+  // elegir/corregir el paquete y mandar el formulario que le corresponde desde el mismo panel.
+  // Igual que handleCambiarPaquete (editor), nunca reemplaza datos reales (nombre, invitados,
+  // fotos, etc.), solo ajusta el nivel, recorta la galería si excede el nuevo máximo, y
+  // corrige "pases" (à la carte en Básico/Premium, incluido en Deluxe) -- antes, cambiar de
+  // paquete con contenido real cargado dejaba "pases" en el estado del paquete viejo (hallazgo
+  // real: si ya pagó "pases" aparte, aunque baje de Deluxe se respeta, vía pases_pagado).
+  const handleCambiarPaqueteInvitacion = async (row: InvitacionGuardadaRow, nuevoPaquete: "basico" | "premium" | "deluxe") => {
+    if (!window.supabaseClient) return;
+    const actual = row.datos_completos?.paquete || "basico";
+    if (actual === nuevoPaquete) return;
+    try {
+      const { data: fila, error: errLectura } = await window.supabaseClient
+        .from("invitaciones")
+        .select("datos_completos")
+        .eq("id", row.id)
+        .maybeSingle();
+      if (errLectura) throw errLectura;
+      const base: Partial<InvitacionDatos> = fila?.datos_completos || {};
+      const maxFotosNuevo = paquetes[nuevoPaquete].maxFotos;
+      const sinPases = (base.seccionesExcluidas || []).filter(s => s !== "pases");
+      const seccionesExcluidasNuevas = (nuevoPaquete !== "deluxe" && !row.pases_pagado) ? [...sinPases, "pases"] : sinPases;
+      const actualizado: Partial<InvitacionDatos> = {
+        ...base,
+        paquete: nuevoPaquete,
+        fotos: (base.fotos || []).slice(0, maxFotosNuevo),
+        seccionesExcluidas: seccionesExcluidasNuevas
+      };
+      const { error: errUpdate } = await window.supabaseClient
+        .from("invitaciones")
+        .update({ datos_completos: actualizado })
+        .eq("id", row.id);
+      if (errUpdate) throw errUpdate;
+      setListaInvitaciones(prev => prev.map(r => r.id === row.id ? { ...r, datos_completos: actualizado } : r));
+      mostrarToast(`Paquete cambiado a ${paquetes[nuevoPaquete].nombre} -- el formulario que le envíes ya refleja las secciones de este paquete.`, "success");
+    } catch (err: any) {
+      mostrarToast("Error al cambiar el paquete: " + err.message, "error");
+    }
+  };
+
   // Muestra/oculta el historial de abonos de una invitación, cargándolo la primera vez.
   const toggleHistorialAbonos = async (row: InvitacionGuardadaRow) => {
     if (historialAbonosExpandidoId === row.id) {
@@ -7388,6 +7429,20 @@ export default function App() {
                               >
                                 {ESTATUS_PEDIDO.map(e => <option key={e.id} value={e.id}>{e.label}</option>)}
                               </select>
+                            </div>
+
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <label className="text-[10px] font-bold text-slate-600 shrink-0">Paquete:</label>
+                              <select
+                                value={row.datos_completos?.paquete || "basico"}
+                                onChange={(e) => handleCambiarPaqueteInvitacion(row, e.target.value as "basico" | "premium" | "deluxe")}
+                                className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 outline-none focus:border-indigo-500"
+                              >
+                                {(Object.keys(paquetes) as Array<"basico" | "premium" | "deluxe">).map(k => (
+                                  <option key={k} value={k}>{paquetes[k].nombre} ({paquetes[k].precio})</option>
+                                ))}
+                              </select>
+                              <span className="text-[9px] text-slate-400">El formulario de abajo se arma según este paquete -- no se pierde nada ya capturado.</span>
                             </div>
 
                             <div className="grid grid-cols-2 gap-2">
