@@ -2,6 +2,15 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Regla fija: mantener la guía de uso al día (pedido 2026-11-02)
+
+Cada vez que se agregue, mueva o quite un botón/feature visible en el
+editor (`src/App.tsx`), actualizar en el mismo cambio `docs/guia-de-uso.md`
+y, si aplica, `public/manual.html` (copia servida en `/manual.html` desde
+un botón del propio header — la fuente "maestra" históricamente vivía en
+`D:\InvitaMX\invitamx-manual-usuario.html`, mantener los tres en sync).
+No esperar a que el usuario lo pida cada vez.
+
 ## ⚠️ This is the canonical repo (as of 2026-07-27)
 
 **`administradorinvitamx`** is the official, actively-maintained "Generador de Invitaciones XV". All new work goes here.
@@ -222,13 +231,13 @@ Sections (e.g. `ceremonia`, `galeria`, `regalos`) are plain string ids listed pe
   - **Post-delivery edits:** first 2 rounds of adjustments are free within 7 days of delivery; after that window or after 2 rounds, each additional edit costs $99–150 MXN.
   - These three numbers are also baked into `ventas/plantillas-whatsapp.txt` (objection-handling templates) — if any of them change, update both places.
 
-## Lista de funcionalidades para copy de venta / landing page (2026-07-31)
+## Lista de funcionalidades para copy de venta / landing page (2026-07-31, revisada 2026-11-02)
 
 Referencia rápida de TODO lo que el producto hace hoy, para escribir/actualizar copy en `invitacionmx-landing` u otro material de venta sin tener que releer el código. Organizado por lo que le importa a quien compra (la familia de la quinceañera), no por arquitectura técnica.
 
 ### La invitación digital en sí (lo que ve el invitado)
 
-- **12 temas de diseño listos**, cada uno con tipografía, paleta y decoración propia: Dorado Clásico, Vuelo de Mariposas, Floral Acuarela, Místico Celestial (tema noche), Eucalipto Botánico, Glam Rose Oro, Rustique Boho Chic, Princesa Elegante (gala), Mármol & Oro Geométrico, Ciber Cyber Neon (glow), XV Coquette Listones Rose, XV Coquette Luxe. Buen ángulo: "hay un diseño para cada estilo de quinceañera, del clásico elegante al neón moderno".
+- **13 temas de diseño listos** (confirmado contra `src/data.ts` el 2026-11-02), cada uno con tipografía, paleta y decoración propia: Dorado Clásico, Vuelo de Mariposas, Floral Acuarela, Místico Celestial (tema noche), Eucalipto Botánico, Glam Rose Oro, Rustique Boho Chic, Princesa Elegante (gala), Mármol & Oro Geométrico, Ciber Cyber Neon (glow), XV Coquette Listones Rose, XV Coquette Luxe, Aurora Boreal. Buen ángulo: "hay un diseño para cada estilo de quinceañera, del clásico elegante al neón moderno".
 - **+ 1 tema "Personalizado" (A Medida)**: para quien quiere colores/tipografía/estilo de apertura 100% a su gusto en vez de un catálogo fijo — ángulo de venta premium/exclusividad.
 - **3 estilos de apertura animada**: tarjeta con botón, sobre con sello de cera que se abre, o cortina/telón que se descorre — se puede elegir independiente del tema.
 - **Efecto de "lluvia" decorativa animada** (pétalos, mariposas, listones, estrellas, etc. según el tema) cayendo sobre la pantalla — detalle visual que compite con invitaciones impresas de gama alta.
@@ -242,7 +251,7 @@ Referencia rápida de TODO lo que el producto hace hoy, para escribir/actualizar
 - **Galería de fotos con carrusel/lightbox** (toca una foto y se abre en grande).
 - **Hashtag de Instagram** del evento.
 - **Botón "Agregar a mi calendario"**.
-- **Pases de entrada personalizados por invitado/familia** — cada familia puede tener su propio link con su nombre y número de pases asignados (control de quién entra).
+- **Pases de entrada personalizados por invitado/familia** — cada familia puede tener su propio link con su nombre y número de pases asignados (control de quién entra). Incluido sin costo en Deluxe hasta 40 familias; complemento en Básico (+$150 MXN, hasta 10 familias) y Premium (+$180 MXN, hasta 20 familias); +$15-20 MXN por familia extra arriba de esos topes en cualquier paquete.
 - **Acomodo de mesas** — el admin puede asignarle una mesa (texto libre) a cada familia desde la lista de pases; si se asignó, el pase digital del invitado la muestra junto al número de pases.
 - **Control de Acceso QR** (complemento à la carte, +$150 MXN, requiere tener pases contratado): cada pase trae un código QR — quien esté en la puerta lo escanea con la cámara normal de su celular y confirma la entrada de esa familia al instante, sin listas en papel.
 - **Confirmación de asistencia (RSVP) integrada**: el invitado confirma directo desde la invitación (nombre, sí/no, número de personas) y le llega por WhatsApp a la familia — **ya no depende de que la familia lleve la cuenta a mano**: también hay un resumen en vivo ("van 12 personas confirmadas") visible para la familia en su propio link.
@@ -258,7 +267,7 @@ Referencia rápida de TODO lo que el producto hace hoy, para escribir/actualizar
 - **Vista de muestra antes de pagar**: se le puede mandar al cliente potencial una "muestra" de cómo se vería su invitación real (con sus datos), vigente por 5 días, antes de comprometerse a comprar.
 - **Anticipo del 50%** para apartar la fecha, resto contra entrega del link final.
 - **2 rondas de ajustes gratis** dentro de los primeros 7 días de la entrega.
-- **3 paquetes según necesidad y presupuesto**: Básico $499 MXN (4 fotos), Premium $799 MXN (8 fotos + secciones de familia/regalos/hashtag/calendario), Deluxe $1,199–1,499 MXN (14 fotos, pases y PDF incluidos sin costo extra).
+- **3 paquetes según necesidad y presupuesto**: Básico $499 MXN (4 fotos), Premium $799 MXN (8 fotos + secciones de familia/regalos/hashtag/calendario), Deluxe $1,199 MXN (14 fotos, pases y PDF incluidos sin costo extra) — precio confirmado flat contra `src/data.ts` y el manual de usuario, no un rango.
 - **Pases personalizados por familia** disponibles en cualquier paquete (incluidos en Deluxe, complemento pagado en Básico/Premium) — útil para bodas/XV con lista de invitados controlada.
 
 ### Lo que NO se debe prometer en copy (para no generar expectativas falsas)

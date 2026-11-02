@@ -70,11 +70,12 @@ Están agrupados por lo que hacen — cada grupo tiene su propia etiqueta:
 
 ## 7. Otras funciones que puedes usar según el caso
 
-- **Formulario del cliente (intake)**: en vez de que tú captures todo, puedes mandarle al cliente un link para que él mismo llene su fecha, ceremonia, recepción, itinerario, padrinos y suba sus fotos — se genera desde "Mis Invitaciones", en la fila de ese cliente.
+- **Formulario del cliente (intake)**: en vez de que tú captures todo, puedes mandarle al cliente un link para que él mismo llene su fecha, ceremonia, recepción, itinerario, padrinos y suba sus fotos — se genera desde "Mis Invitaciones", en la fila de ese cliente. El formulario solo le pregunta las secciones que de verdad vienen en lo que compró (según su paquete y lo que haya pagado a la carte) — nunca le muestra algo que no pagó. Cada una de esas secciones trae su propio interruptor "Incluida / No incluida": aunque haya pagado el paquete completo, el cliente puede decidir no usar alguna (ej. no quiere poner padrinos) sin que eso afecte el resto. En cuanto guarda, esa decisión queda guardada como el mismo apagado/encendido de sección que usas tú en la pestaña "Tema/Paquete" del editor — reabre la invitación ahí y vas a ver exactamente lo que el cliente quiso, independientemente del paquete que compró. Subir menos fotos de las que su paquete permite también es válido, no hace falta llenar todos los espacios.
 - **Pases personalizados por familia** (pestaña "Lista Pases"): cada familia puede tener su propio link con su nombre y número de pases — útil para controlar quién entra.
 - **Control de Acceso QR** (complemento, requiere tener pases activo): cada pase trae un QR que se escanea con la cámara normal del celular en la puerta, para confirmar la entrada sin listas en papel.
 - **Confirmación de asistencia (RSVP)**: el invitado puede confirmar directo desde su invitación — te llega un aviso por WhatsApp y queda un conteo en vivo.
 - **Bloquear acceso a una invitación ya entregada**: en "Mis Invitaciones", cada cliente tiene un interruptor para apagar/encender el acceso a su link (por ejemplo, si el evento ya pasó o hay un problema de pago) — es 100% manual, nunca se bloquea solo.
+- **Mensajes predeterminados por WhatsApp**: en "Mis Invitaciones", botón "💬 Mensajes" de cada cliente — textos ya listos (invitación lista, saldo pendiente, faltan datos/fotos, evento próximo, agradecimiento) que abren WhatsApp directo con el número guardado de ESE cliente y el texto ya puesto, sin tener que escribirlo cada vez. Tú sigues teniendo que darle "Enviar" — WhatsApp no deja mandarlo solo sin su API de Negocios de pago. El de saldo pendiente y el de evento próximo solo aparecen cuando aplican (si de verdad debe algo, o si ya tiene fecha capturada).
 
 ## 8. Preguntas frecuentes
 
@@ -89,3 +90,7 @@ En Supabase, una vez que uses "Guardar en Supabase" o "+ Nuevo Cliente". Mientra
 
 **¿Puedo editar una invitación que ya entregué?**
 Sí — ábrela desde "Mis Invitaciones", edítala, y genera/comparte un nuevo link. El link viejo no se actualiza solo (ver pregunta anterior).
+
+## 9. ¿Dónde está la lista de funcionalidades para vender/escribir copy?
+
+En `CLAUDE.md` (raíz del repo), sección **"Lista de funcionalidades para copy de venta / landing page"** — ahí está todo lo que el producto de verdad entrega al cliente (temas, secciones, pases, tiempos, paquetes y precios) listo para usarse en `invitacionmx-landing` o cualquier material de venta, más una lista de lo que **no** hay que prometer para no generar expectativas falsas. Se actualiza cada vez que cambia una sección/tema/precio real — no inventar datos aparte de esa lista.

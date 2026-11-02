@@ -585,6 +585,46 @@ const POLITICA_PASES: Record<"basico" | "premium" | "deluxe", string> = {
 // nada contra qué controlar el acceso.
 const PRECIO_CONTROL_ACCESO_QR = "A la carte +$150 MXN";
 
+// Banco de mensajes predeterminados por cliente (pedido 2026-11-02: "mensajes predeterminados
+// listos para WhatsApp... poderlos mandar desde acá"). Mismo patrón ya probado que
+// handleEnviarLinkPago/handleEnviarFormularioDatos: cada uno abre api.whatsapp.com/send con
+// el texto ya armado en el número guardado del cliente (row.telefono_whatsapp), el admin
+// sigue teniendo que darle "Enviar" él mismo -- WhatsApp no deja mandarlo automático sin la
+// API de Negocios de pago. `construir` regresa null cuando el mensaje no aplica para esa
+// invitación en este momento (ej. recordatorio de saldo si ya no debe nada) -- en ese caso el
+// botón no se muestra, en vez de dejar mandar un mensaje que no tiene sentido.
+const MENSAJES_PREDETERMINADOS: { id: string; nombre: string; construir: (row: InvitacionGuardadaRow, falta: number) => string | null }[] = [
+  {
+    id: "lista_revisar",
+    nombre: "✨ Invitación lista para revisar",
+    construir: (row) => `¡Hola! 🌸 Ya está lista la vista previa de la invitación de XV Años de *${row.nombre_quinceanera || "tu evento"}*. Échale un ojo cuando puedas y me dices si quieres algún ajuste.`
+  },
+  {
+    id: "saldo_pendiente",
+    nombre: "💳 Recordatorio de saldo pendiente",
+    construir: (row, falta) => falta > 0
+      ? `¡Hola! 🌸 Solo para recordarte que tu invitación de XV Años de *${row.nombre_quinceanera || "tu evento"}* tiene un saldo pendiente de $${falta.toLocaleString("es-MX")} MXN. Cuando gustes me confirmas para seguir avanzando. ¡Gracias!`
+      : null
+  },
+  {
+    id: "faltan_datos",
+    nombre: "📋 Recordatorio: faltan datos o fotos",
+    construir: (row) => `¡Hola! 🌸 Para terminar tu invitación de *${row.nombre_quinceanera || "tu evento"}* todavía me faltan algunos datos o fotos. Cuando tengas chance los subes o me los pasas por aquí. ¡Gracias!`
+  },
+  {
+    id: "evento_proximo",
+    nombre: "🎉 Recordatorio: se acerca el evento",
+    construir: (row) => row.fecha_fiesta
+      ? `¡Hola! 🌸 Ya se acerca la fiesta de XV Años de *${row.nombre_quinceanera || "tu evento"}* (${new Date(row.fecha_fiesta + "T00:00:00").toLocaleDateString("es-MX", { day: "numeric", month: "long" })}). Cualquier cambio de último momento en tu invitación, avísame con tiempo para actualizarla.`
+      : null
+  },
+  {
+    id: "agradecimiento",
+    nombre: "🌸 Agradecimiento post-evento",
+    construir: (row) => `¡Hola! 🌸 Esperamos que la fiesta de XV Años de *${row.nombre_quinceanera || "tu evento"}* haya sido un éxito. Fue un gusto ayudarte con tu invitación -- ¡gracias por tu confianza!`
+  }
+];
+
 const SeccionesToggleList = memo(({ secciones, seccionesExcluidas, onToggle, onMover, paquete }: {
   secciones: string[];
   seccionesExcluidas: string[];
@@ -608,8 +648,8 @@ const SeccionesToggleList = memo(({ secciones, seccionesExcluidas, onToggle, onM
             onClick={() => onToggle(secName)}
             className={`flex items-center justify-between p-2 rounded-lg border transition cursor-pointer select-none ${isEnabled ? 'bg-emerald-50/50 border-emerald-200 hover:bg-emerald-50' : 'bg-slate-100/50 border-slate-200 opacity-60 hover:bg-slate-100'}`}
           >
-            <span className="flex items-center gap-1.5 min-w-0">
-              <span className={`text-[11px] font-bold truncate ${isEnabled ? 'text-emerald-900' : 'text-slate-500'}`}>
+            <span className="flex items-center gap-1.5 flex-wrap min-w-0">
+              <span className={`text-[11px] font-bold ${isEnabled ? 'text-emerald-900' : 'text-slate-500'}`}>
                 {label}
               </span>
               {secName === "pases" && (
@@ -753,6 +793,37 @@ const notificarAdminTelegram = (mensaje: string) => {
   }).catch(() => {});
 };
 
+// Secciones de contenido que este formulario le pregunta al cliente Y que puede apagar a su
+// gusto (pedido 2026-11-02: "que lleve todo pero si no quiere padrinos que no active esa
+// casilla"). Deben coincidir exactamente con las claves que entiende isSectionActive() en
+// templates.ts -- cualquier sección nueva que se agregue aquí con un campo propio debe
+// agregarse también a esta lista para que el apagado real funcione. Secciones que YA se
+// ocultan solas cuando están vacías (galeria sin fotos, hashtag sin texto) no necesitan
+// aparecer aquí -- un toggle sería redundante. "pases" queda fuera a propósito: ese lo
+// administra el admin desde "Lista Pases", este formulario no toca la lista de invitados.
+const SECCIONES_INTAKE_TOGGLEABLES = ["mensaje", "ceremonia", "recepcion", "itinerario", "vestimenta", "familia", "regalos"];
+
+// Switch chico reutilizado por cada sección opcional del formulario público -- mismo patrón
+// visual que SeccionesToggleList del editor, para que un cliente que también haya visto la
+// demo del catálogo reconozca el control.
+function IntakeSeccionToggle({ activa, onToggle }: { activa: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="shrink-0 flex items-center gap-1.5 cursor-pointer select-none"
+      title={activa ? "Quitar esta sección de tu invitación" : "Incluir esta sección en tu invitación"}
+    >
+      <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded ${activa ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-500'}`}>
+        {activa ? "Incluida" : "No incluida"}
+      </span>
+      <div className={`w-8 h-4.5 rounded-full p-0.5 transition-colors duration-200 ease-in-out ${activa ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+        <div className={`w-3.5 h-3.5 rounded-full bg-white shadow-xs transform duration-200 ease-in-out ${activa ? 'translate-x-3.5' : 'translate-x-0'}`}></div>
+      </div>
+    </button>
+  );
+}
+
 // Formulario público (sin login) para que el cliente capture sus propios datos y fotos, en vez
 // de que el admin tenga que escribirlo todo a mano. Se accede por ?intake=1&iid=<id de la fila
 // en la tabla `invitaciones`> -- el middleware.ts del proyecto deja pasar este modo sin pedir la
@@ -766,6 +837,12 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
   const [subiendoFoto, setSubiendoFoto] = useState<string | null>(null);
   const [nombreQuinceanera, setNombreQuinceanera] = useState("");
   const [maxFotos, setMaxFotos] = useState(4);
+  // Secciones que SÍ vienen en el paquete/à la carte que compró (fijo, el cliente no puede
+  // activar algo que no pagó) y, dentro de esas, cuáles decidió apagar él mismo -- pedido
+  // 2026-11-02: que el formulario sea "personalizado de acuerdo al paquete que elija... que
+  // al final lleve todo lo que compró, pero si no quiere alguna sección que no la active".
+  const [seccionesDisponibles, setSeccionesDisponibles] = useState<string[]>([]);
+  const [seccionesExcluidasCliente, setSeccionesExcluidasCliente] = useState<string[]>([]);
   // Resumen de confirmaciones (RSVP) de SUS invitados -- de solo lectura, para que el cliente
   // pueda ver quién ya confirmó sin depender de llevar la cuenta a mano leyendo WhatsApps
   // sueltos. Se recarga cada vez que abre este mismo link.
@@ -832,7 +909,13 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
         setNombreQuinceanera(data.nombre_quinceanera || "");
         setPedidoInfo({ estado: data.estado || null, precioTotal: data.precio_total ?? null, precioPagado: data.precio_pagado ?? null });
         const dc: Partial<InvitacionDatos> = data.datos_completos || {};
-        setMaxFotos(paquetes[(dc.paquete as "basico" | "premium" | "deluxe") || "basico"]?.maxFotos || 4);
+        const paqueteDelCliente = (dc.paquete as "basico" | "premium" | "deluxe") || "basico";
+        setMaxFotos(paquetes[paqueteDelCliente]?.maxFotos || 4);
+        setSeccionesDisponibles(paquetes[paqueteDelCliente]?.secciones || []);
+        // Lo que ya venía excluido (ej. "pases" si no lo compró a la carte) no se toca aquí --
+        // handleEnviar lo preserva aparte. Esto solo rescata, de las secciones que SÍ puede
+        // tocar este formulario, cuáles había apagado él mismo en una visita anterior.
+        setSeccionesExcluidasCliente((dc.seccionesExcluidas || []).filter(s => SECCIONES_INTAKE_TOGGLEABLES.includes(s)));
         setInvitadosAsignados(dc.invitados || []);
         setForm(prev => ({
           ...prev,
@@ -880,6 +963,13 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
   }, [invitacionId]);
 
   const actualizar = (campo: keyof typeof form, valor: any) => setForm(prev => ({ ...prev, [campo]: valor }));
+
+  // Una sección solo se pregunta si de verdad viene en lo que compró (paquete + à la carte) --
+  // nunca se le muestra al cliente un campo de algo que no pagó.
+  const seccionDisponible = (sec: string) => seccionesDisponibles.includes(sec);
+  const seccionActivaParaCliente = (sec: string) => !seccionesExcluidasCliente.includes(sec);
+  const toggleSeccionCliente = (sec: string) =>
+    setSeccionesExcluidasCliente(prev => prev.includes(sec) ? prev.filter(s => s !== sec) : [...prev, sec]);
 
   const agregarItinerario = () => actualizar("itinerario", [...form.itinerario, { hora: "", evento: "" }]);
   const quitarItinerario = (i: number) => actualizar("itinerario", form.itinerario.filter((_, idx) => idx !== i));
@@ -977,6 +1067,18 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
         .maybeSingle();
       if (errLectura) throw errLectura;
       const base: Partial<InvitacionDatos> = actual?.datos_completos || {};
+      // El cliente solo manda (o apaga) las secciones que SÍ vienen en lo que compró -- lo
+      // que el admin ya tenía excluido por otra razón (ej. "pases" si no lo pagó a la carte)
+      // se conserva intacto. Así, en cuanto el admin reabra esta invitación en el editor, el
+      // toggle de cada sección (SeccionesToggleList, pestaña "Tema/Paquete") ya refleja
+      // exactamente lo que el cliente decidió -- paquete contratado aparte.
+      const seccionesNoGestionadasPorElCliente = (base.seccionesExcluidas || []).filter(
+        s => !SECCIONES_INTAKE_TOGGLEABLES.includes(s)
+      );
+      const seccionesExcluidasFinal = [
+        ...seccionesNoGestionadasPorElCliente,
+        ...seccionesExcluidasCliente.filter(s => seccionesDisponibles.includes(s))
+      ];
       const actualizado: Partial<InvitacionDatos> = {
         ...base,
         fecha: form.fecha,
@@ -992,7 +1094,8 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
         hashtag: form.hashtag,
         cancion: form.cancion,
         fotoPortada: form.fotoPortada,
-        fotos: form.fotos
+        fotos: form.fotos,
+        seccionesExcluidas: seccionesExcluidasFinal
       };
       const { error: errUpdate } = await window.supabaseClient
         .from("invitaciones")
@@ -1051,7 +1154,8 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
     <div className="min-h-screen bg-slate-50 font-sans py-6 px-4">
       <div className="max-w-xl mx-auto bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
         <h1 className="text-lg font-extrabold text-slate-900 mb-1">🌸 Datos para tu invitación de XV</h1>
-        <p className="text-xs text-slate-500 mb-6">Hola{nombreQuinceanera ? `, ${nombreQuinceanera}` : ""} — llena lo que tengas listo y súbelo. Puedes volver a este mismo link después si te falta algo.</p>
+        <p className="text-xs text-slate-500 mb-2">Hola{nombreQuinceanera ? `, ${nombreQuinceanera}` : ""} — llena lo que tengas listo y súbelo. Puedes volver a este mismo link después si te falta algo.</p>
+        <p className="text-[11px] text-indigo-700 bg-indigo-50/60 border border-indigo-100 rounded-lg px-2.5 py-2 mb-6">💡 Cada sección trae un interruptor <span className="font-bold">Incluida / No incluida</span>. Todas las que ves aquí vienen en lo que compraste — si alguna no te interesa (ej. no quieres poner padrinos), apágala y tu invitación final no la va a mostrar.</p>
 
         {error && (
           <div className="mb-4 p-2.5 bg-rose-50 border border-rose-300 rounded-lg text-[11px] text-rose-700 font-semibold">{error}</div>
@@ -1186,89 +1290,145 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
             <input type="datetime-local" value={form.fecha} onChange={(e) => actualizar("fecha", e.target.value)} className={inputClass} />
           </div>
 
-          <div>
-            <label className={labelClass}>Mensaje de bienvenida (opcional)</label>
-            <textarea value={form.mensajeBienvenida} onChange={(e) => actualizar("mensajeBienvenida", e.target.value)} rows={2} placeholder="Ej. Hay momentos que son inolvidables..." className={inputClass + " resize-none"} />
-          </div>
-
-          <div className="border-t border-slate-100 pt-4">
-            <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide mb-2">💒 Ceremonia</h3>
-            <div className="space-y-2">
-              <input type="text" value={form.ceremoniaLugar} onChange={(e) => actualizar("ceremoniaLugar", e.target.value)} placeholder="Lugar" className={inputClass} />
-              <input type="time" value={form.ceremoniaHora} onChange={(e) => actualizar("ceremoniaHora", e.target.value)} className={inputClass} />
-              <input type="text" value={form.ceremoniaDireccion} onChange={(e) => actualizar("ceremoniaDireccion", e.target.value)} placeholder="Dirección" className={inputClass} />
-              <input type="text" value={form.ceremoniaMaps} onChange={(e) => actualizar("ceremoniaMaps", e.target.value)} placeholder="Link de Google Maps (opcional)" className={inputClass} />
+          {seccionDisponible("mensaje") && (
+            <div className="border-t border-slate-100 pt-4">
+              <div className="flex items-center justify-between mb-2">
+                <label className={labelClass + " mb-0"}>✍️ Mensaje de bienvenida</label>
+                <IntakeSeccionToggle activa={seccionActivaParaCliente("mensaje")} onToggle={() => toggleSeccionCliente("mensaje")} />
+              </div>
+              {seccionActivaParaCliente("mensaje") && (
+                <textarea value={form.mensajeBienvenida} onChange={(e) => actualizar("mensajeBienvenida", e.target.value)} rows={2} placeholder="Ej. Hay momentos que son inolvidables..." className={inputClass + " resize-none"} />
+              )}
             </div>
-          </div>
+          )}
 
-          <div className="border-t border-slate-100 pt-4">
-            <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide mb-2">🎉 Recepción</h3>
-            <div className="space-y-2">
-              <input type="text" value={form.recepcionLugar} onChange={(e) => actualizar("recepcionLugar", e.target.value)} placeholder="Lugar" className={inputClass} />
-              <input type="time" value={form.recepcionHora} onChange={(e) => actualizar("recepcionHora", e.target.value)} className={inputClass} />
-              <input type="text" value={form.recepcionDireccion} onChange={(e) => actualizar("recepcionDireccion", e.target.value)} placeholder="Dirección" className={inputClass} />
-              <input type="text" value={form.recepcionMaps} onChange={(e) => actualizar("recepcionMaps", e.target.value)} placeholder="Link de Google Maps (opcional)" className={inputClass} />
-            </div>
-          </div>
-
-          <div className="border-t border-slate-100 pt-4">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide">🗓️ Itinerario</h3>
-              <button type="button" onClick={agregarItinerario} className="text-[10px] font-bold text-indigo-600">+ Agregar</button>
-            </div>
-            <div className="space-y-2">
-              {form.itinerario.map((item, i) => (
-                <div key={i} className="flex gap-2">
-                  <input type="time" value={item.hora} onChange={(e) => actualizarItinerario(i, "hora", e.target.value)} className={inputClass + " w-28"} />
-                  <input type="text" value={item.evento} onChange={(e) => actualizarItinerario(i, "evento", e.target.value)} placeholder="Ej. Cena de gala" className={inputClass} />
-                  <button type="button" onClick={() => quitarItinerario(i)} className="text-rose-500 px-2">✕</button>
+          {seccionDisponible("ceremonia") && (
+            <div className="border-t border-slate-100 pt-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide">💒 Ceremonia</h3>
+                <IntakeSeccionToggle activa={seccionActivaParaCliente("ceremonia")} onToggle={() => toggleSeccionCliente("ceremonia")} />
+              </div>
+              {seccionActivaParaCliente("ceremonia") && (
+                <div className="space-y-2">
+                  <input type="text" value={form.ceremoniaLugar} onChange={(e) => actualizar("ceremoniaLugar", e.target.value)} placeholder="Lugar" className={inputClass} />
+                  <input type="time" value={form.ceremoniaHora} onChange={(e) => actualizar("ceremoniaHora", e.target.value)} className={inputClass} />
+                  <input type="text" value={form.ceremoniaDireccion} onChange={(e) => actualizar("ceremoniaDireccion", e.target.value)} placeholder="Dirección" className={inputClass} />
+                  <input type="text" value={form.ceremoniaMaps} onChange={(e) => actualizar("ceremoniaMaps", e.target.value)} placeholder="Link de Google Maps (opcional)" className={inputClass} />
                 </div>
-              ))}
-              {form.itinerario.length === 0 && <p className="text-[11px] text-slate-400">Sin actividades todavía.</p>}
+              )}
             </div>
-          </div>
+          )}
 
-          <div className="border-t border-slate-100 pt-4">
-            <label className={labelClass}>Código de vestimenta</label>
-            <input type="text" value={form.dressCode} onChange={(e) => actualizar("dressCode", e.target.value)} placeholder="Ej. Formal / Etiqueta" className={inputClass} />
-          </div>
-
-          <div className="border-t border-slate-100 pt-4">
-            <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide mb-2">👪 Padres</h3>
-            <div className="space-y-2">
-              <input type="text" value={form.padres[0] || ""} onChange={(e) => actualizar("padres", [e.target.value, form.padres[1] || ""])} placeholder="Nombre del papá" className={inputClass} />
-              <input type="text" value={form.padres[1] || ""} onChange={(e) => actualizar("padres", [form.padres[0] || "", e.target.value])} placeholder="Nombre de la mamá" className={inputClass} />
-            </div>
-          </div>
-
-          <div className="border-t border-slate-100 pt-4">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide">🤵👰 Padrinos</h3>
-              <button type="button" onClick={agregarPadrino} className="text-[10px] font-bold text-indigo-600">+ Agregar</button>
-            </div>
-            <div className="space-y-2">
-              {form.padrinos.map((p, i) => (
-                <div key={i} className="flex gap-2">
-                  <input type="text" value={p} onChange={(e) => actualizarPadrino(i, e.target.value)} placeholder="Nombre del padrino/madrina" className={inputClass} />
-                  <button type="button" onClick={() => quitarPadrino(i)} className="text-rose-500 px-2">✕</button>
+          {seccionDisponible("recepcion") && (
+            <div className="border-t border-slate-100 pt-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide">🎉 Recepción</h3>
+                <IntakeSeccionToggle activa={seccionActivaParaCliente("recepcion")} onToggle={() => toggleSeccionCliente("recepcion")} />
+              </div>
+              {seccionActivaParaCliente("recepcion") && (
+                <div className="space-y-2">
+                  <input type="text" value={form.recepcionLugar} onChange={(e) => actualizar("recepcionLugar", e.target.value)} placeholder="Lugar" className={inputClass} />
+                  <input type="time" value={form.recepcionHora} onChange={(e) => actualizar("recepcionHora", e.target.value)} className={inputClass} />
+                  <input type="text" value={form.recepcionDireccion} onChange={(e) => actualizar("recepcionDireccion", e.target.value)} placeholder="Dirección" className={inputClass} />
+                  <input type="text" value={form.recepcionMaps} onChange={(e) => actualizar("recepcionMaps", e.target.value)} placeholder="Link de Google Maps (opcional)" className={inputClass} />
                 </div>
-              ))}
-              {form.padrinos.length === 0 && <p className="text-[11px] text-slate-400">Sin padrinos todavía.</p>}
+              )}
             </div>
-          </div>
+          )}
 
-          <div className="border-t border-slate-100 pt-4">
-            <label className={labelClass}>Mesa de regalos</label>
-            <textarea value={form.mesaRegalos} onChange={(e) => actualizar("mesaRegalos", e.target.value)} rows={2} placeholder="Ej. Liverpool No. Evento 12345" className={inputClass + " resize-none mb-3"} />
-            <label className={labelClass}>Datos bancarios (opcional)</label>
-            <textarea value={form.datosBancarios} onChange={(e) => actualizar("datosBancarios", e.target.value)} rows={2} placeholder="Banco, CLABE, beneficiario..." className={inputClass + " resize-none"} />
-          </div>
+          {seccionDisponible("itinerario") && (
+            <div className="border-t border-slate-100 pt-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide">🗓️ Itinerario</h3>
+                <div className="flex items-center gap-2">
+                  {seccionActivaParaCliente("itinerario") && (
+                    <button type="button" onClick={agregarItinerario} className="text-[10px] font-bold text-indigo-600">+ Agregar</button>
+                  )}
+                  <IntakeSeccionToggle activa={seccionActivaParaCliente("itinerario")} onToggle={() => toggleSeccionCliente("itinerario")} />
+                </div>
+              </div>
+              {seccionActivaParaCliente("itinerario") && (
+                <div className="space-y-2">
+                  {form.itinerario.map((item, i) => (
+                    <div key={i} className="flex gap-2">
+                      <input type="time" value={item.hora} onChange={(e) => actualizarItinerario(i, "hora", e.target.value)} className={inputClass + " w-28"} />
+                      <input type="text" value={item.evento} onChange={(e) => actualizarItinerario(i, "evento", e.target.value)} placeholder="Ej. Cena de gala" className={inputClass} />
+                      <button type="button" onClick={() => quitarItinerario(i)} className="text-rose-500 px-2">✕</button>
+                    </div>
+                  ))}
+                  {form.itinerario.length === 0 && <p className="text-[11px] text-slate-400">Sin actividades todavía.</p>}
+                </div>
+              )}
+            </div>
+          )}
+
+          {seccionDisponible("vestimenta") && (
+            <div className="border-t border-slate-100 pt-4">
+              <div className="flex items-center justify-between mb-2">
+                <label className={labelClass + " mb-0"}>👗 Código de vestimenta</label>
+                <IntakeSeccionToggle activa={seccionActivaParaCliente("vestimenta")} onToggle={() => toggleSeccionCliente("vestimenta")} />
+              </div>
+              {seccionActivaParaCliente("vestimenta") && (
+                <input type="text" value={form.dressCode} onChange={(e) => actualizar("dressCode", e.target.value)} placeholder="Ej. Formal / Etiqueta" className={inputClass} />
+              )}
+            </div>
+          )}
+
+          {seccionDisponible("familia") && (
+            <div className="border-t border-slate-100 pt-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide">👨‍👩‍👧 Padres y Padrinos</h3>
+                <IntakeSeccionToggle activa={seccionActivaParaCliente("familia")} onToggle={() => toggleSeccionCliente("familia")} />
+              </div>
+              {seccionActivaParaCliente("familia") && (
+                <>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">👪 Padres</p>
+                  <div className="space-y-2 mb-4">
+                    <input type="text" value={form.padres[0] || ""} onChange={(e) => actualizar("padres", [e.target.value, form.padres[1] || ""])} placeholder="Nombre del papá" className={inputClass} />
+                    <input type="text" value={form.padres[1] || ""} onChange={(e) => actualizar("padres", [form.padres[0] || "", e.target.value])} placeholder="Nombre de la mamá" className={inputClass} />
+                  </div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">🤵👰 Padrinos</p>
+                    <button type="button" onClick={agregarPadrino} className="text-[10px] font-bold text-indigo-600">+ Agregar</button>
+                  </div>
+                  <div className="space-y-2">
+                    {form.padrinos.map((p, i) => (
+                      <div key={i} className="flex gap-2">
+                        <input type="text" value={p} onChange={(e) => actualizarPadrino(i, e.target.value)} placeholder="Nombre del padrino/madrina" className={inputClass} />
+                        <button type="button" onClick={() => quitarPadrino(i)} className="text-rose-500 px-2">✕</button>
+                      </div>
+                    ))}
+                    {form.padrinos.length === 0 && <p className="text-[11px] text-slate-400">Sin padrinos todavía.</p>}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {seccionDisponible("regalos") && (
+            <div className="border-t border-slate-100 pt-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide">🎁 Mesa de Regalos</h3>
+                <IntakeSeccionToggle activa={seccionActivaParaCliente("regalos")} onToggle={() => toggleSeccionCliente("regalos")} />
+              </div>
+              {seccionActivaParaCliente("regalos") && (
+                <>
+                  <label className={labelClass}>Mesa de regalos</label>
+                  <textarea value={form.mesaRegalos} onChange={(e) => actualizar("mesaRegalos", e.target.value)} rows={2} placeholder="Ej. Liverpool No. Evento 12345" className={inputClass + " resize-none mb-3"} />
+                  <label className={labelClass}>Datos bancarios (opcional)</label>
+                  <textarea value={form.datosBancarios} onChange={(e) => actualizar("datosBancarios", e.target.value)} rows={2} placeholder="Banco, CLABE, beneficiario..." className={inputClass + " resize-none"} />
+                </>
+              )}
+            </div>
+          )}
 
           <div className="border-t border-slate-100 pt-4 grid grid-cols-2 gap-3">
-            <div>
-              <label className={labelClass}>Hashtag (opcional)</label>
-              <input type="text" value={form.hashtag} onChange={(e) => actualizar("hashtag", e.target.value)} placeholder="#MisXV" className={inputClass} />
-            </div>
+            {seccionDisponible("hashtag") && (
+              <div>
+                <label className={labelClass}>Hashtag (opcional)</label>
+                <input type="text" value={form.hashtag} onChange={(e) => actualizar("hashtag", e.target.value)} placeholder="#MisXV" className={inputClass} />
+              </div>
+            )}
             <div>
               <label className={labelClass}>Link de tu canción (opcional)</label>
               <input type="text" value={form.cancion} onChange={(e) => actualizar("cancion", e.target.value)} placeholder="https://..." className={inputClass} />
@@ -2213,6 +2373,7 @@ export default function App() {
   const [confirmacionesPorInvitacion, setConfirmacionesPorInvitacion] = useState<Record<string, ConfirmacionRSVP[]>>({});
   const [invitacionExpandidaId, setInvitacionExpandidaId] = useState<string | null>(null);
   const [invitacionPagosExpandidaId, setInvitacionPagosExpandidaId] = useState<string | null>(null);
+  const [invitacionMensajesExpandidaId, setInvitacionMensajesExpandidaId] = useState<string | null>(null);
   // Historial de abonos por invitación (tabla `abonos`), cargado bajo demanda al ver el
   // historial en el panel de Pagos y estatus.
   const [abonosPorInvitacion, setAbonosPorInvitacion] = useState<Record<string, Abono[]>>({});
@@ -2973,6 +3134,20 @@ export default function App() {
     const urlFormulario = `${window.location.origin}/?intake=1&iid=${row.id}`;
     const msg = `¡Hola! 🌸 Para seguir con tu invitación de XV Años de *${row.nombre_quinceanera || "tu evento"}*, por favor llena tus datos y sube tus fotos en este link:\n${urlFormulario}`;
     window.open(`https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(msg)}`, "_blank");
+  };
+
+  // Manda uno de los textos predeterminados (ver MENSAJES_PREDETERMINADOS) al WhatsApp de
+  // ESTE cliente -- mismo patrón que handleEnviarLinkPago/handleEnviarFormularioDatos (abre
+  // api.whatsapp.com/send con el texto ya listo en el cuadro, nunca lo manda solo; el admin
+  // sigue teniendo que darle "Enviar" él mismo). Pedido 2026-11-02: tener textos listos para
+  // no escribirlos de cero cada vez, sin necesidad de abrir esta invitación en el editor.
+  const handleEnviarMensajePredefinido = (row: InvitacionGuardadaRow, texto: string) => {
+    if (!row.telefono_whatsapp?.trim()) {
+      mostrarToast("Esta invitación no tiene un número de WhatsApp guardado", "error");
+      return;
+    }
+    const numeroLimpio = row.telefono_whatsapp.replace(/[^0-9]/g, "");
+    window.open(`https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(texto)}`, "_blank");
   };
 
   // Complemento à la carte "Control de Acceso QR": manda el link GENERAL de check-in
@@ -4371,6 +4546,24 @@ export default function App() {
 
         {/* PANEL IZQUIERDO: SECCIONES DE CONFIGURACIÓN Y FORMULARIO */}
         <aside className="w-full lg:w-[48%] xl:w-[45%] border-r border-slate-200 flex flex-col bg-white shrink-0">
+
+        {/* Guía rápida de 3 pasos, pedida 2026-11-02 ("que encuentre todos los botones para
+            generar la invitación") para alguien nuevo capacitándose con el editor: antes de
+            los 11 botones agrupados (ver nota de abajo), señala en orden cuáles 3 SÍ hay que
+            tocar siempre para terminar y entregar una invitación -- el resto son casos
+            especiales (exportar PDF, duplicar, etc.), no parte del camino normal. Coincide
+            1:1 con la sección 6 de docs/guia-de-uso.md ("Entregar la invitación al cliente"):
+            mantener ambos sincronizados si el flujo cambia. */}
+        <div className="px-3 pt-2.5 pb-1 border-b border-slate-200 bg-indigo-50/40 shrink-0">
+          <p className="text-[9px] font-bold uppercase tracking-wider text-indigo-700 mb-1.5">🧭 Para terminar y entregar una invitación, en este orden:</p>
+          <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-semibold text-indigo-900">
+            <span className="flex items-center gap-1 bg-white border border-indigo-200 rounded-full px-2 py-0.5"><span className="w-3.5 h-3.5 rounded-full bg-indigo-600 text-white text-[9px] font-extrabold flex items-center justify-center shrink-0">1</span> Generar invitación</span>
+            <span className="text-indigo-300">→</span>
+            <span className="flex items-center gap-1 bg-white border border-indigo-200 rounded-full px-2 py-0.5"><span className="w-3.5 h-3.5 rounded-full bg-indigo-600 text-white text-[9px] font-extrabold flex items-center justify-center shrink-0">2</span> 💾 Guardar en Supabase</span>
+            <span className="text-indigo-300">→</span>
+            <span className="flex items-center gap-1 bg-white border border-indigo-200 rounded-full px-2 py-0.5"><span className="w-3.5 h-3.5 rounded-full bg-indigo-600 text-white text-[9px] font-extrabold flex items-center justify-center shrink-0">3</span> Compartir por WhatsApp (pestaña "Tema/Paquete", al final)</span>
+          </div>
+        </div>
 
         {/* ACCIONES DEL FORMULARIO -- agrupadas por propósito (reordenado 2026-10-20, antes
             eran 11 botones sueltos en una sola fila sin ningún orden lógico, con "Limpiar"
@@ -7045,6 +7238,12 @@ export default function App() {
                           💳 {invitacionPagosExpandidaId === row.id ? "Ocultar pagos" : "Pagos y estatus"}
                         </button>
                         <button
+                          onClick={() => setInvitacionMensajesExpandidaId(prev => prev === row.id ? null : row.id)}
+                          className="text-[10px] font-bold text-[#128C7E] hover:text-[#0e6b5f] flex items-center gap-1"
+                        >
+                          💬 {invitacionMensajesExpandidaId === row.id ? "Ocultar mensajes" : "Mensajes"}
+                        </button>
+                        <button
                           onClick={() => toggleConfirmacionesInvitacion(row)}
                           className="ml-auto text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
                         >
@@ -7315,6 +7514,30 @@ export default function App() {
                                 className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 outline-none focus:border-indigo-500 resize-none"
                               />
                             </div>
+                          </div>
+                        );
+                      })()}
+
+                      {invitacionMensajesExpandidaId === row.id && (() => {
+                        const falta = (row.precio_total || 0) - (row.precio_pagado || 0);
+                        const disponibles = MENSAJES_PREDETERMINADOS
+                          .map(m => ({ ...m, texto: m.construir(row, falta) }))
+                          .filter(m => m.texto !== null) as { id: string; nombre: string; texto: string }[];
+                        return (
+                          <div className="mt-3 pt-3 border-t border-slate-200/60 space-y-2">
+                            <p className="text-[10px] text-slate-400">Abre WhatsApp con el número guardado de este cliente y el texto ya listo -- tú le das "Enviar".</p>
+                            {disponibles.map(m => (
+                              <div key={m.id} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+                                <p className="text-[11px] font-bold text-slate-700 mb-1">{m.nombre}</p>
+                                <p className="text-[11px] text-slate-500 leading-relaxed mb-2 line-clamp-3">{m.texto.replace(/\*/g, "")}</p>
+                                <button
+                                  onClick={() => handleEnviarMensajePredefinido(row, m.texto)}
+                                  className="px-2.5 py-1 bg-[#25D366] hover:bg-[#20ba56] text-white rounded-lg text-[10px] font-bold transition"
+                                >
+                                  Abrir en WhatsApp
+                                </button>
+                              </div>
+                            ))}
                           </div>
                         );
                       })()}
