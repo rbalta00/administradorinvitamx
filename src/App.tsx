@@ -4902,6 +4902,22 @@ export default function App() {
 
           <button
             onClick={() => {
+              // Mismo patrón "sin número fijo" que handleEnviarWhatsApp cuando se manda el
+              // demo del catálogo sin whatsappDestino (App.tsx:4321) -- deja que el propio
+              // WhatsApp (Web o celular) pida con qué contacto o grupo compartirlo, en vez de
+              // amarrar el botón a un número de colaborador en particular.
+              const url = window.location.origin;
+              const msg = `Hola! Aquí tienes el link del Administrador de InvitaMX (el editor de invitaciones):\n\n${url}\n\nPara entrar necesitas el usuario y contraseña que te compartí por separado. También está el manual de uso ahí mismo, en el botón "📖 Manual de uso".`;
+              window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, "_blank");
+            }}
+            title="Abre WhatsApp con el link de este administrador ya listo para mandárselo a un colaborador o equipo -- tú eliges el contacto o grupo"
+            className="px-3.5 py-2 bg-white hover:bg-emerald-50 text-emerald-700 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+          >
+            <span>💬 Enviar link a colaborador</span>
+          </button>
+
+          <button
+            onClick={() => {
               // No hay sesión real de servidor que cerrar (el login es HTTP Basic Auth, sin
               // cookies) -- el navegador simplemente recuerda el usuario/contraseña que ya
               // funcionaron para este dominio. El truco estándar para "olvidarlos" es navegar

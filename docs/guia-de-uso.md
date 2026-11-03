@@ -57,6 +57,7 @@ Están agrupados por lo que hacen — cada grupo tiene su propia etiqueta:
 - **Cuenta / dispositivo**
   - *Instalar app*: instala el editor como app en tu celular/computadora (acceso directo, sin abrir el navegador cada vez).
   - *📖 Manual de uso*: abre este manual completo en una pestaña nueva — también sirve para capacitar a alguien que apenas está aprendiendo a usar el editor.
+  - *💬 Enviar link a colaborador*: abre WhatsApp con el link de este administrador ya escrito, listo para mandárselo a quien te esté ayudando (otro vendedor, un asistente) — tú eliges a quién o a qué grupo se lo mandas. No incluye la contraseña (eso se lo compartes tú por separado).
   - *Cerrar sesión*: cierra tu sesión en este navegador (te va a volver a pedir usuario y contraseña).
 - **Limpiar** (en rojo, separado a propósito): borra el formulario actual para empezar de cero. Úsalo con cuidado — no es lo mismo que eliminar un cliente guardado.
 
