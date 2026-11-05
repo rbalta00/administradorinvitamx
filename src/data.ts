@@ -8,6 +8,17 @@ export const paquetes: Record<"basico" | "premium" | "deluxe", PaqueteConfig> = 
     // "pases" está disponible aquí como opción a la carta (ver datosDefault.basico, donde
     // queda apagada por default vía seccionesExcluidas) — no es exclusiva de Deluxe, el
     // cliente puede pagarla aparte y el admin la enciende manualmente para esa invitación.
+    //
+    // "familia"/"regalos"/"hashtag"/"calendario" (agregado 2026-11-04): son secciones
+    // exclusivas de Premium/Deluxe por política de negocio (ver "Business/pricing policy" en
+    // CLAUDE.md) -- por eso van también apagadas por default aquí (seccionesExcluidas en
+    // datosDefault.basico). Antes NO estaban en este arreglo en absoluto, lo que sonaba
+    // correcto, pero el editor (App.tsx) nunca filtró las pestañas "Familia"/"Regalos" ni el
+    // campo "Hashtag" por paquete -- el admin podía llenar esos datos para un cliente Básico
+    // sin ningún aviso de que nunca se iban a mostrar en el link final (se filtran en
+    // templates.ts vía isSectionActive). Agregarlas aquí, apagadas, las hace aparecer en
+    // "Personalizar Secciones Habilitadas" con la misma mecánica que "pases": el admin las
+    // prende a mano solo si de verdad negoció esa excepción con el cliente, nunca por default.
     secciones: [
       "apertura",
       "portada",
@@ -17,7 +28,11 @@ export const paquetes: Record<"basico" | "premium" | "deluxe", PaqueteConfig> = 
       "recepcion",
       "itinerario",
       "vestimenta",
+      "familia",
+      "regalos",
       "galeria",
+      "hashtag",
+      "calendario",
       "pases",
       "confirmacion",
       "cierre"
@@ -1179,7 +1194,10 @@ export const datosDefault: Record<"basico" | "premium" | "deluxe", InvitacionDat
     ],
     // "Pases de Entrada" es a la carta en este paquete: apagada por default, el admin la
     // enciende manualmente (quitándola de esta lista) si el cliente pagó por ella.
-    seccionesExcluidas: ["pases"]
+    // "familia"/"regalos"/"hashtag"/"calendario" son exclusivas de Premium/Deluxe por política
+    // (ver nota en paquetes.basico más arriba): apagadas por default también, solo se prenden
+    // a mano si se negoció una excepción puntual con el cliente.
+    seccionesExcluidas: ["pases", "familia", "regalos", "hashtag", "calendario"]
   },
   premium: {
     paquete: "premium",

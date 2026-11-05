@@ -578,6 +578,12 @@ const POLITICA_PASES: Record<"basico" | "premium" | "deluxe", string> = {
   deluxe: "Incluido sin costo"
 };
 
+// Secciones exclusivas de Premium/Deluxe por política de negocio (ver "Business/pricing
+// policy" en CLAUDE.md) -- en Básico existen en paquetes.basico.secciones (data.ts) y van
+// apagadas por default (datosDefault.basico.seccionesExcluidas) solo para que el admin las
+// pueda prender a mano si negoció una excepción puntual con el cliente, nunca por default.
+const SECCIONES_EXCLUSIVAS_PREMIUM = ["familia", "regalos", "hashtag", "calendario"];
+
 // Precio del complemento "Control de Acceso QR" (2026-08-02): plano, +$150 MXN sin importar
 // el paquete -- a diferencia de pases, una vez construido el QR se genera solo junto con el
 // resto del link (no hay trabajo manual extra por familia), así que no se escalona por
@@ -655,6 +661,11 @@ const SeccionesToggleList = memo(({ secciones, seccionesExcluidas, onToggle, onM
               {secName === "pases" && (
                 <span className={`shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${paquete === "deluxe" ? "bg-emerald-600 text-white" : "bg-amber-100 text-amber-700"}`}>
                   {POLITICA_PASES[paquete]}
+                </span>
+              )}
+              {paquete === "basico" && SECCIONES_EXCLUSIVAS_PREMIUM.includes(secName) && (
+                <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap bg-amber-100 text-amber-700">
+                  Exclusiva Premium/Deluxe
                 </span>
               )}
             </span>
@@ -2575,10 +2586,19 @@ export default function App() {
       onAceptar: () => {
         if (tieneContenidoReal) {
           const maxFotosNuevoPaquete = paquetes[paqKey].maxFotos;
+          // Al bajar a Básico, familia/regalos/hashtag/calendario deben quedar apagadas aunque
+          // vinieran prendidas de un Premium/Deluxe anterior -- son exclusivas de esos paquetes
+          // (ver nota en paquetes.basico, data.ts) y no deben "sobrevivir" gratis solo porque
+          // ya estaban activadas antes de la baja de paquete.
+          const seccionesExclusivasPremium = ["familia", "regalos", "hashtag", "calendario"];
+          const seccionesExcluidasAjustadas = paqKey === "basico"
+            ? Array.from(new Set([...(datos.seccionesExcluidas || []), ...seccionesExclusivasPremium]))
+            : datos.seccionesExcluidas;
           setDatos(prev => ({
             ...prev,
             paquete: paqKey,
-            fotos: (prev.fotos || []).slice(0, maxFotosNuevoPaquete)
+            fotos: (prev.fotos || []).slice(0, maxFotosNuevoPaquete),
+            seccionesExcluidas: seccionesExcluidasAjustadas
           }));
         } else {
           const datosBase = datosDefault[paqKey];
@@ -3000,7 +3020,13 @@ export default function App() {
       const maxFotosNuevo = paquetes[nuevoPaquete].maxFotos;
       const sinPases = (base.seccionesExcluidas || []).filter(s => s !== "pases");
       const pasesQuedaExcluido = nuevoPaquete !== "deluxe" && !row.pases_pagado;
-      const seccionesExcluidasNuevas = pasesQuedaExcluido ? [...sinPases, "pases"] : sinPases;
+      // Igual que en handleCambiarPaquete (editor): familia/regalos/hashtag/calendario son
+      // exclusivas de Premium/Deluxe -- si se baja a Básico deben apagarse aunque ya vinieran
+      // prendidas, no deben sobrevivir gratis a la baja de paquete.
+      const seccionesExclusivasPremium = ["familia", "regalos", "hashtag", "calendario"];
+      const seccionesExcluidasNuevas = (pasesQuedaExcluido ? [...sinPases, "pases"] : sinPases)
+        .concat(nuevoPaquete === "basico" ? seccionesExclusivasPremium : [])
+        .filter((s, i, arr) => arr.indexOf(s) === i);
       // Mismo criterio que el toggle manual de "pases" en el editor (ver ~línea 2042): si
       // "pases" se excluye, el Control de Acceso QR no puede seguir activo -- depende de que
       // haya pases para escanear. Sin esto, un Deluxe con QR activado que se baja de paquete
