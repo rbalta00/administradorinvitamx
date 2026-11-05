@@ -36,6 +36,18 @@ Estas son las secciones donde capturas los datos de la invitación. Son 9 — si
 
 **Máximo de fotos por paquete:** Básico 4 — Premium 8 — Deluxe 14.
 
+### 3.1 Qué secciones vienen en cada paquete
+
+Esto está prendido/apagado por default según el paquete que compró el cliente — no hay que preguntar caso por caso, el editor ya lo filtra solo (pestaña "Tema/Paquete" → "Personalizar Secciones Habilitadas"):
+
+| Sección | Básico | Premium | Deluxe |
+|---|---|---|---|
+| Apertura, Portada, Cuenta regresiva, Mensaje, Ceremonia, Recepción, Itinerario, Vestimenta, Galería, Confirmación/RSVP, Cierre | ✅ Incluidas | ✅ Incluidas | ✅ Incluidas |
+| Familia/Padrinos, Mesa de Regalos, Hashtag, Calendario | 🔒 Apagadas por default (badge "Exclusiva Premium/Deluxe") | ✅ Incluidas | ✅ Incluidas |
+| Pases de entrada | 💲 A la carta, +$150 MXN (apagada por default) | 💲 A la carta, +$180 MXN (apagada por default) | ✅ Incluida gratis (hasta 40 familias) |
+
+**Regla:** si un cliente Básico pide Familia/Regalos/Hashtag/Calendario, o cualquier cliente pide Pases, se prende manualmente en "Personalizar Secciones Habilitadas" — solo porque el cliente lo pidió/pagó puntual, nunca por default. Para las 4 primeras (Familia/Regalos/Hashtag/Calendario) en Básico todavía no hay un precio fijo publicado para esa excepción — confírmalo con quien administra el proyecto antes de prometérselo al cliente; para Pases sí hay precio fijo (tabla de arriba).
+
 ## 4. Mientras editas: el Monitor de Invitación
 
 El panel derecho ("Monitor de Invitación") muestra una vista previa en vivo. Puedes cambiar entre **Móvil / Tablet / Escritorio** (así se ve cada invitado según su pantalla) y ajustar el zoom. Usa "Nueva Pestaña" para abrir la vista previa completa en una pestaña aparte.
@@ -93,6 +105,9 @@ En Supabase, una vez que uses "Guardar en Supabase" o "+ Nuevo Cliente". Mientra
 
 **¿Puedo editar una invitación que ya entregué?**
 Sí — ábrela desde "Mis Invitaciones", edítala, y genera/comparte un nuevo link. El link viejo no se actualiza solo (ver pregunta anterior).
+
+**¿Por qué no veo Familia/Regalos/Hashtag/Calendario en un cliente Básico?**
+Son exclusivas de Premium/Deluxe por default (ver tabla en 3.1) — no es un error. Si el cliente las pidió aparte, prénderlas a mano en "Personalizar Secciones Habilitadas"; no asumas que vienen incluidas sin que el cliente lo haya pedido/pagado.
 
 ## 9. ¿Dónde está la lista de funcionalidades para vender/escribir copy?
 
