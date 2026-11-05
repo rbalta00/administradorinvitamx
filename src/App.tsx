@@ -584,6 +584,31 @@ const POLITICA_PASES: Record<"basico" | "premium" | "deluxe", string> = {
 // pueda prender a mano si negoció una excepción puntual con el cliente, nunca por default.
 const SECCIONES_EXCLUSIVAS_PREMIUM = ["familia", "regalos", "hashtag", "calendario"];
 
+// Secciones cuyo estado prendido/apagado depende del paquete elegido (las 4 exclusivas de
+// Premium/Deluxe de arriba, más "pases" vía POLITICA_PASES) -- agrupadas para poder recalcular
+// su estado completo cada vez que se cambia de paquete (ver recalcularSeccionesPorPaquete).
+const SECCIONES_CONDICIONADAS_POR_PAQUETE = [...SECCIONES_EXCLUSIVAS_PREMIUM, "pases"];
+
+// De las secciones condicionadas arriba, cuáles NO vienen incluidas gratis en cada paquete --
+// esas deben quedar apagadas por default hasta que el admin las prenda a mano porque el cliente
+// la pagó aparte para ese nivel. Deluxe no tiene ninguna: todo viene incluido sin costo.
+function seccionesACartaPorPaquete(paqKey: "basico" | "premium" | "deluxe"): string[] {
+  if (paqKey === "deluxe") return [];
+  if (paqKey === "premium") return ["pases"];
+  return SECCIONES_CONDICIONADAS_POR_PAQUETE;
+}
+
+// Recalcula seccionesExcluidas al cambiar de paquete: las secciones condicionadas (arriba) se
+// resetean siempre a lo que corresponde al paquete nuevo -- incluidas gratis quedan prendidas,
+// a la carte quedan apagadas -- sin importar cómo estaban antes del cambio. Si el admin las
+// vuelve a prender después de elegir el paquete es porque el cliente las pagó aparte para ese
+// nivel. El resto de seccionesExcluidas (secciones que no dependen del paquete, ej. que el
+// admin apagó "Galería" a mano) se conserva intacto, nunca se toca aquí.
+function recalcularSeccionesPorPaquete(excluidasActuales: string[] | undefined, paqKey: "basico" | "premium" | "deluxe"): string[] {
+  const sinCondicionadas = (excluidasActuales || []).filter(s => !SECCIONES_CONDICIONADAS_POR_PAQUETE.includes(s));
+  return Array.from(new Set([...sinCondicionadas, ...seccionesACartaPorPaquete(paqKey)]));
+}
+
 // Precio del complemento "Control de Acceso QR" (2026-08-02): plano, +$150 MXN sin importar
 // el paquete -- a diferencia de pases, una vez construido el QR se genera solo junto con el
 // resto del link (no hay trabajo manual extra por familia), así que no se escalona por
@@ -2586,19 +2611,19 @@ export default function App() {
       onAceptar: () => {
         if (tieneContenidoReal) {
           const maxFotosNuevoPaquete = paquetes[paqKey].maxFotos;
-          // Al bajar a Básico, familia/regalos/hashtag/calendario deben quedar apagadas aunque
-          // vinieran prendidas de un Premium/Deluxe anterior -- son exclusivas de esos paquetes
-          // (ver nota en paquetes.basico, data.ts) y no deben "sobrevivir" gratis solo porque
-          // ya estaban activadas antes de la baja de paquete.
-          const seccionesExclusivasPremium = ["familia", "regalos", "hashtag", "calendario"];
-          const seccionesExcluidasAjustadas = paqKey === "basico"
-            ? Array.from(new Set([...(datos.seccionesExcluidas || []), ...seccionesExclusivasPremium]))
-            : datos.seccionesExcluidas;
+          // Cada cambio de paquete recalcula desde cero las secciones condicionadas por nivel
+          // (familia/regalos/hashtag/calendario/pases) -- antes esto solo se ajustaba al bajar a
+          // Básico, así que subir a Premium/Deluxe dejaba esas secciones apagadas si ya venían
+          // excluidas de un paquete anterior, en vez de prenderlas como corresponde al nuevo
+          // nivel (hallazgo real 2026-11-05, reportado por el usuario probando Deluxe).
+          const seccionesExcluidasAjustadas = recalcularSeccionesPorPaquete(datos.seccionesExcluidas, paqKey);
+          const pasesQuedaExcluido = seccionesExcluidasAjustadas.includes("pases");
           setDatos(prev => ({
             ...prev,
             paquete: paqKey,
             fotos: (prev.fotos || []).slice(0, maxFotosNuevoPaquete),
-            seccionesExcluidas: seccionesExcluidasAjustadas
+            seccionesExcluidas: seccionesExcluidasAjustadas,
+            controlAccesoQR: pasesQuedaExcluido ? false : prev.controlAccesoQR
           }));
         } else {
           const datosBase = datosDefault[paqKey];
@@ -3018,15 +3043,20 @@ export default function App() {
       if (errLectura) throw errLectura;
       const base: Partial<InvitacionDatos> = fila?.datos_completos || {};
       const maxFotosNuevo = paquetes[nuevoPaquete].maxFotos;
-      const sinPases = (base.seccionesExcluidas || []).filter(s => s !== "pases");
-      const pasesQuedaExcluido = nuevoPaquete !== "deluxe" && !row.pases_pagado;
-      // Igual que en handleCambiarPaquete (editor): familia/regalos/hashtag/calendario son
-      // exclusivas de Premium/Deluxe -- si se baja a Básico deben apagarse aunque ya vinieran
-      // prendidas, no deben sobrevivir gratis a la baja de paquete.
-      const seccionesExclusivasPremium = ["familia", "regalos", "hashtag", "calendario"];
-      const seccionesExcluidasNuevas = (pasesQuedaExcluido ? [...sinPases, "pases"] : sinPases)
-        .concat(nuevoPaquete === "basico" ? seccionesExclusivasPremium : [])
-        .filter((s, i, arr) => arr.indexOf(s) === i);
+      // Igual que en handleCambiarPaquete (editor): cada cambio de paquete recalcula desde cero
+      // las secciones condicionadas por nivel (familia/regalos/hashtag/calendario/pases) --
+      // antes esto solo apagaba al bajar a Básico, dejando esas secciones apagadas al SUBIR de
+      // paquete si ya venían excluidas (hallazgo real 2026-11-05). Excepción: si "pases" ya fue
+      // pagado para esta invitación (row.pases_pagado), se respeta y no se vuelve a apagar aunque
+      // el nuevo paquete lo trate como a la carte -- ya se cobró, no es un default sin pagar.
+      const extrasPorPaquete = seccionesACartaPorPaquete(nuevoPaquete).filter(
+        s => !(s === "pases" && row.pases_pagado)
+      );
+      const sinCondicionadas = (base.seccionesExcluidas || []).filter(
+        s => !SECCIONES_CONDICIONADAS_POR_PAQUETE.includes(s)
+      );
+      const seccionesExcluidasNuevas = Array.from(new Set([...sinCondicionadas, ...extrasPorPaquete]));
+      const pasesQuedaExcluido = seccionesExcluidasNuevas.includes("pases");
       // Mismo criterio que el toggle manual de "pases" en el editor (ver ~línea 2042): si
       // "pases" se excluye, el Control de Acceso QR no puede seguir activo -- depende de que
       // haya pases para escanear. Sin esto, un Deluxe con QR activado que se baja de paquete
