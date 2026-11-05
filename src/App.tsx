@@ -2479,6 +2479,8 @@ export default function App() {
   const [mostrarImportarLista, setMostrarImportarLista] = useState(false);
   const [textoImportarInvitados, setTextoImportarInvitados] = useState("");
 
+  const [qrVisibleIndex, setQrVisibleIndex] = useState<number | null>(null);
+
   const [nuevoFotoUrl, setNuevoFotoUrl] = useState("");
 
   // Referencia al iframe para actualizar la vista previa de forma aislada
@@ -6667,7 +6669,23 @@ export default function App() {
                                 </svg>
                               </button>
 
-                              <button 
+                              {/* Ver QR de Control de Acceso (solo si el complemento está activo) */}
+                              {datos.controlAccesoQR && (
+                                <button
+                                  onClick={() => setQrVisibleIndex(qrVisibleIndex === index ? null : index)}
+                                  className="p-1 hover:bg-amber-50 text-amber-600 hover:text-amber-700 rounded transition cursor-pointer"
+                                  title="Ver código QR de acceso"
+                                >
+                                  <svg className="w-3.5 h-3.5 fill-none stroke-current" strokeWidth="2" viewBox="0 0 24 24">
+                                    <rect x="3" y="3" width="7" height="7" rx="1" />
+                                    <rect x="14" y="3" width="7" height="7" rx="1" />
+                                    <rect x="3" y="14" width="7" height="7" rx="1" />
+                                    <path d="M14 14h3v3h-3zM18 18h3v3h-3zM14 21h3M21 14v3" />
+                                  </svg>
+                                </button>
+                              )}
+
+                              <button
                                 onClick={() => handleEliminarInvitado(index)}
                                 className="p-1 hover:text-rose-600 text-slate-400 rounded transition overflow-hidden cursor-pointer"
                                 title="Eliminar invitado"
@@ -6686,6 +6704,28 @@ export default function App() {
                               className="flex-1 min-w-0 px-2 py-1 bg-slate-50 border border-slate-200 rounded text-[11px] text-slate-700 outline-none focus:border-indigo-500"
                             />
                           </div>
+                          {qrVisibleIndex === index && datos.controlAccesoQR && (
+                            <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2.5">
+                              {supabaseRowId ? (
+                                <>
+                                  <img
+                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(
+                                      `${window.location.origin}/?checkin=1&iid=${encodeURIComponent(supabaseRowId)}&fam=${encodeURIComponent(item.nombre)}`
+                                    )}`}
+                                    alt={`QR de acceso de ${item.nombre}`}
+                                    className="w-16 h-16 rounded border border-amber-300 bg-white shrink-0"
+                                  />
+                                  <span className="text-[10px] text-amber-800 leading-relaxed">
+                                    Este mismo QR se verá en el pase de "{item.nombre}" dentro de su link personalizado (sección "Pases Reservados"). Para generarlo/enviarlo, copia o manda por WhatsApp el link de esta familia con los botones de arriba.
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="text-[10px] text-amber-800 leading-relaxed">
+                                  ⚠️ Esta invitación todavía no se ha guardado/sincronizado — guárdala primero (el QR necesita el "iid" que se genera al guardar en Supabase).
+                                </span>
+                              )}
+                            </div>
+                          )}
                           </div>
                         ))}
                       </div>
