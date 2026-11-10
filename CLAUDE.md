@@ -2,6 +2,35 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Bug real corregido: `ordenSecciones`/`estiloCajasSecciones` no sobrevivían a un link compartido (2026-11-10)
+
+Pedido explícito del usuario: "haz una auditoría completa del motor y la coherencia y
+efectividad y todo de invitamx". `KEY_MAP` (tope de `App.tsx`, usado por
+`encodeState`/`decodeState` para armar el `d` de `?v=1&d=...`) nunca tuvo alias para
+estos 2 campos de `InvitacionDatos` -- se perdían en silencio al compartir un link:
+
+- **`ordenSecciones`** (gap NUEVO, no documentado antes de esta auditoría, impacto
+  ALTO): `generarHTMLFinal` (`templates.ts`) sí lo usa de verdad vía
+  `getOrdenSeccionesEfectivo` para decidir el orden real de las secciones -- un admin
+  que reordenaba secciones con los botones ↑/↓ y compartía el link, el invitado veía
+  el orden default del paquete, nunca el que el admin configuró y vio en su propio
+  editor. Silencioso: nada avisaba que el preview del admin y lo que recibe el
+  invitado podían divergir.
+- **`estiloCajasSecciones`** (gap ya conocido, ver nota "Formato de galería..." más
+  abajo -- confirmado que seguía sin arreglarse).
+
+**Arreglado**: agregados `ordenSecciones: "os"` y `estiloCajasSecciones: "ec"` a
+`KEY_MAP`. Ambos campos son valores simples (`string[]` y un literal de 3 opciones)
+que ya caían en la rama genérica de `encodeState`/`decodeState` (no necesitaban
+ningún manejo especial, a diferencia de `ceremonia`/`itinerario`/`invitados`) -- el
+fix fue puramente agregar las 2 llaves cortas, sin tocar ninguna otra lógica.
+Verificado en vivo (`npm run dev`, sin guardar nada en Supabase): reordené una
+sección + cambié el estilo de cajas en el editor, generé el link, decodifiqué el
+`d` param en consola -- ambos valores viajan correctamente (`os` con el orden real,
+`ec: "solo_borde"`). `npm run lint` (`tsc --noEmit`) sigue con los mismos 6 errores
+preexistentes de siempre (`ImportMeta.env`, no relacionados, confirmado comparando
+contra el mismo lint ANTES del cambio con `git stash`) -- cero errores nuevos.
+
 ## Regla fija: mantener la guía de uso al día (pedido 2026-11-02)
 
 Cada vez que se agregue, mueva o quite un botón/feature visible en el

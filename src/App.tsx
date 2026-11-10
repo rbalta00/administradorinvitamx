@@ -156,7 +156,20 @@ const KEY_MAP: Record<string, string> = {
   mostrarAnimacionCaida: "mac",
   personalizacion: "pz",
   controlAccesoQR: "cq",
-  estiloGaleria: "eg"
+  estiloGaleria: "eg",
+  // Bug real encontrado en auditoria, 2026-11-10: estos 2 campos existian en
+  // InvitacionDatos y SI se usaban de verdad (ordenSecciones lo lee
+  // generarHTMLFinal via getOrdenSeccionesEfectivo para decidir el orden real de
+  // las secciones; estiloCajasSecciones decide el estilo visual de cada caja) pero
+  // NUNCA tuvieron alias aqui -- encodeState/decodeState los ignoraban en
+  // silencio, asi que un link compartido (?v=1&d=...) SIEMPRE mostraba el orden
+  // default del paquete, nunca el orden que el admin acomodo con los botones
+  // ↑/↓ en su propio editor. Ya documentado como gap conocido para
+  // estiloCajasSecciones (ver nota "Formato de galeria..." en CLAUDE.md); el de
+  // ordenSecciones no estaba documentado y es de mayor impacto (cambia la
+  // estructura completa de la invitacion, no solo el estilo de una caja).
+  ordenSecciones: "os",
+  estiloCajasSecciones: "ec"
 };
 
 const SUB_KEY_MAP: Record<string, string> = {
