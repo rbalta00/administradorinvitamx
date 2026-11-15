@@ -4314,7 +4314,7 @@ export default function App() {
             
             <div className="flex items-center gap-2">
               <a
-                href="https://w.app/invitamx"
+                href="https://wa.me/522217445410?text=Hola%2C%20vengo%20de%20InvitaMX%2C%20me%20interesa%20una%20invitaci%C3%B3n%20digital%20personalizada"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2 rounded-xl transition shadow-md active:scale-95 cursor-pointer flex items-center gap-1.5"
@@ -4336,7 +4336,7 @@ export default function App() {
                 Catálogo de Invitaciones Digitales Interactivas
               </h1>
               <p className="text-xs md:text-sm text-indigo-200 max-w-2xl mx-auto leading-relaxed">
-                Explora cada uno de nuestros 12 temas exclusivos con todos los efectos interactivos en vivo: música, mapas de ceremonia, control de pases de invitados y galerías de fotos.
+                Explora cada uno de nuestros 13 temas exclusivos con todos los efectos interactivos en vivo: música, mapas de ceremonia, control de pases de invitados y galerías de fotos.
               </p>
             </div>
           </header>
@@ -4640,7 +4640,7 @@ export default function App() {
                             Ver Demo en Vivo 👁️✨
                           </button>
                           <a
-                            href="https://w.app/invitamx"
+                            href="https://wa.me/522217445410?text=Hola%2C%20vengo%20de%20InvitaMX%2C%20me%20interesa%20una%20invitaci%C3%B3n%20digital%20personalizada"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all duration-200 active:scale-95 cursor-pointer text-center shadow-md flex items-center justify-center gap-1.5"
@@ -4696,7 +4696,7 @@ export default function App() {
     return (
       <div className="w-screen h-screen fixed inset-0 flex flex-col items-center justify-center bg-slate-50 gap-3 text-center px-6">
         <p className="text-sm text-slate-500 font-medium font-sans">Este link no está disponible.</p>
-        <a href="https://w.app/invitamx" className="text-xs text-indigo-600 font-semibold underline">Contáctanos por WhatsApp</a>
+        <a href="https://wa.me/522217445410?text=Hola%2C%20vengo%20de%20InvitaMX%2C%20me%20interesa%20una%20invitaci%C3%B3n%20digital%20personalizada" className="text-xs text-indigo-600 font-semibold underline">Contáctanos por WhatsApp</a>
       </div>
     );
   }
@@ -5669,7 +5669,7 @@ export default function App() {
                   </h3>
                   <div className="p-4 bg-indigo-50/50 border border-indigo-100/70 rounded-xl space-y-4">
                     <p className="text-xs text-slate-600 leading-relaxed font-sans">
-                      Genera y comparte un link público para que tus clientes o invitados visualicen un precioso catálogo con botones para probar en vivo la demo interactiva de cada uno de los 12 temas.
+                      Genera y comparte un link público para que tus clientes o invitados visualicen un precioso catálogo con botones para probar en vivo la demo interactiva de cada uno de los 13 temas.
                     </p>
                     
                     <div className="space-y-2">
