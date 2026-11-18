@@ -1224,11 +1224,11 @@ export const datosDefault: Record<"basico" | "premium" | "deluxe", InvitacionDat
       "Elena Rivas de Mendoza"
     ],
     mesaRegalos: "Liverpool (No. Evento: 50942851) y Amazon Wishlist",
-    datosBancarios: "Banco: BBVA\nBeneficiaria: Sophia Valeria Gómez\nCLABE: 0121 8001 2345 6789 01\nConcepto: Regalo Sophia XV",
+    datosBancarios: "Banco: BBVA\nBeneficiaria: Sophia Valeria Gómez\nCLABE: 000000000000000000\nConcepto: Regalo Sophia XV",
     fotos: [], // Se llenan con fotos ficticias según el tema si está vacío
     hashtag: "#SophiaValeriaXV",
     mostrarCajasSecciones: true,
-    whatsappConfirmacion: "525512345678",
+    whatsappConfirmacion: "0000000000",
     cancion: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
     linkPersonalizado: "sophia-gomez-xv",
     invitados: [
@@ -1237,10 +1237,13 @@ export const datosDefault: Record<"basico" | "premium" | "deluxe", InvitacionDat
     ],
     // "Pases de Entrada" es a la carta en este paquete: apagada por default, el admin la
     // enciende manualmente (quitándola de esta lista) si el cliente pagó por ella.
-    // "familia"/"regalos"/"hashtag"/"calendario" son exclusivas de Premium/Deluxe por política
-    // (ver nota en paquetes.basico más arriba): apagadas por default también, solo se prenden
-    // a mano si se negoció una excepción puntual con el cliente.
-    seccionesExcluidas: ["pases", "familia", "regalos", "hashtag", "calendario"]
+    // "familia"/"regalos" siguen siendo exclusivas de Premium/Deluxe por política (ver nota en
+    // paquetes.basico más arriba): apagadas por default también, solo se prenden a mano si se
+    // negoció una excepción puntual con el cliente. "calendario"/"hashtag" bajaron a Básico en
+    // el rediseño de precios (2026-11-18) -- ya NO van en esta lista, quedan incluidas por
+    // default. Esto solo afecta invitaciones NUEVAS: las ya guardadas en Supabase conservan su
+    // propio `seccionesExcluidas` tal cual quedó al guardarlas, este default nunca las reescribe.
+    seccionesExcluidas: ["pases", "familia", "regalos"]
   },
   premium: {
     paquete: "premium",
@@ -1279,11 +1282,11 @@ export const datosDefault: Record<"basico" | "premium" | "deluxe", InvitacionDat
       "Carmen Ortiz de Reyes"
     ],
     mesaRegalos: "El Palacio de Hierro (Evento: EMMA15XV)",
-    datosBancarios: "Banco: Santander\nCLABE: 0141 8000 9876 5432 10\nBeneficiario: Emma Elizabeth Soto\n¡Lluvia de sobres en la entrada también es bienvenida!",
+    datosBancarios: "Banco: Santander\nCLABE: 000000000000000000\nBeneficiario: Emma Elizabeth Soto\n¡Lluvia de sobres en la entrada también es bienvenida!",
     fotos: [],
     hashtag: "#EmmaXVVuela",
     mostrarCajasSecciones: true,
-    whatsappConfirmacion: "525598765432",
+    whatsappConfirmacion: "0000000000",
     cancion: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
     linkPersonalizado: "emma-soto-15",
     invitados: [
@@ -1330,11 +1333,11 @@ export const datosDefault: Record<"basico" | "premium" | "deluxe", InvitacionDat
       "Patricia Robles de Montes"
     ],
     mesaRegalos: "Mesa Digital de Regalos (Efectivo) Walmart y Liverpool No. 876115",
-    datosBancarios: "Banco: Banorte\nCLABE: 0721 8000 1234 5678 99\nBeneficiaria: Luna Isabella Montes",
+    datosBancarios: "Banco: Banorte\nCLABE: 000000000000000000\nBeneficiaria: Luna Isabella Montes",
     hashtag: "#MilMilagrosLunaXV",
     mostrarCajasSecciones: true,
     fotos: [],
-    whatsappConfirmacion: "525544332211",
+    whatsappConfirmacion: "0000000000",
     cancion: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
     linkPersonalizado: "luna-isabella-xv",
     invitados: [

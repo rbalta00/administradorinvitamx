@@ -3880,7 +3880,7 @@ export default function App() {
   // (revisión del lado del cliente en isViewMode más abajo — no es seguridad real, solo un
   // límite práctico) y muestran un banner de "MUESTRA" sobre la invitación mientras estén
   // vigentes.
-  const MUESTRA_DIAS_VIGENCIA = 7; // 1 semana (pedido 2026-11-02, antes 5 días)
+  const MUESTRA_DIAS_VIGENCIA = 5; // 5 días (ajuste 2026-11-18, antes 7 días)
   const aplicarModoMuestra = (url: string): string => {
     if (!esEnlaceMuestra) return url;
     const exp = Date.now() + MUESTRA_DIAS_VIGENCIA * 24 * 60 * 60 * 1000;
