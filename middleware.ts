@@ -14,6 +14,13 @@
 // parámetros de URL que usa App.tsx para decidir qué modo mostrar:
 //   - ?v=1 / ?view=true      -> vista de un invitado abriendo su invitación
 //   - ?catalog=true / ?catalogo=true -> catálogo de temas de demostración
+//   - ?embed=true            -> preview embebido de un tema (usado por los iframes de
+//     ThemePreview en invitacionmx-catalogo -- tenía el mismo bug de 401 descrito arriba para
+//     manifest/sw.js/íconos, encontrado el 2026-11-17: nunca estuvo en esta lista pese a ser
+//     un modo público real de App.tsx (isEmbedMode) desde que se agregó, así que CADA preview
+//     de tema del catálogo (y por lo tanto de la landing, que embebe el catálogo) fallaba con
+//     401 en silencio -- la sección "Temas" se veía lentísima/rota porque ninguno de los 14
+//     iframes llegaba a renderizar nada, no por peso real de imágenes o JS
 //   - ?intake=1              -> formulario público para que el cliente capture sus datos/fotos
 //   - ?checkin=1             -> control de acceso QR (à la carte) para quien controla la puerta
 //   - ?recuperar=1           -> recuperar acceso si se te olvidó ADMIN_PASSWORD (tiene que ser
@@ -57,6 +64,7 @@ export default function middleware(request: Request) {
     params.get("view") === "true" ||
     params.get("catalog") === "true" ||
     params.get("catalogo") === "true" ||
+    params.get("embed") === "true" ||
     params.get("intake") === "1" ||
     params.get("checkin") === "1" ||
     params.get("recuperar") === "1";
