@@ -1,6 +1,4 @@
 import { useState, useEffect, useRef, ChangeEvent, useMemo, useCallback, memo } from "react";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 import {
   Sparkles,
   Settings,
@@ -3513,6 +3511,17 @@ export default function App() {
     setGenerandoPDF(true);
     let contenedorTemporal: HTMLIFrameElement | null = null;
     try {
+      // jsPDF/html2canvas se cargan solo aquí, bajo demanda -- son librerías pesadas que antes
+      // se importaban de forma estática arriba del archivo, así que SIEMPRE bajaban y se
+      // parseaban en TODOS los modos (vista de invitado, catálogo, embed de ThemePreview,
+      // checkin, intake), aunque solo el editor usa esta función. Encontrado el 2026-11-17
+      // investigando por qué las 14 vistas previas del catálogo cargaban lento -- esto no era
+      // la causa principal (ese bug era el 401 de embed=true en middleware.ts, ya corregido),
+      // pero sí es peso real que esos modos nunca necesitan.
+      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+        import("jspdf"),
+        import("html2canvas")
+      ]);
       const htmlCompleto = generarHTMLFinal(datos, temaActual, { paraExportarPDF: true });
 
       // Renderizamos la invitación en un iframe oculto, ya "abierta", para capturarla completa
