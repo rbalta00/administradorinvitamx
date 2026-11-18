@@ -539,7 +539,7 @@ const NOMBRES_SECCIONES: Record<string, string> = {
 };
 
 // Listas curadas de fuentes para la personalización a la medida (tema "personalizado"):
-// son exactamente las fuentes que ya usan los 13 temas del catálogo, así que ya están
+// son exactamente las fuentes que ya usan los 14 temas del catálogo, así que ya están
 // cargadas y probadas — no hay riesgo de romper la carga de Google Fonts.
 const FUENTES_ENCABEZADO = ["Playfair Display", "Cormorant Garamond", "Lora", "Cinzel", "Outfit", "Syne", "Orbitron"];
 const FUENTES_TEXTO = ["Inter", "Garamond"];
@@ -4337,7 +4337,7 @@ export default function App() {
                 Catálogo de Invitaciones Digitales Interactivas
               </h1>
               <p className="text-xs md:text-sm text-indigo-200 max-w-2xl mx-auto leading-relaxed">
-                Explora cada uno de nuestros 13 temas exclusivos con todos los efectos interactivos en vivo: música, mapas de ceremonia, control de pases de invitados y galerías de fotos.
+                Explora cada uno de nuestros 14 temas exclusivos con todos los efectos interactivos en vivo: música, mapas de ceremonia, control de pases de invitados y galerías de fotos.
               </p>
             </div>
           </header>
@@ -5670,7 +5670,7 @@ export default function App() {
                   </h3>
                   <div className="p-4 bg-indigo-50/50 border border-indigo-100/70 rounded-xl space-y-4">
                     <p className="text-xs text-slate-600 leading-relaxed font-sans">
-                      Genera y comparte un link público para que tus clientes o invitados visualicen un precioso catálogo con botones para probar en vivo la demo interactiva de cada uno de los 13 temas.
+                      Genera y comparte un link público para que tus clientes o invitados visualicen un precioso catálogo con botones para probar en vivo la demo interactiva de cada uno de los 14 temas.
                     </p>
                     
                     <div className="space-y-2">
