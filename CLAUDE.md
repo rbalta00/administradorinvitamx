@@ -2,6 +2,33 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Tema nuevo: "Vino Elegante" 🍷, color rojo/vino (2026-11-17)
+
+Pedido del usuario: "piensa primero si algún color falta para las quinceañeras y sobre de eso creamos
+o eliminamos algún tema, investiga". Antes de construir nada se extrajeron los colores `primary` reales
+de los 13 temas existentes y se investigó tendencias de color para XV años (Comex 2026, Pantone 2026,
+ideas específicas de XV de Eventifai) — **ningún tema existente cubre la familia roja/vino/borgoña**,
+un color clásico y popular para quinceañeras (fiestas tipo gala/salón). El usuario respondió "si hazlo".
+
+- **Tema nuevo `vino-elegante`** agregado a `temas` en `src/data.ts` (entre `aurora-boreal` y
+  `personalizado`, mismo patrón estructural que `princesa-elegante` como plantilla): `primary: "#7B1E3A"`
+  (vino/borgoña), acentos en champán/dorado (`secondary: "#E8C4A0"`, `accent: "#C9A24B"`), tipografía
+  `Cormorant Garamond` (heading) + `Great Vibes` (cursiva) — ambas ya estaban en `FONT_URL_SEGMENTS`
+  de `templates.ts`, no hizo falta tocar ese archivo. `decorativeEmoji: "🍷"`.
+- Agregado también un caso en `getColorSugeridoPorTema` (`App.tsx`): vino + champán + blanco como
+  colores de vestimenta sugeridos para este tema.
+- **No hizo falta tocar** `fotosFicticiasDefault`/`getFotosPorTema` (data.ts) — igual que 11 de los
+  13 temas existentes, cae al fallback genérico de fotos de "dorado-clasico" automáticamente.
+- Verificado en vivo (`npm run dev`, `?catalog=true&tema=vino-elegante`): renderiza correctamente de
+  principio a fin (apertura, agradecimiento, tipografía y paleta coherentes). `npm run lint`
+  (`tsc --noEmit`) sigue con los mismos 6 errores preexistentes, cero nuevos.
+- **De paso, cerrado un gap ya detectado antes** (no reportado por el usuario en este hilo, encontrado
+  al investigar): `invitacionmx-catalogo` nunca tenía `aurora-boreal` en su `themes` array (`app/page.tsx`)
+  pese a que ya existía en el generador desde antes — agregado en el mismo commit que `vino-elegante`.
+- Repos actualizados en la misma pasada: `invitacionmx-catalogo` (`themes` array, +2 temas) e
+  `invitacionmx-landing` (`Pricing.tsx`/`WhyUs.tsx`: "13 temas" → "14 temas", 4 ocurrencias) — ver
+  la sección "Lista de funcionalidades para copy de venta" más abajo, también actualizada.
+
 ## Bug real corregido: `ordenSecciones`/`estiloCajasSecciones` no sobrevivían a un link compartido (2026-11-10)
 
 Pedido explícito del usuario: "haz una auditoría completa del motor y la coherencia y
@@ -186,7 +213,7 @@ There is no test suite in this repo.
 The app is almost entirely contained in five files under `src/`:
 
 - `src/types.ts` — the core data shapes: `InvitacionDatos` (all invitation content: event details, ceremony/reception, itinerary, guest list, photos, theme, package, etc.), `PaqueteConfig`, `TemaConfig`.
-- `src/data.ts` — static content: the 3 `paquetes` (basico/premium/deluxe — each defines which sections are enabled and max photo count), the `temas` array (12 visual themes, each with its own font/color/gradient/custom CSS), placeholder photo sets per theme (`fotosFicticiasDefault` / `getFotosPorTema`), and `datosDefault` (default invitation data per package, used as the diffing baseline for URL state — see below).
+- `src/data.ts` — static content: the 3 `paquetes` (basico/premium/deluxe — each defines which sections are enabled and max photo count), the `temas` array (14 visual themes, each with its own font/color/gradient/custom CSS), placeholder photo sets per theme (`fotosFicticiasDefault` / `getFotosPorTema`), and `datosDefault` (default invitation data per package, used as the diffing baseline for URL state — see below).
 - `src/templates.ts` — `generarHTMLFinal(datos, tema)` builds the entire guest-facing invitation as a single self-contained HTML string (inline `<style>`/`<script>`, lightbox, countdown, opening/envelope animation, etc.). This is the actual product: everything else in the app exists to configure the object passed into this function.
 - `src/App.tsx` (~3200 lines) — the whole editor UI, plus three routing-free "modes" selected purely from URL query params (there is no router):
   - **Editor mode** (default): full form UI for editing `InvitacionDatos`, live preview iframe, image uploads, sharing/export tools.
@@ -266,7 +293,7 @@ Referencia rápida de TODO lo que el producto hace hoy, para escribir/actualizar
 
 ### La invitación digital en sí (lo que ve el invitado)
 
-- **13 temas de diseño listos** (confirmado contra `src/data.ts` el 2026-11-02), cada uno con tipografía, paleta y decoración propia: Dorado Clásico, Vuelo de Mariposas, Floral Acuarela, Místico Celestial (tema noche), Eucalipto Botánico, Glam Rose Oro, Rustique Boho Chic, Princesa Elegante (gala), Mármol & Oro Geométrico, Ciber Cyber Neon (glow), XV Coquette Listones Rose, XV Coquette Luxe, Aurora Boreal. Buen ángulo: "hay un diseño para cada estilo de quinceañera, del clásico elegante al neón moderno".
+- **14 temas de diseño listos** (confirmado contra `src/data.ts` el 2026-11-17), cada uno con tipografía, paleta y decoración propia: Dorado Clásico, Vuelo de Mariposas, Floral Acuarela, Místico Celestial (tema noche), Eucalipto Botánico, Glam Rose Oro, Rustique Boho Chic, Princesa Elegante (gala), Mármol & Oro Geométrico, Ciber Cyber Neon (glow), XV Coquette Listones Rose, XV Coquette Luxe, Aurora Boreal, Vino Elegante (clásico, rojo/vino). Buen ángulo: "hay un diseño para cada estilo de quinceañera, del clásico elegante al neón moderno".
 - **+ 1 tema "Personalizado" (A Medida)**: para quien quiere colores/tipografía/estilo de apertura 100% a su gusto en vez de un catálogo fijo — ángulo de venta premium/exclusividad.
 - **3 estilos de apertura animada**: tarjeta con botón, sobre con sello de cera que se abre, o cortina/telón que se descorre — se puede elegir independiente del tema.
 - **Efecto de "lluvia" decorativa animada** (pétalos, mariposas, listones, estrellas, etc. según el tema) cayendo sobre la pantalla — detalle visual que compite con invitaciones impresas de gama alta.

@@ -410,6 +410,7 @@ const getColorSugeridoPorTema = (temaId: string, tColors: any): string[] => {
   if (temaId === "neon") return ["#EC4899", "#06B6D4", "#E2E8F0"];
   if (temaId === "coquette-pink") return ["#D9829B", "#F5D6DE", "#FFFFFF"];
   if (temaId === "coquette-luxe") return ["#C66B8F", "#D4AF37", "#FBF8F3"];
+  if (temaId === "vino-elegante") return ["#7B1E3A", "#E8C4A0", "#FFFFFF"];
   return [tColors.primary, tColors.secondary, "#FFFFFF"];
 };
 

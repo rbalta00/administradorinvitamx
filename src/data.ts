@@ -1084,6 +1084,49 @@ export const temas: TemaConfig[] = [
     `
   },
   {
+    id: "vino-elegante",
+    nombre: "Vino Elegante 🍷 (Clásico)",
+    fontHeading: "Cormorant Garamond",
+    fontBody: "Inter",
+    fontCursive: "Great Vibes",
+    colors: {
+      primary: "#7B1E3A",
+      secondary: "#E8C4A0",
+      accent: "#C9A24B",
+      dark: "#2A0E14",
+      light: "#FBF3EF",
+      bg: "#FDF8F6",
+      border: "#D9BE94"
+    },
+    bgGradient: "linear-gradient(135deg, #FBF3EF 0%, #F3DCD9 100%)",
+    textDark: "#2A0E14",
+    textLight: "#FFFFFF",
+    iconStyle: "border-2 border-[#7B1E3A] rounded-full text-[#7B1E3A] p-2 bg-[#FBF3EF] shadow-sm",
+    decorativeEmoji: "🍷",
+    customStyle: `
+      .theme-container {
+        font-family: 'Inter', sans-serif;
+        background-color: #FDF8F6;
+        color: #2A0E14;
+      }
+      .heading-text {
+        font-family: 'Cormorant Garamond', serif;
+        color: #7B1E3A;
+        letter-spacing: 0.06em;
+      }
+      .cursive-text {
+        font-family: 'Great Vibes', cursive;
+        color: #7B1E3A;
+        font-size: 2.6rem;
+      }
+      .gold-card {
+        border: 1px solid #D9BE94;
+        background: linear-gradient(145deg, #FFFFFF, #FBF3EF);
+        box-shadow: 0 4px 15px rgba(123, 30, 58, 0.1);
+      }
+    `
+  },
+  {
     id: "personalizado",
     nombre: "Personalizado 🎨 (A Medida)",
     fontHeading: "Playfair Display",
