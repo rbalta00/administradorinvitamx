@@ -473,15 +473,104 @@ const getDatosVisualizacionCatalog = (t: any, currentDatos?: any): any => {
 };
 
 // Componente para cargar los iframes del catálogo de forma diferida (staggered), evitando bloquear el hilo principal (INP Issue)
+// Cola de concurrencia para las 14 vistas previas del catálogo (?catalog=true): cada una
+// incluye <script src="https://cdn.tailwindcss.com"> en su <head> (ver generarHTMLFinal en
+// templates.ts -- el mismo script que usa la invitación real, para que la vista previa sea
+// 1:1 idéntica), que es render-blocking y JIT-compila Tailwind contra todo el DOM en tiempo
+// real. Con las 14 disparando ese script casi al mismo tiempo (el stagger de abajo es de solo
+// 80ms entre una y otra), el navegador se atora -- confirmado en vivo: el `<head>` de cada
+// iframe se quedaba parado esperando ese script, sin terminar de parsear nunca el `<body>`
+// (readyState "loading" indefinidamente). Mismo patrón de cola ya probado y medido en
+// invitacionmx-catalogo (ThemePreview/page.tsx), con un ajuste real encontrado al probarlo en
+// vivo: el turno se libera con `DOMContentLoaded` del documento del iframe, NO con el evento
+// nativo `onLoad` -- `onLoad` espera también a que terminen de bajar las imágenes de fondo
+// (Cloudinary), y una sola de esas tardó hasta ~29s en una prueba real, lo que habría tenido
+// un cupo de la cola ocupado sin necesidad mucho más tiempo del real cuello de botella (el
+// script de Tailwind, que sí terminó en ~3s en esa misma prueba). Las imágenes no bloquean el
+// parseo del documento ni compiten por el mismo recurso (JIT de CSS), así que no hace falta
+// esperarlas para liberar el turno.
+// En 1, no 2: probado en vivo con 2 -- el navegador quedó tan ocupado compilando Tailwind
+// (JIT real, contra un DOM completo, 2 veces a la vez) que hasta las capturas de pantalla de
+// la propia prueba empezaron a fallar por "renderer frozen or unresponsive" aunque la página
+// seguía respondiendo a JS. Con 1 a la vez nunca hay dos compilaciones de Tailwind compitiendo
+// por el hilo principal al mismo tiempo.
+const MAX_PREVIEWS_CATALOGO_SIMULTANEAS = 1;
+let previewsCatalogoActivas = 0;
+const colaPreviewsCatalogo: Array<() => void> = [];
+
+function pedirTurnoPreviewCatalogo(): Promise<void> {
+  if (previewsCatalogoActivas < MAX_PREVIEWS_CATALOGO_SIMULTANEAS) {
+    previewsCatalogoActivas++;
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => colaPreviewsCatalogo.push(resolve));
+}
+
+function liberarTurnoPreviewCatalogo() {
+  const siguiente = colaPreviewsCatalogo.shift();
+  if (siguiente) {
+    siguiente();
+  } else {
+    previewsCatalogoActivas = Math.max(0, previewsCatalogoActivas - 1);
+  }
+}
+
 const LazyIframe = memo(({ t, index, datos }: { t: any; index: number; datos: any }) => {
   const [shouldRender, setShouldRender] = useState(false);
+  const turnoActivo = useRef(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  const soltarTurnoUnaVez = () => {
+    if (turnoActivo.current) {
+      turnoActivo.current = false;
+      liberarTurnoPreviewCatalogo();
+    }
+  };
 
   useEffect(() => {
+    let cancelado = false;
     const timer = setTimeout(() => {
-      setShouldRender(true);
+      pedirTurnoPreviewCatalogo().then(() => {
+        if (cancelado) { liberarTurnoPreviewCatalogo(); return; }
+        turnoActivo.current = true;
+        setShouldRender(true);
+      });
     }, 150 + index * 80); // Carga escalonada ligera y fluida
-    return () => clearTimeout(timer);
+    return () => {
+      cancelado = true;
+      clearTimeout(timer);
+      soltarTurnoUnaVez();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [t.id, index]);
+
+  useEffect(() => {
+    if (!shouldRender) return;
+    // Libera el turno en cuanto el documento del iframe terminó de parsearse (readyState deja
+    // de ser "loading"), que es cuando el script bloqueante de Tailwind ya corrió -- sin
+    // esperar a las imágenes de fondo, que siguen bajando en paralelo sin competir por el
+    // mismo recurso. Poll corto en vez de un listener de evento porque el documento del iframe
+    // se reemplaza por completo al asignar `srcDoc` (un listener atado antes de ese reemplazo
+    // nunca dispararía). 12s de respaldo por si algo raro impide que termine de parsear.
+    let cancelado = false;
+    const intervalo = setInterval(() => {
+      const doc = iframeRef.current?.contentDocument;
+      if (doc && doc.readyState !== "loading") {
+        clearInterval(intervalo);
+        if (!cancelado) soltarTurnoUnaVez();
+      }
+    }, 150);
+    const respaldo = setTimeout(() => {
+      clearInterval(intervalo);
+      if (!cancelado) soltarTurnoUnaVez();
+    }, 12000);
+    return () => {
+      cancelado = true;
+      clearInterval(intervalo);
+      clearTimeout(respaldo);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shouldRender]);
 
   const srcDoc = useMemo(() => {
     if (!shouldRender) return "";
@@ -500,7 +589,8 @@ const LazyIframe = memo(({ t, index, datos }: { t: any; index: number; datos: an
   }
 
   return (
-    <iframe 
+    <iframe
+      ref={iframeRef}
       srcDoc={srcDoc}
       className="absolute border-0 pointer-events-none select-none"
       style={{
