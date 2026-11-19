@@ -12,7 +12,7 @@ Una vez dentro, caes directo en el editor — no hay una pantalla de bienvenida 
 
 1. Clic en **"Mis Invitaciones"** (grupo "Ver todo" de la barra de botones).
 2. Clic en **"+ Nuevo Cliente"**.
-3. Captura nombre, teléfono y el paquete que compró (Básico / Premium / Deluxe).
+3. Captura nombre, teléfono y el paquete que compró (Básico / Estándar / Premium).
 
 Esto crea el registro del cliente en Supabase **de inmediato** (antes de diseñar nada), así la venta queda registrada desde el momento en que se hace. Después puedes volver a este cliente en cualquier momento desde "Mis Invitaciones" para seguir editando, sin perder lo que ya llevas.
 
@@ -24,7 +24,7 @@ Estas son las secciones donde capturas los datos de la invitación. Son 9 — si
 
 | # | Pestaña | Qué captura aquí |
 |---|---------|-------------------|
-| 1 | **Tema/Paquete** | El paquete contratado (define cuántas fotos caben y qué secciones están disponibles), el tema visual (de los 13 diseños o "Personalizado"), y qué secciones quieres prender/apagar en esta invitación específica. Empieza siempre aquí. |
+| 1 | **Tema/Paquete** | El paquete contratado (define cuántas fotos caben y qué secciones están disponibles), el tema visual (de los 14 diseños o "Personalizado"), y qué secciones quieres prender/apagar en esta invitación específica. Empieza siempre aquí. |
 | 2 | **Quinceañera** | Nombre, fecha y hora del evento, mensaje de bienvenida, hashtag, WhatsApp para confirmaciones, enlace de música de fondo, foto de portada. |
 | 3 | **Direcciones** | Ubicación de la ceremonia y de la recepción, con su link a Google Maps. |
 | 4 | **Agenda y Vestido** | El itinerario/programa del evento (hora por hora) y el código de vestimenta. |
@@ -34,19 +34,22 @@ Estas son las secciones donde capturas los datos de la invitación. Son 9 — si
 | 8 | **Lista Pases** | Los invitados/familias con su número de pases, para generarles un link personalizado. Aquí también se asigna la mesa de cada familia (opcional) y se activa, si se contrató, el **Control de Acceso QR**. |
 | 9 | **A Medida** | Personalización libre de colores, tipografía, estilo de apertura y más — **solo funciona si en la pestaña 1 elegiste el tema "Personalizado 🎨 (A Medida)"**, si no, estos controles no hacen nada. |
 
-**Máximo de fotos por paquete:** Básico 4 — Premium 8 — Deluxe 14.
+**Máximo de fotos por paquete:** Básico 4 — Estándar 8 — Premium 14.
 
 ### 3.1 Qué secciones vienen en cada paquete
 
-Esto está prendido/apagado por default según el paquete que compró el cliente — no hay que preguntar caso por caso, el editor ya lo filtra solo (pestaña "Tema/Paquete" → "Personalizar Secciones Habilitadas"):
+Precios y estructura vigentes desde el rediseño de 2026-11-18. Esto está prendido/apagado por default según el paquete que compró el cliente — no hay que preguntar caso por caso, el editor ya lo filtra solo (pestaña "Tema/Paquete" → "Personalizar Secciones Habilitadas"):
 
-| Sección | Básico | Premium | Deluxe |
+| Sección | Básico ($299) | Estándar ($499) | Premium ($799) |
 |---|---|---|---|
-| Apertura, Portada, Cuenta regresiva, Mensaje, Ceremonia, Recepción, Itinerario, Vestimenta, Galería, Confirmación/RSVP, Cierre | ✅ Incluidas | ✅ Incluidas | ✅ Incluidas |
-| Familia/Padrinos, Mesa de Regalos, Hashtag, Calendario | 🔒 Apagadas por default (badge "Exclusiva Premium/Deluxe") | ✅ Incluidas | ✅ Incluidas |
-| Pases de entrada | 💲 A la carta, +$150 MXN (apagada por default) | 💲 A la carta, +$180 MXN (apagada por default) | ✅ Incluida gratis (hasta 40 familias) |
+| Apertura, Portada, Cuenta regresiva, Mensaje, Ceremonia, Recepción, Itinerario, Vestimenta, Galería, Confirmación/RSVP, Hashtag, Calendario, Cierre (13 secciones) | ✅ Incluidas | ✅ Incluidas | ✅ Incluidas |
+| Familia/Padrinos, Mesa de Regalos | 🔒 Apagadas por default (badge "Exclusiva Estándar/Premium"), +$99 c/u a la carta | ✅ Incluidas | ✅ Incluidas |
+| Pases de entrada | 💲 A la carta, +$150 MXN, hasta 10 familias (apagada por default) | 💲 A la carta, +$180 MXN, hasta 20 familias (apagada por default) | ✅ Incluida gratis, hasta 40 familias |
+| Descarga en PDF de regalo | 💲 A la carta, +$99 MXN | 💲 A la carta, +$99 MXN | ✅ Incluida gratis |
 
-**Regla:** si un cliente Básico pide Familia/Regalos/Hashtag/Calendario, o cualquier cliente pide Pases, se prende manualmente en "Personalizar Secciones Habilitadas" — solo porque el cliente lo pidió/pagó puntual, nunca por default. Para las 4 primeras (Familia/Regalos/Hashtag/Calendario) en Básico todavía no hay un precio fijo publicado para esa excepción — confírmalo con quien administra el proyecto antes de prometérselo al cliente; para Pases sí hay precio fijo (tabla de arriba).
+Extras disponibles en cualquier paquete: familia extra arriba del tope de pases +$20 c/u; Control de Acceso QR (requiere pases activos) +$150 fijo; ronda de ajustes extra (después de las 2 incluidas) $99 fijo.
+
+**Regla:** si un cliente Básico pide Familia/Regalos, o un cliente Básico/Estándar pide Pases o PDF, se prende manualmente en "Personalizar Secciones Habilitadas" — solo porque el cliente lo pidió/pagó puntual, nunca por default. Hashtag y Calendario ya vienen incluidos por default desde Básico (no son una excepción que haya que negociar).
 
 ## 4. Mientras editas: el Monitor de Invitación
 
@@ -61,7 +64,7 @@ Están agrupados por lo que hacen — cada grupo tiene su propia etiqueta:
   - *Guardar en Supabase*: guarda el diseño completo en la base de datos, para que aparezca/se actualice en "Mis Invitaciones" y no se pierda si cierras el navegador.
 - **Exportar / copiar**
   - *Descargar index.html*: el archivo final listo para subir donde sea.
-  - *Descargar PDF de Regalo*: versión PDF de recuerdo (incluida sin costo en Deluxe, complemento à la carte en los demás paquetes — revisa que el cliente lo haya pagado antes de entregarlo).
+  - *Descargar PDF de Regalo*: versión PDF de recuerdo (incluida sin costo en Premium, complemento à la carte +$99 MXN en Básico/Estándar — revisa que el cliente lo haya pagado antes de entregarlo).
   - *Copiar HTML* / *Copiar Datos*: copian el código o el JSON de configuración, para respaldo o soporte técnico.
 - **Ver todo**
   - *Mis Invitaciones*: la lista de todos los clientes/pedidos guardados — ábrela para retomar, duplicar, archivar o eliminar cualquiera.
@@ -106,8 +109,8 @@ En Supabase, una vez que uses "Guardar en Supabase" o "+ Nuevo Cliente". Mientra
 **¿Puedo editar una invitación que ya entregué?**
 Sí — ábrela desde "Mis Invitaciones", edítala, y genera/comparte un nuevo link. El link viejo no se actualiza solo (ver pregunta anterior).
 
-**¿Por qué no veo Familia/Regalos/Hashtag/Calendario en un cliente Básico?**
-Son exclusivas de Premium/Deluxe por default (ver tabla en 3.1) — no es un error. Si el cliente las pidió aparte, prénderlas a mano en "Personalizar Secciones Habilitadas"; no asumas que vienen incluidas sin que el cliente lo haya pedido/pagado.
+**¿Por qué no veo Familia/Regalos en un cliente Básico?**
+Son exclusivas de Estándar/Premium por default (ver tabla en 3.1) — no es un error. Hashtag y Calendario SÍ vienen incluidos en Básico desde el rediseño de 2026-11-18. Si el cliente pidió Familia/Regalos aparte, prénderlas a mano en "Personalizar Secciones Habilitadas"; no asumas que vienen incluidas sin que el cliente lo haya pedido/pagado.
 
 ## 9. ¿Dónde está la lista de funcionalidades para vender/escribir copy?
 

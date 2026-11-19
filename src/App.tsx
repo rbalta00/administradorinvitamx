@@ -673,27 +673,36 @@ const PALETAS_ANIMACION: { id: string; nombre: string; simbolos: string[] }[] = 
 // Lista de toggles de secciones habilitadas/deshabilitadas, memoizada para no recalcularse
 // cuando cambia un estado de la app no relacionado (ej. abrir un modal).
 // Política de precios de "pases" por paquete (ver CLAUDE.md, sección "Pases personalizados").
-// Deluxe lo incluye sin costo extra; en Básico/Premium es a la carte con su propio precio.
+// Premium (llave interna "deluxe") lo incluye sin costo extra; en Básico/Estándar es a la
+// carte con su propio precio.
 const POLITICA_PASES: Record<"basico" | "premium" | "deluxe", string> = {
   basico: "A la carte +$150 MXN",
   premium: "A la carte +$180 MXN",
   deluxe: "Incluido sin costo"
 };
 
-// Secciones exclusivas de Premium/Deluxe por política de negocio (ver "Business/pricing
+// Secciones exclusivas de Estándar/Premium (nombres mostrados; llaves internas siguen siendo
+// "premium"/"deluxe", ver nota en data.ts) por política de negocio (ver "Business/pricing
 // policy" en CLAUDE.md) -- en Básico existen en paquetes.basico.secciones (data.ts) y van
 // apagadas por default (datosDefault.basico.seccionesExcluidas) solo para que el admin las
 // pueda prender a mano si negoció una excepción puntual con el cliente, nunca por default.
-const SECCIONES_EXCLUSIVAS_PREMIUM = ["familia", "regalos", "hashtag", "calendario"];
+// Corregido 2026-11-18 (rediseño de precios): "hashtag"/"calendario" bajaron a Básico (quedan
+// incluidas por default ahí, ver datosDefault.basico) -- ya NO van en esta lista, solo quedan
+// "familia"/"regalos" como exclusivas de Estándar en adelante. Antes esta lista seguía las 4
+// originales, así que CAMBIAR el paquete de una invitación ya existente a Básico seguía
+// apagando hashtag/calendario (inconsistente con lo que SÍ pasaba al crear una invitación
+// Básico nueva, que ya las dejaba prendidas) -- hallazgo reportado por el usuario.
+const SECCIONES_EXCLUSIVAS_PREMIUM = ["familia", "regalos"];
 
-// Secciones cuyo estado prendido/apagado depende del paquete elegido (las 4 exclusivas de
-// Premium/Deluxe de arriba, más "pases" vía POLITICA_PASES) -- agrupadas para poder recalcular
+// Secciones cuyo estado prendido/apagado depende del paquete elegido (las exclusivas de
+// Estándar/Premium de arriba, más "pases" vía POLITICA_PASES) -- agrupadas para poder recalcular
 // su estado completo cada vez que se cambia de paquete (ver recalcularSeccionesPorPaquete).
 const SECCIONES_CONDICIONADAS_POR_PAQUETE = [...SECCIONES_EXCLUSIVAS_PREMIUM, "pases"];
 
 // De las secciones condicionadas arriba, cuáles NO vienen incluidas gratis en cada paquete --
 // esas deben quedar apagadas por default hasta que el admin las prenda a mano porque el cliente
-// la pagó aparte para ese nivel. Deluxe no tiene ninguna: todo viene incluido sin costo.
+// la pagó aparte para ese nivel. Premium (llave interna "deluxe") no tiene ninguna: todo viene
+// incluido sin costo.
 function seccionesACartaPorPaquete(paqKey: "basico" | "premium" | "deluxe"): string[] {
   if (paqKey === "deluxe") return [];
   if (paqKey === "premium") return ["pases"];
@@ -792,7 +801,7 @@ const SeccionesToggleList = memo(({ secciones, seccionesExcluidas, onToggle, onM
               )}
               {paquete === "basico" && SECCIONES_EXCLUSIVAS_PREMIUM.includes(secName) && (
                 <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap bg-amber-100 text-amber-700">
-                  Exclusiva Premium/Deluxe
+                  Exclusiva Estándar/Premium
                 </span>
               )}
             </span>
@@ -4967,7 +4976,7 @@ export default function App() {
           <button
             onClick={handleDescargarPDF}
             disabled={generandoPDF}
-            title={datos.paquete === "deluxe" ? "Incluido sin costo extra en el paquete Deluxe" : "Complemento a la carta en este paquete — confirma que el cliente ya lo pagó antes de entregarlo"}
+            title={datos.paquete === "deluxe" ? "Incluido sin costo extra en el paquete Premium" : "Complemento a la carta en este paquete — confirma que el cliente ya lo pagó antes de entregarlo"}
             className="px-5 py-2 bg-rose-500 hover:bg-rose-600 disabled:bg-rose-300 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-sm transition cursor-pointer transform active:scale-95"
           >
             <FileText className="w-4 h-4 text-white" />
@@ -5532,7 +5541,7 @@ export default function App() {
                       Cómo se muestra "Mi Álbum de Fotos"
                     </span>
                     <span className="block text-[11px] text-slate-500 leading-normal mt-0.5 mb-2">
-                      El carrusel conviene con álbumes grandes (Deluxe, 10-14 fotos): la sección no crece en alto sin importar cuántas fotos tenga.
+                      El carrusel conviene con álbumes grandes (Premium, 10-14 fotos): la sección no crece en alto sin importar cuántas fotos tenga.
                     </span>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {ESTILOS_GALERIA.map(e => (

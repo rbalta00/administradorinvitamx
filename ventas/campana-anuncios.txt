@@ -8,7 +8,7 @@ Fecha: 2026-08-02
 0. RESUMEN DEL PRODUCTO (para que todos los copys queden alineados)
 --------------------------------------------------------------
 Qué es: invitación digital para XV años, en forma de link web (no app,
-no descarga). 12 temas de diseño + 1 personalizado a medida. Incluye
+no descarga). 14 temas de diseño + 1 personalizado a medida. Incluye
 cuenta regresiva, ubicación con mapa, itinerario, código de vestimenta,
 padrinos, mesa de regalos con botón de copiar CLABE, galería de fotos
 con lightbox, hashtag, botón "agregar a calendario", música de fondo,
@@ -18,7 +18,7 @@ y descarga en PDF de regalo. 100% optimizada para celular.
 Servicio: entrega en 24-48h después de recibir los datos. El cliente
 llena su propia información en un link (sin batallar por WhatsApp).
 Anticipo 50%, resto contra entrega. 2 rondas de ajustes gratis (7 días).
-3 paquetes: Básico $499 MXN, Premium $799 MXN, Deluxe $1,199-1,499 MXN.
+3 paquetes: Básico $299 MXN, Estándar $499 MXN, Premium $799 MXN.
 
 Lo que NO se promete: no hay pasarela de pago en línea automática, no
 hay app descargable, RSVP depende de que el invitado tenga WhatsApp.
@@ -38,7 +38,7 @@ Promesa: en 24-48 horas tienes tu invitación lista, sin batallar.
 
 ÁNGULO B — DISEÑO / ESTÉTICA ("se ve como app, no como invitación genérica")
 Dolor: las invitaciones digitales típicas se ven feas o genéricas.
-Promesa: 12 temas de diseño premium, animaciones, se siente de lujo.
+Promesa: 14 temas de diseño premium, animaciones, se siente de lujo.
 
 ÁNGULO C — CONTROL DE INVITADOS (pases + RSVP)
 Dolor: no saber quién va a confirmar, gente que lleva acompañantes de más.
@@ -46,7 +46,7 @@ Promesa: cada familia tiene su pase personalizado y tú ves las confirmaciones e
 
 ÁNGULO D — PRECIO / AHORRO vs. INVITACIÓN IMPRESA
 Dolor: las invitaciones impresas son caras y lentas (imprenta, repartir).
-Promesa: desde $499 MXN, sin imprenta, sin repartir, y queda mejor.
+Promesa: desde $299 MXN, sin imprenta, sin repartir, y queda mejor.
 
 ÁNGULO E — REGALO / RECUERDO (el PDF + la experiencia)
 Dolor: sienten que "lo digital" no es tan especial como algo físico.
@@ -80,18 +80,18 @@ Nosotros te resolvemos en 24-48 horas: tú nos mandas tus datos y
 fotos desde un link fácil (ni le tienes que escribir todo por
 WhatsApp), y te entregamos tu invitación digital lista para compartir.
 📲 Diseño, cuenta regresiva, ubicación, RSVP... todo incluido.
-Descripción: Desde $499 MXN. Anticipo del 50% para apartar tu fecha.
+Descripción: Desde $299 MXN. Anticipo del 50% para apartar tu fecha.
 CTA: Enviar mensaje
 
 --- ANUNCIO 2 (Ángulo B — Diseño) ---
 Headline: Invitaciones digitales que NO se ven como plantilla de WhatsApp
 Texto principal:
 Olvídate de las invitaciones genéricas ✨
-Tenemos 12 diseños (del clásico dorado al neón moderno) con
+Tenemos 14 diseños (del clásico dorado al neón moderno) con
 animaciones, apertura tipo sobre con sello de cera, lluvia de
 mariposas o pétalos, música de fondo y cuenta regresiva en vivo.
 Tus invitados van a pensar que contrataste una app, no un link.
-Descripción: 100% optimizada para celular. Desde $499 MXN.
+Descripción: 100% optimizada para celular. Desde $299 MXN.
 CTA: Ver diseños
 
 --- ANUNCIO 3 (Ángulo C — Control de invitados) ---
@@ -106,13 +106,13 @@ Descripción: RSVP integrado + pases personalizados por familia.
 CTA: Más información
 
 --- ANUNCIO 4 (Ángulo D — Precio/ahorro) ---
-Headline: Invitaciones de XV desde $499 MXN, sin imprenta
+Headline: Invitaciones de XV desde $299 MXN, sin imprenta
 Texto principal:
 ¿Sabes cuánto cuesta imprimir y repartir invitaciones? Aquí no
 gastas en eso. Tu invitación digital incluye diseño, ubicación con
 mapa, itinerario, galería de fotos, mesa de regalos y confirmación
 de asistencia — todo por un solo link de WhatsApp.
-Desde $499 MXN. Sin imprenta, sin mensajería, sin perder tiempo.
+Desde $299 MXN. Sin imprenta, sin mensajería, sin perder tiempo.
 Descripción: 3 paquetes según tu presupuesto.
 CTA: Cotizar ahora
 
@@ -123,7 +123,7 @@ Texto principal:
 tu gusto: colores, tipografía y estilo de apertura personalizados,
 no un diseño de catálogo. Para la quinceañera que se merece algo
 diferente. 💛
-Descripción: Paquete Deluxe — diseño a la medida.
+Descripción: Paquete Premium — diseño a la medida.
 CTA: Enviar mensaje
 
 
@@ -169,7 +169,7 @@ Variante 3 — Ajustes incluidos: "Y si algo no te encanta, tienes
 entrega. Cero riesgo."
 
 Variante 4 — Comparación de paquetes: "3 paquetes según tu
-presupuesto: Básico $499, Premium $799, Deluxe desde $1,199 MXN.
+presupuesto: Básico $299, Estándar $499, Premium $799 MXN.
 Te ayudamos a elegir el que más te convenga."
 
 Métrica a vigilar: costo por conversación Y calidad del lead (¿cuántas
@@ -203,7 +203,7 @@ conversaciones se convierten en venta real?, no solo cuántas entran).
   porque el proceso de venta real es manual).
 - Nunca prometer: pago en línea automático, app descargable, push
   notifications, o confirmación por SMS/email — el sistema no lo tiene.
-- Si se menciona precio, siempre aclarar "desde $499 MXN" para dejar
+- Si se menciona precio, siempre aclarar "desde $299 MXN" para dejar
   espacio a los paquetes más caros sin que se sienta engañoso.
 - Guardar consistencia con ventas/plantillas-whatsapp.txt del repo
   administradorinvitamx (mismos números de anticipo/turnaround/ajustes)

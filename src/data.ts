@@ -3,22 +3,24 @@ import { InvitacionDatos, PaqueteConfig, TemaConfig } from "./types";
 export const paquetes: Record<"basico" | "premium" | "deluxe", PaqueteConfig> = {
   basico: {
     nombre: "Básico",
-    precio: "$499 MXN",
+    precio: "$299 MXN",
     maxFotos: 4,
     // "pases" está disponible aquí como opción a la carta (ver datosDefault.basico, donde
     // queda apagada por default vía seccionesExcluidas) — no es exclusiva de Deluxe, el
     // cliente puede pagarla aparte y el admin la enciende manualmente para esa invitación.
     //
-    // "familia"/"regalos"/"hashtag"/"calendario" (agregado 2026-11-04): son secciones
-    // exclusivas de Premium/Deluxe por política de negocio (ver "Business/pricing policy" en
-    // CLAUDE.md) -- por eso van también apagadas por default aquí (seccionesExcluidas en
-    // datosDefault.basico). Antes NO estaban en este arreglo en absoluto, lo que sonaba
-    // correcto, pero el editor (App.tsx) nunca filtró las pestañas "Familia"/"Regalos" ni el
-    // campo "Hashtag" por paquete -- el admin podía llenar esos datos para un cliente Básico
-    // sin ningún aviso de que nunca se iban a mostrar en el link final (se filtran en
-    // templates.ts vía isSectionActive). Agregarlas aquí, apagadas, las hace aparecer en
-    // "Personalizar Secciones Habilitadas" con la misma mecánica que "pases": el admin las
-    // prende a mano solo si de verdad negoció esa excepción con el cliente, nunca por default.
+    // "familia"/"regalos"/"hashtag"/"calendario" (agregado 2026-11-04): existen en este
+    // catálogo para TODOS los paquetes -- lo que decide si están prendidas o apagadas por
+    // default es seccionesExcluidas en datosDefault, no esta lista. El editor (App.tsx) nunca
+    // filtró las pestañas "Familia"/"Regalos" ni el campo "Hashtag" por paquete -- el admin
+    // podía llenar esos datos sin ningún aviso de que no se iban a mostrar en el link final
+    // (se filtran en templates.ts vía isSectionActive). Tenerlas aquí las hace aparecer en
+    // "Personalizar Secciones Habilitadas" con la misma mecánica que "pases".
+    // ACTUALIZADO 2026-11-18 (rediseño de precios): "hashtag"/"calendario" ya NO son
+    // exclusivas de Estándar/Premium -- bajaron a Básico, incluidas por default (ver
+    // datosDefault.basico.seccionesExcluidas, solo trae ["pases","familia","regalos"]).
+    // Solo "familia"/"regalos" se quedan como exclusivas de Estándar en adelante (ver
+    // SECCIONES_EXCLUSIVAS_PREMIUM en App.tsx).
     secciones: [
       "apertura",
       "portada",
@@ -39,8 +41,12 @@ export const paquetes: Record<"basico" | "premium" | "deluxe", PaqueteConfig> = 
     ]
   },
   premium: {
-    nombre: "Premium",
-    precio: "$799 MXN",
+    // Rediseño de precios 2026-11-18: este paquete se muestra al cliente como "Estándar"
+    // ($499 MXN) -- se deja la llave interna "premium" tal cual (no se renombra) para no
+    // romper invitaciones YA GUARDADAS en Supabase, que guardan datos.paquete:"premium"
+    // literal. Solo cambia lo que se MUESTRA (nombre/precio), nunca el identificador.
+    nombre: "Estándar",
+    precio: "$499 MXN",
     maxFotos: 8,
     // Igual que en Básico: "pases" es opcional a la carta aquí, apagada por default.
     secciones: [
@@ -63,8 +69,10 @@ export const paquetes: Record<"basico" | "premium" | "deluxe", PaqueteConfig> = 
     ]
   },
   deluxe: {
-    nombre: "Deluxe",
-    precio: "$1,199 MXN",
+    // Mismo criterio que "premium" arriba: se muestra como "Premium" ($799 MXN), la llave
+    // interna "deluxe" se queda igual por compatibilidad con datos ya guardados.
+    nombre: "Premium",
+    precio: "$799 MXN",
     maxFotos: 14,
     secciones: [
       "apertura",

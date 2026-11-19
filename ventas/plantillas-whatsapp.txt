@@ -17,7 +17,7 @@ PASO 1 — RESPUESTA A PRIMER CONTACTO
 ====================================================================
 ¡Hola! 🌸 Gracias por escribirnos. Hacemos invitaciones digitales de XV Años totalmente personalizadas, con música, animaciones, cuenta regresiva, mapa de ubicaciones y pases digitales para tus invitados 🎀✨
 
-Para empezar, te comparto nuestro catálogo con 12 diseños distintos para que veas cuál te gusta más:
+Para empezar, te comparto nuestro catálogo con 14 temas distintos para que veas cuál te gusta más:
 👉 https://administradorinvitamx.vercel.app/?catalog=true
 
 Cuéntame cuál te late más y en un momento te mando un ejemplo armado con tu nombre y fecha para que veas cómo se vería la tuya 💕
@@ -50,21 +50,24 @@ PASO 4 — PRESENTACIÓN DE PAQUETES Y PRECIOS (cierre de venta)
 ====================================================================
 Te comparto nuestros paquetes disponibles para que elijas el que mejor se acomode a lo que necesitas 🌸
 
-🎀 *BÁSICO — $499 MXN*
-Hasta 4 fotos · Apertura animada · Portada · Cuenta regresiva · Ubicaciones de ceremonia y recepción · Itinerario · Código de vestimenta · Confirmación de asistencia
+🎀 *BÁSICO — $299 MXN*
+Hasta 4 fotos · Apertura animada · Portada · Cuenta regresiva · Ubicaciones de ceremonia y recepción · Itinerario · Código de vestimenta · Galería de fotos · Confirmación de asistencia · Hashtag de Instagram · Botón de "Añadir a calendario" · Música personalizada
 
-💕 *PREMIUM — $799 MXN*
+💕 *ESTÁNDAR — $499 MXN* (el más elegido)
 Todo lo del Básico, más:
-Hasta 8 fotos · Padres y padrinos · Mesa de regalos · Hashtag de Instagram · Botón de "Añadir a calendario" · PDF de tu invitación incluido de regalo 🎁
+Hasta 8 fotos · Padres y padrinos · Mesa de regalos y datos bancarios
 
-👑 *DELUXE — $1,199 MXN*
-Todo lo del Premium, más:
-Hasta 14 fotos · Pases digitales personalizados para hasta 40 familias invitadas (con su propio link y número de pases) · PDF incluido
+👑 *PREMIUM — $799 MXN*
+Todo lo del Estándar, más:
+Hasta 14 fotos · Pases digitales personalizados para hasta 40 familias invitadas (con su propio link y número de pases) · PDF de tu invitación incluido de regalo 🎁
 
-📌 Extras disponibles en cualquier paquete:
+📌 Extras disponibles a la carta:
 - Pases personalizados en Básico: +$150 (hasta 10 familias)
-- Pases personalizados en Premium: +$180 (hasta 20 familias)
-- PDF de regalo en Básico: +$99–150
+- Pases personalizados en Estándar: +$180 (hasta 20 familias)
+- Familia extra arriba del tope de pases, en cualquier paquete: +$20 cada una
+- Sección adicional suelta en Básico (padres y padrinos, o mesa de regalos): +$99 cada una
+- PDF de regalo en Básico/Estándar: +$99
+- Control de acceso con QR en la puerta (requiere pases activos), cualquier paquete: +$150
 
 ¿Cuál te gustaría reservar? 🌸
 
@@ -133,7 +136,7 @@ PASO 10 — OFRECER PDF DE REGALO (si no venía incluido en su paquete)
 ====================================================================
 ¿Sabías que también puedes tener un PDF descargable de tu invitación como recuerdo? 🎁 Es perfecto para imprimir o guardar de regalo.
 
-Tiene un costo adicional de $99–150 MXN si tu paquete no lo incluye. ¿Te gustaría agregarlo?
+Tiene un costo adicional de $99 MXN si tu paquete no lo incluye. ¿Te gustaría agregarlo?
 
 ====================================================================
 OBJECIONES Y SITUACIONES COMUNES (usar cuando surjan, no en orden fijo)
@@ -142,14 +145,14 @@ Políticas de negocio ya definidas y aplicadas en estas plantillas:
 - Anticipo: 50% para reservar la fecha, 50% contra entrega del link final.
 - Tiempo de entrega: 24-48 horas una vez recibidos todos los datos completos.
 - Cambios post-entrega: 2 rondas de ajustes gratis dentro de los primeros
-  7 días; después, $99-150 MXN por ronda adicional.
+  7 días; después, $99 MXN (precio fijo) por ronda adicional.
 Si alguna cambia más adelante, actualízala aquí y en todos los mensajes
 que la mencionen.
 
 --------------------------------------------------------------------
 OBJECIÓN — "Está muy caro" / duda por el precio
 --------------------------------------------------------------------
-Te entiendo, y quiero que lo compares bien: una invitación impresa tradicional normalmente cuesta entre $3,000 y $8,000 MXN entre diseño, impresión y repartición — y ahí se te pueden acabar o necesitar reimprimir. Con la digital, desde $499 MXN tienes animaciones, música, mapa de ubicación, confirmación automática de asistencia y hasta pases personalizados, todo en un link que se manda en segundos y no se agota nunca.
+Te entiendo, y quiero que lo compares bien: una invitación impresa tradicional normalmente cuesta entre $3,000 y $8,000 MXN entre diseño, impresión y repartición — y ahí se te pueden acabar o necesitar reimprimir. Con la digital, desde $299 MXN tienes animaciones, música, mapa de ubicación, confirmación automática de asistencia y hasta pases personalizados, todo en un link que se manda en segundos y no se agota nunca.
 
 ¿Cuál paquete se ajusta mejor a lo que estás buscando?
 
@@ -163,15 +166,15 @@ OBJECIÓN — "Lo voy a pensar" / silencio general (no ligado a que expire la mu
 --------------------------------------------------------------------
 OBJECIÓN — "¿Es seguro pagar por adelantado?" / duda de anticipo
 --------------------------------------------------------------------
-Es una duda muy válida 🙂 Trabajamos así: 50% de anticipo para reservar tu fecha y comenzar el diseño, y el otro 50% contra entrega de tu invitación ya lista. Puedes ver ejemplos reales de invitaciones ya entregadas en nuestro catálogo para que veas la calidad del trabajo. Cualquier otra duda, con gusto te la resuelvo antes de que decidas.
+Es una duda muy válida 🙂 Trabajamos así: 50% de anticipo para reservar tu fecha y producir tu invitación final, y el otro 50% contra entrega de tu invitación ya lista. Puedes ver ejemplos reales de invitaciones ya entregadas en nuestro catálogo para que veas la calidad del trabajo. Cualquier otra duda, con gusto te la resuelvo antes de que decidas.
 
 --------------------------------------------------------------------
 OBJECIÓN — "No sé qué paquete elegir"
 --------------------------------------------------------------------
 Te ayudo a decidir rápido:
 - Si tu prioridad es cuidar el presupuesto, el *Básico* ya incluye todo lo esencial para una invitación hermosa.
-- Si quieres detalles extra como mesa de regalos, hashtag y de regalo el PDF, el *Premium* es el más pedido.
-- Si tu evento es grande (muchas familias invitadas) y quieres pases digitales personalizados sin costo extra, el *Deluxe* te conviene más.
+- Si quieres detalles extra como padres y padrinos o mesa de regalos, el *Estándar* es el más pedido.
+- Si tu evento es grande (muchas familias invitadas) y quieres pases digitales personalizados y el PDF de regalo sin costo extra, el *Premium* te conviene más.
 
 ¿Cuál se parece más a lo que imaginas para tu evento?
 
@@ -192,6 +195,6 @@ Válida por otros 5 días. ¿Seguimos platicando de tu paquete? 💕
 --------------------------------------------------------------------
 SITUACIÓN — Ya entregada, pide cambios o ajustes
 --------------------------------------------------------------------
-¡Claro que sí! Con gusto te ayudo a ajustar [DETALLE_QUE_PIDE] en tu invitación. Tienes hasta 2 rondas de ajustes sin costo dentro de los primeros 7 días después de la entrega; pasado ese periodo o esas 2 rondas, cada ajuste adicional tiene un costo de $99–150 MXN.
+¡Claro que sí! Con gusto te ayudo a ajustar [DETALLE_QUE_PIDE] en tu invitación. Tienes hasta 2 rondas de ajustes sin costo dentro de los primeros 7 días después de la entrega; pasado ese periodo o esas 2 rondas, cada ajuste adicional tiene un costo de $99 MXN.
 
 En cuanto me confirmes qué necesitas, te lo actualizo 🌸
