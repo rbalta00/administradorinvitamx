@@ -51,6 +51,8 @@ Extras disponibles en cualquier paquete: familia extra arriba del tope de pases 
 
 **Regla:** si un cliente Básico pide Familia/Regalos, o un cliente Básico/Estándar pide Pases o PDF, se prende manualmente en "Personalizar Secciones Habilitadas" — solo porque el cliente lo pidió/pagó puntual, nunca por default. Hashtag y Calendario ya vienen incluidos por default desde Básico (no son una excepción que haya que negociar).
 
+Ese mismo panel trae 2 botones (pedido 2026-11-18): **🔄 Habilitar Todas** (prende absolutamente todo, sin importar lo que incluya el paquete) y **📦 Fijar según paquete** (deshace cualquier cambio manual que hayas hecho en familia/regalos/pases y los regresa a como vienen de fábrica en el paquete actual del cliente, sin tocar nada más que hayas apagado a mano, como por ejemplo la Galería).
+
 ## 4. Mientras editas: el Monitor de Invitación
 
 El panel derecho ("Monitor de Invitación") muestra una vista previa en vivo. Puedes cambiar entre **Móvil / Tablet / Escritorio** (así se ve cada invitado según su pantalla) y ajustar el zoom. Usa "Nueva Pestaña" para abrir la vista previa completa en una pestaña aparte.
