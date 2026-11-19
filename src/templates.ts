@@ -23,6 +23,11 @@ const FONT_URL_SEGMENTS: Record<string, string> = {
   "Syne": "Syne:wght@400;700;800",
   "WindSong": "WindSong:wght@400;500",
   "Dancing Script": "Dancing+Script:wght@400;600;700",
+  // Agregadas 2026-11-19 para FUENTES_TEXTO (App.tsx) -- overrides de fuente/paleta ahora
+  // aplican a cualquier tema, no solo "personalizado" (ver generarHTMLFinal).
+  "Poppins": "Poppins:wght@300;400;500;600;700",
+  "Montserrat": "Montserrat:wght@300;400;500;600;700",
+  "Jost": "Jost:wght@300;400;500;600;700",
 };
 
 const construirUrlGoogleFonts = (tema: TemaConfig): string => {
@@ -83,6 +88,38 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         background: linear-gradient(145deg, #FFFFFF, ${tema.colors.light});
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
       }
+    `
+    };
+  } else if (datos.personalizacion?.fontHeading || datos.personalizacion?.fontBody || datos.personalizacion?.fontCursive || datos.personalizacion?.paletaColor) {
+    // 2026-11-19: los mismos 4 overrides de "personalizado" ahora también aplican a cualquier
+    // tema del catálogo, si la invitación trae su propio override -- antes el panel de "A
+    // Medida" se veía igual pero no hacía nada fuera del tema "personalizado". Reutiliza
+    // getColoresEfectivos (misma función que personalizado, sin duplicar lógica).
+    // Reasignar tema.colors/fontHeading/fontBody/fontCursive aquí (antes de que el resto de
+    // generarHTMLFinal lea esos campos) hace que TODO el resto del archivo -- cada
+    // `${tema.colors.accent}` que aparece decenas de veces más abajo -- ya use el override
+    // automáticamente, sin tocar nada más. Solo el customStyle (3 clases fijas, texto plano
+    // generado en data.ts) necesita un parche aparte: se agrega ENCIMA del customStyle propio
+    // del tema (no se reemplaza) para no perder detalles finos de ese tema en particular (ej.
+    // el font-weight/border-radius extra que algunos temas sí traen y "personalizado" no).
+    const p = datos.personalizacion;
+    const coloresEfectivos = p.paletaColor ? getColoresEfectivos(tema, p.paletaColor) : tema.colors;
+    const fontHeadingEfectiva = p.fontHeading || tema.fontHeading;
+    const fontBodyEfectiva = p.fontBody || tema.fontBody;
+    const fontCursivaEfectiva = p.fontCursive || tema.fontCursive;
+    tema = {
+      ...tema,
+      fontHeading: fontHeadingEfectiva,
+      fontBody: fontBodyEfectiva,
+      fontCursive: fontCursivaEfectiva,
+      colors: coloresEfectivos,
+      customStyle: `
+      ${tema.customStyle || ""}
+      /* Override de fuente/paleta para este tema en particular (A Medida, 2026-11-19) */
+      .theme-container { font-family: '${fontBodyEfectiva}', sans-serif !important; }
+      .heading-text { font-family: '${fontHeadingEfectiva}', serif !important; ${p.paletaColor ? `color: ${coloresEfectivos.accent} !important;` : ""} }
+      .cursive-text { font-family: '${fontCursivaEfectiva}', cursive !important; ${p.paletaColor ? `color: ${coloresEfectivos.primary} !important;` : ""} }
+      ${p.paletaColor ? `.gold-card { border-color: ${coloresEfectivos.border} !important; background: linear-gradient(145deg, #FFFFFF, ${coloresEfectivos.light}) !important; }` : ""}
     `
     };
   }
@@ -228,6 +265,19 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         </div>
         <div class="absolute top-3 right-3 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-xs font-semibold text-gray-700 shadow-md opacity-0 group-hover:opacity-100 transition duration-300">
           ${index + 1}/${fotosFiltradas.length}
+        </div>
+      </div>`)
+    .join("");
+
+  // Variante "polaroid" de la galería (2026-11-19): fotos instantáneas con marco blanco y borde
+  // inferior ancho, rotación alternada -2deg/+2deg/-1.5deg/+1.5deg (ciclo de 4, para que no se
+  // repita el mismo ángulo cada 2 fotos). Mismo lightbox/fotos que grid y carrusel.
+  const ROTACIONES_POLAROID = [-3, 3, -2, 2.5];
+  const galeriaFotosPolaroidHTML = fotosFiltradas
+    .map((foto, index) => `
+      <div class="group relative bg-white p-2.5 pb-7 shadow-lg cursor-pointer galeria-foto-polaroid" style="--rot: ${ROTACIONES_POLAROID[index % ROTACIONES_POLAROID.length]}deg; width: 150px;" onclick="abrirLightbox(${index})">
+        <div class="overflow-hidden aspect-square bg-gradient-to-br from-gray-200 to-gray-300">
+          <img src="${foto}" alt="Foto ${index + 1}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" loading="lazy" />
         </div>
       </div>`)
     .join("");
@@ -803,8 +853,126 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
     }
   }
 
+  // Estilo visual de la Portada (2026-11-19): mismo patrón que tipoAperturaEfectivo/
+  // estiloItinerarioEfectivo -- si no está definido o trae un valor desconocido, cae a
+  // "circular" (el diseño original, intacto). "fondo" requiere una foto real (es la foto
+  // misma la que se usa de fondo); sin foto, o con "Mostrar foto de portada" apagado, cae a
+  // "circular" también -- nunca se queda a medias.
+  const hayFotoPrincipalPortada = (datos.fotoPortada && datos.fotoPortada.trim() !== "") || fotosFiltradas.length > 0;
+  const urlFotoPrincipalPortada = (datos.fotoPortada && datos.fotoPortada.trim() !== "") ? datos.fotoPortada.trim() : (fotosFiltradas[0] || "");
+  const estiloPortadaElegido: "circular" | "arco" | "fondo" | "marco" =
+    datos.personalizacion?.estiloPortada === "arco" || datos.personalizacion?.estiloPortada === "fondo" || datos.personalizacion?.estiloPortada === "marco"
+      ? datos.personalizacion.estiloPortada
+      : "circular";
+  const estiloPortadaEfectivo: "circular" | "arco" | "fondo" | "marco" =
+    estiloPortadaElegido === "fondo" && (!hayFotoPrincipalPortada || datos.mostrarFotoPortada === false)
+      ? "circular"
+      : estiloPortadaElegido;
+
+  // Bloque de foto principal para "circular"/"arco"/"marco" -- "fondo" no lo usa (la foto va
+  // en el fondo de toda la sección, ver más abajo). Respeta "Mostrar foto de portada" (si está
+  // apagado, cae al placeholder con el emoji del tema) igual que el diseño original.
+  const fotoPrincipalPortadaHTML = (() => {
+    if (datos.mostrarFotoPortada === false) {
+      return `
+          <div class="w-56 h-56 mx-auto rounded-full bg-gradient-to-br from-[${tema.colors.light}] to-[${tema.colors.secondary}] border-4 border-white flex items-center justify-center mb-6 shadow-2xl animate-float ring-4 ring-primary/10">
+            <div class="text-center p-4">
+              <span class="text-7xl block mb-2 animate-bounce">${tema.decorativeEmoji}</span>
+              <span class="font-serif text-[10px] uppercase tracking-widest text-accent text-xs">Mis XV Años</span>
+            </div>
+          </div>`;
+    }
+    if (estiloPortadaEfectivo === "arco") {
+      return hayFotoPrincipalPortada ? `
+          <div class="relative w-64 h-72 mx-auto mb-6 overflow-hidden animate-float" style="border-radius: 50% 50% 14px 14px / 55% 55% 14px 14px; box-shadow: 0 0 0 4px white, 0 0 0 8px ${tema.colors.accent}, 0 18px 35px rgba(0,0,0,0.2);">
+            <img src="${urlFotoPrincipalPortada}" alt="${datos.nombre}" class="w-full h-full object-cover">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/15 via-transparent to-transparent"></div>
+          </div>` : `
+          <div class="mx-auto mb-6 flex items-center justify-center shadow-2xl animate-float" style="width:224px;height:252px;border-radius: 50% 50% 14px 14px / 55% 55% 14px 14px; background: linear-gradient(145deg, ${tema.colors.light}, ${tema.colors.secondary}); box-shadow: 0 0 0 4px white, 0 0 0 8px ${tema.colors.accent};">
+            <div class="text-center p-4">
+              <span class="text-7xl block mb-2 animate-bounce">${tema.decorativeEmoji}</span>
+              <span class="font-serif text-[10px] uppercase tracking-widest text-accent text-xs">Mis XV Años</span>
+            </div>
+          </div>`;
+    }
+    if (estiloPortadaEfectivo === "marco") {
+      return hayFotoPrincipalPortada ? `
+          <div class="relative w-60 h-72 mx-auto mb-6 animate-float" style="padding:10px; border:2px solid ${tema.colors.accent}; background:white; box-shadow:0 15px 35px rgba(0,0,0,0.18);">
+            <span class="absolute -top-2.5 -left-2.5 text-lg" style="color:${tema.colors.accent};">${tema.decorativeEmoji}</span>
+            <span class="absolute -top-2.5 -right-2.5 text-lg" style="color:${tema.colors.accent};">${tema.decorativeEmoji}</span>
+            <span class="absolute -bottom-2.5 -left-2.5 text-lg" style="color:${tema.colors.accent};">${tema.decorativeEmoji}</span>
+            <span class="absolute -bottom-2.5 -right-2.5 text-lg" style="color:${tema.colors.accent};">${tema.decorativeEmoji}</span>
+            <div class="w-full h-full overflow-hidden" style="border:1px solid ${tema.colors.border};">
+              <img src="${urlFotoPrincipalPortada}" alt="${datos.nombre}" class="w-full h-full object-cover">
+            </div>
+          </div>` : `
+          <div class="relative mx-auto mb-6 flex items-center justify-center animate-float" style="width:224px;height:272px;padding:10px;border:2px solid ${tema.colors.accent};background:white;box-shadow:0 15px 35px rgba(0,0,0,0.18);">
+            <span class="absolute -top-2.5 -left-2.5 text-lg" style="color:${tema.colors.accent};">${tema.decorativeEmoji}</span>
+            <span class="absolute -top-2.5 -right-2.5 text-lg" style="color:${tema.colors.accent};">${tema.decorativeEmoji}</span>
+            <span class="absolute -bottom-2.5 -left-2.5 text-lg" style="color:${tema.colors.accent};">${tema.decorativeEmoji}</span>
+            <span class="absolute -bottom-2.5 -right-2.5 text-lg" style="color:${tema.colors.accent};">${tema.decorativeEmoji}</span>
+            <div class="w-full h-full flex items-center justify-center" style="background: linear-gradient(145deg, ${tema.colors.light}, ${tema.colors.secondary}); border:1px solid ${tema.colors.border};">
+              <span class="text-6xl animate-bounce">${tema.decorativeEmoji}</span>
+            </div>
+          </div>`;
+    }
+    // circular -- diseño original, intacto
+    return hayFotoPrincipalPortada ? `
+          <div class="relative w-64 h-64 mx-auto rounded-full overflow-hidden border-4 border-white shadow-2xl mb-6 ring-4 ring-primary/20 animate-float">
+            <img src="${urlFotoPrincipalPortada}" alt="${datos.nombre}" class="w-full h-full object-cover">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent"></div>
+          </div>` : `
+          <div class="w-56 h-56 mx-auto rounded-full bg-gradient-to-br from-[${tema.colors.light}] to-[${tema.colors.secondary}] border-4 border-white flex items-center justify-center mb-6 shadow-2xl animate-float ring-4 ring-primary/10">
+            <div class="text-center p-4">
+              <span class="text-7xl block mb-2 animate-bounce">${tema.decorativeEmoji}</span>
+              <span class="font-serif text-[10px] uppercase tracking-widest text-accent text-xs">Mis XV Años</span>
+            </div>
+          </div>`;
+  })();
+
   // Sección de contenido: portada
-  const portadaSeccionHTML = isSectionActive("portada") ? `
+  const portadaSeccionHTML = !isSectionActive("portada") ? "" :
+    estiloPortadaEfectivo === "fondo" ? (() => {
+      // "fondo": la foto ocupa toda la sección, con el velo del tema encima (mismo mecanismo/
+      // opacidad que "Nitidez del fondo" para la imagen de fondo global) para que el texto se
+      // siga leyendo -- más sombra de texto directa como refuerzo adicional.
+      const esOscuro = tema.id === "celestial" || tema.id === "neon";
+      const opacidadVelo = datos.fondoVeloOpacidad ?? (esOscuro ? 0.65 : 0.55);
+      const colorVelo = esOscuro ? `rgba(8, 6, 16, ${opacidadVelo})` : `rgba(20, 16, 10, ${opacidadVelo * 0.6})`;
+      const sombraTexto = "text-shadow: 0 2px 10px rgba(0,0,0,0.45);";
+      return `
+    <section data-section="portada" class="relative min-h-[92vh] flex flex-col justify-between p-6 text-center overflow-hidden border-b border-borderTheme/10" style="background-image: url('${urlFotoPrincipalPortada}'); background-size: cover; background-position: center;">
+      <div class="absolute inset-0" style="background: ${colorVelo};"></div>
+
+      <div class="mt-10 z-10 animate-fade-in">
+        <p class="text-xs uppercase tracking-[0.3em] font-serif mb-2" style="color:white; ${sombraTexto}">Mis XV Años</p>
+        <div class="flex justify-center items-center gap-3 mb-1">
+          <div class="w-12 h-[1px] bg-gradient-to-r from-transparent to-white/60"></div>
+          <span style="color:white; ${sombraTexto}">${tema.decorativeEmoji}</span>
+          <div class="w-12 h-[1px] bg-gradient-to-l from-transparent to-white/60"></div>
+        </div>
+      </div>
+
+      <div class="my-auto z-10 py-6 animate-fade-in" style="animation-delay: 0.2s;">
+        <p class="text-sm font-serif italic mb-3 tracking-wide" style="color:white; ${sombraTexto}">¡Bienvenidos a mi celebración especial!</p>
+        <h1 class="cursive-text text-6xl md:text-7xl mb-5" style="color:white; text-shadow: 0 4px 18px rgba(0,0,0,0.55);">${datos.nombre}</h1>
+        <div class="flex items-center justify-center gap-3 mb-2">
+          <span class="w-12 h-[1px] bg-gradient-to-r from-transparent to-white/60"></span>
+          <span class="text-[11px] tracking-widest uppercase font-semibold px-4 py-2 bg-white/20 backdrop-blur rounded-full border border-white/50" style="color:white; ${sombraTexto}">⚜️ 15 Primaveras ⚜️</span>
+          <span class="w-12 h-[1px] bg-gradient-to-l from-transparent to-white/60"></span>
+        </div>
+      </div>
+
+      <div class="mb-6 z-10 backdrop-blur-lg bg-black/30 p-5 rounded-2xl border border-white/30 shadow-lg animate-fade-in" style="animation-delay: 0.4s;">
+        <h2 id="portada-fecha-visible" class="font-serif text-lg tracking-wider font-semibold" style="color:white; ${sombraTexto}"></h2>
+        <div id="event-year" class="text-xs tracking-widest font-mono mt-1.5 font-semibold" style="color:white; ${sombraTexto}">2026</div>
+        <div class="mt-5 animate-bounce" style="color:white;">
+          <svg class="w-6 h-6 mx-auto drop-shadow-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 13l-7 7-7-7m14-6l-7 7-7-7"></path></svg>
+        </div>
+      </div>
+    </section>
+    `;
+    })() : `
     <section data-section="portada" class="relative min-h-[92vh] flex flex-col justify-between p-6 text-center overflow-hidden border-b border-borderTheme/10" style="background: ${tema.bgGradient};">
       <!-- Decorativos de fondo premium -->
       <div class="absolute -top-20 -left-20 w-60 h-60 rounded-full bg-primary/15 blur-3xl animate-pulse-slow"></div>
@@ -832,21 +1000,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         </div>
 
         <!-- Foto Principal con efecto premium -->
-        ${datos.mostrarFotoPortada !== false ? `
-          ${(datos.fotoPortada && datos.fotoPortada.trim() !== "") || fotosFiltradas.length > 0 ? `
-          <div class="relative w-64 h-64 mx-auto rounded-full overflow-hidden border-4 border-white shadow-2xl mb-6 ring-4 ring-primary/20 animate-float">
-            <img src="${(datos.fotoPortada && datos.fotoPortada.trim() !== "") ? datos.fotoPortada.trim() : fotosFiltradas[0]}" alt="${datos.nombre}" class="w-full h-full object-cover">
-            <div class="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent"></div>
-          </div>
-          ` : `
-          <div class="w-56 h-56 mx-auto rounded-full bg-gradient-to-br from-[${tema.colors.light}] to-[${tema.colors.secondary}] border-4 border-white flex items-center justify-center mb-6 shadow-2xl animate-float ring-4 ring-primary/10">
-            <div class="text-center p-4">
-              <span class="text-7xl block mb-2 animate-bounce">${tema.decorativeEmoji}</span>
-              <span class="font-serif text-[10px] uppercase tracking-widest text-accent text-xs">Mis XV Años</span>
-            </div>
-          </div>
-          `}
-        ` : ''}
+        ${fotoPrincipalPortadaHTML}
       </div>
 
       <!-- Fecha y llamada a scroll elegante -->
@@ -858,10 +1012,57 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         </div>
       </div>
     </section>
-    ` : "";
+    `;
 
   // Sección de contenido: cuenta
-  const cuentaSeccionHTML = isSectionActive("cuenta") ? `
+  // Estilo visual de la Cuenta Regresiva (2026-11-19) -- mismo patrón de siempre: si no está
+  // definido o es desconocido, cae a "cajas" (el diseño original, intacto). Los 3 estilos
+  // conservan los mismos 4 ids (countdown-days/hours/minutes/seconds) que ya actualiza
+  // iniciarCuentaRegresiva() -- el conteo en vivo sigue funcionando igual en los tres.
+  const estiloCuentaEfectivo: "cajas" | "elegante" | "linea" =
+    datos.personalizacion?.estiloCuenta === "elegante" || datos.personalizacion?.estiloCuenta === "linea"
+      ? datos.personalizacion.estiloCuenta
+      : "cajas";
+  const cuentaSeccionHTML = !isSectionActive("cuenta") ? "" :
+    estiloCuentaEfectivo === "elegante" ? `
+    <section data-section="cuenta" class="p-6 text-center bg-transparent">
+      <h3 class="font-serif text-xs uppercase tracking-[0.2em] text-gray-400 mb-4">Solo Faltan</h3>
+      <div class="flex items-start justify-center gap-1.5 max-w-sm mx-auto">
+        <div class="flex flex-col items-center">
+          <span id="countdown-days" class="heading-text block text-4xl font-bold leading-none">00</span>
+          <span class="text-[9px] text-gray-500 uppercase tracking-wider font-light mt-1.5">Días</span>
+        </div>
+        <span class="heading-text text-3xl leading-none opacity-50">:</span>
+        <div class="flex flex-col items-center">
+          <span id="countdown-hours" class="heading-text block text-4xl font-bold leading-none">00</span>
+          <span class="text-[9px] text-gray-500 uppercase tracking-wider font-light mt-1.5">Hrs</span>
+        </div>
+        <span class="heading-text text-3xl leading-none opacity-50">:</span>
+        <div class="flex flex-col items-center">
+          <span id="countdown-minutes" class="heading-text block text-4xl font-bold leading-none">00</span>
+          <span class="text-[9px] text-gray-500 uppercase tracking-wider font-light mt-1.5">Min</span>
+        </div>
+        <span class="heading-text text-3xl leading-none opacity-50">:</span>
+        <div class="flex flex-col items-center">
+          <span id="countdown-seconds" class="heading-text block text-4xl font-bold leading-none">00</span>
+          <span class="text-[9px] text-gray-500 uppercase tracking-wider font-light mt-1.5">Seg</span>
+        </div>
+      </div>
+    </section>
+    ` : estiloCuentaEfectivo === "linea" ? `
+    <section data-section="cuenta" class="p-6 text-center bg-transparent">
+      <h3 class="font-serif text-xs uppercase tracking-[0.2em] text-gray-400 mb-4">Solo Faltan</h3>
+      <div class="inline-flex items-center gap-2 px-5 py-3 rounded-full mx-auto flex-wrap justify-center" style="background: ${tema.colors.light}66; border: 1px solid ${tema.colors.border}77; backdrop-filter: blur(6px);">
+        <span class="text-xs font-bold" style="color:${tema.colors.accent};"><span id="countdown-days">00</span> días</span>
+        <span style="color:${tema.colors.border};">·</span>
+        <span class="text-xs font-bold" style="color:${tema.colors.accent};"><span id="countdown-hours">00</span> hrs</span>
+        <span style="color:${tema.colors.border};">·</span>
+        <span class="text-xs font-bold" style="color:${tema.colors.accent};"><span id="countdown-minutes">00</span> min</span>
+        <span style="color:${tema.colors.border};">·</span>
+        <span class="text-xs font-bold" style="color:${tema.colors.accent};"><span id="countdown-seconds">00</span> seg</span>
+      </div>
+    </section>
+    ` : `
     <section data-section="cuenta" class="p-6 text-center bg-transparent">
       <h3 class="font-serif text-xs uppercase tracking-[0.2em] text-gray-400 mb-4">Solo Faltan</h3>
       <div class="grid grid-cols-4 gap-2 max-w-xs mx-auto">
@@ -883,7 +1084,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         </div>
       </div>
     </section>
-    ` : "";
+    `;
 
   // Sección de contenido: mensaje
   const mensajeSeccionHTML = isSectionActive("mensaje") ? `
@@ -1072,15 +1273,18 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
     </section>
     ` : "";
 
-  // Formato de la sección de galería: "grid" (de siempre) o "carrusel" (fila que se desliza, no
-  // crece en alto) -- ver "estiloGaleria" en el editor. Si no está definido se usa "grid" para no
+  // Formato de la sección de galería: "grid" (de siempre), "carrusel" (fila que se desliza, no
+  // crece en alto) o "polaroid" (2026-11-19, fotos instantáneas con rotación) -- ver
+  // "estiloGaleria" en el editor. Si no está definido o es desconocido se usa "grid" para no
   // cambiarle el look a invitaciones guardadas antes de este campo.
   // paraExportarPDF SIEMPRE fuerza "grid" sin importar lo elegido: el PDF de regalo captura el
   // iframe con html2canvas a un ancho fijo (ver handleDescargarPDF en App.tsx) -- un carrusel con
   // overflow-x-auto solo mostraría la primera foto (y media) en esa captura, el resto del álbum
-  // quedaría cortado en silencio. Un PDF tampoco puede "deslizarse", así que grid es lo correcto
-  // ahí de todas formas, no solo un parche para el bug de la captura.
-  const estiloGaleriaEfectivo: "grid" | "carrusel" = !paraExportarPDF && datos.estiloGaleria === "carrusel" ? "carrusel" : "grid";
+  // quedaría cortado en silencio, y "polaroid" tiene fotos de ancho fijo que no se acomodarían
+  // bien en una cuadrícula angosta de captura. Un PDF tampoco puede "deslizarse", así que grid
+  // es lo correcto ahí de todas formas, no solo un parche para el bug de la captura.
+  const estiloGaleriaEfectivo: "grid" | "carrusel" | "polaroid" =
+    paraExportarPDF ? "grid" : (datos.estiloGaleria === "carrusel" || datos.estiloGaleria === "polaroid") ? datos.estiloGaleria : "grid";
 
   // Sección de contenido: galeria premium
   const galeriaSeccionHTML = isSectionActive("galeria") && fotosFiltradas.length > 0 ? `
@@ -1097,6 +1301,10 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       </div>
       <div class="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-3 max-w-2xl mx-auto [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         ${galeriaFotosCarruselHTML}
+      </div>
+      ` : estiloGaleriaEfectivo === "polaroid" ? `
+      <div class="flex flex-wrap justify-center gap-x-4 gap-y-6 max-w-2xl mx-auto py-2">
+        ${galeriaFotosPolaroidHTML}
       </div>
       ` : `
       <div class="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
@@ -1501,6 +1709,18 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       filter: brightness(1.05);
     }
 
+    /* Estilo "polaroid" de la galería (2026-11-19, ver estiloGaleria === "polaroid") -- la
+       rotación alternada de cada foto es un ángulo fijo por elemento (--rot, puesto inline por
+       foto), no se puede expresar con una sola regla, así que se guarda en variable CSS. */
+    .galeria-foto-polaroid {
+      transform: rotate(var(--rot, 0deg));
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+    }
+    .galeria-foto-polaroid:hover {
+      transform: rotate(0deg) scale(1.05);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.2);
+    }
+
     /* Scroll suave */
     html {
       scroll-behavior: smooth;
@@ -1656,6 +1876,55 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         const sw = document.getElementById('music-widget');
         if (sw) sw.classList.remove('hidden');
         iniciarAnimacionCaida();
+      }
+
+      // 4. Animación al hacer scroll (2026-11-19, "suave" -- default "ninguna" = comportamiento
+      // de siempre). El estado oculto inicial se aplica AQUÍ, por JS, nunca por CSS estático --
+      // si algo falla (navegador sin IntersectionObserver, excepción) el catch de abajo quita
+      // cualquier estilo que se haya alcanzado a poner, para que el contenido jamás se quede
+      // invisible. No toca la pantalla de apertura (no es un [data-section]) ni interfiere con
+      // la animación de caída (particle-container, z-index aparte). Respeta "Reducir movimiento".
+      if (${datos.personalizacion?.animacionScroll === "suave" ? "true" : "false"}) {
+        try {
+          if (!prefiereMenosMovimiento() && 'IntersectionObserver' in window) {
+            const seccionesParaAnimar = document.querySelectorAll('main [data-section]');
+            seccionesParaAnimar.forEach(function(sec) {
+              sec.style.opacity = '0';
+              sec.style.transform = 'translateY(24px)';
+              sec.style.transition = 'opacity 0.7s cubic-bezier(0.22,1,0.36,1), transform 0.7s cubic-bezier(0.22,1,0.36,1)';
+              // Escalonado ligero entre hijos directos (máx. 4, 70ms entre cada uno) -- se
+              // omite si la sección solo tiene 1 hijo envolvente (nada que escalonar).
+              const hijos = Array.prototype.slice.call(sec.children, 0, 4);
+              if (hijos.length > 1) {
+                hijos.forEach(function(hijo, i) {
+                  if (i === 0) return;
+                  hijo.style.opacity = '0';
+                  hijo.style.transform = 'translateY(14px)';
+                  hijo.style.transition = 'opacity 0.6s ease ' + (i * 0.07) + 's, transform 0.6s ease ' + (i * 0.07) + 's';
+                });
+              }
+            });
+            const observadorScroll = new IntersectionObserver(function(entries) {
+              entries.forEach(function(entry) {
+                if (!entry.isIntersecting) return;
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+                Array.prototype.slice.call(entry.target.children, 0, 4).forEach(function(hijo) {
+                  hijo.style.opacity = '1';
+                  hijo.style.transform = 'translateY(0)';
+                });
+                observadorScroll.unobserve(entry.target);
+              });
+            }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+            seccionesParaAnimar.forEach(function(sec) { observadorScroll.observe(sec); });
+          }
+        } catch (err) {
+          console.warn("Animación al hacer scroll desactivada por un error:", err);
+          document.querySelectorAll('main [data-section], main [data-section] > *').forEach(function(el) {
+            el.style.opacity = '';
+            el.style.transform = '';
+          });
+        }
       }
     });
 
@@ -1827,6 +2096,32 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         });
       }
       iniciarAnimacionCaida();
+
+      // Analítica de aperturas (2026-11-19): un registro mínimo y anónimo (solo invitacion_id +
+      // fecha automática, nada de IP/dispositivo/ubicación) cada vez que un invitado real ABRE
+      // la invitación -- no al cargar la página, aquí mismo, dentro de comenzarExperiencia().
+      // Mismo patrón que el RSVP de arriba: "iid" (parámetro ?iid= del link, ver getShareUrl en
+      // App.tsx) solo existe en un link de invitación YA GUARDADA -- no en catálogo, demos de
+      // temas, ni el monitor de invitación del propio editor -- así que sirve igual aquí para
+      // registrar solo en la invitación publicada real, nunca en una vista previa del admin.
+      // Try/catch silencioso: si la tabla "aperturas" todavía no existe en Supabase (el SQL de
+      // docs/sql/aperturas.sql lo corre el dueño por separado) o no hay red, esto nunca debe
+      // detener ni mostrar un error en la invitación -- de ahí el .catch(() => {}) también.
+      try {
+        const iidApertura = new URLSearchParams(window.location.search).get('iid');
+        if (iidApertura && SUPABASE_URL_RSVP && SUPABASE_ANON_KEY_RSVP) {
+          fetch(SUPABASE_URL_RSVP + '/rest/v1/aperturas', {
+            method: 'POST',
+            headers: {
+              'apikey': SUPABASE_ANON_KEY_RSVP,
+              'Authorization': 'Bearer ' + SUPABASE_ANON_KEY_RSVP,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify({ invitacion_id: iidApertura })
+          }).catch(() => {});
+        }
+      } catch (e) { /* nunca debe impedir que la invitación abra normalmente */ }
     }
 
     let animacionIniciada = false;

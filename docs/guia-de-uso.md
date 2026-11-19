@@ -32,7 +32,7 @@ Estas son las secciones donde capturas los datos de la invitación. Son 9 — si
 | 6 | **Regalos** | Mesa de regalos y datos bancarios (con botón de copiar para el invitado). |
 | 7 | **Álbum** | Las fotos de la galería (el número máximo depende del paquete — ver tabla abajo). |
 | 8 | **Lista Pases** | Los invitados/familias con su número de pases, para generarles un link personalizado. Aquí también se asigna la mesa de cada familia (opcional) y se activa, si se contrató, el **Control de Acceso QR**. |
-| 9 | **A Medida** | Personalización libre de colores, tipografía, estilo de apertura y más — **solo funciona si en la pestaña 1 elegiste el tema "Personalizado 🎨 (A Medida)"**, si no, estos controles no hacen nada. |
+| 9 | **A Medida** | Personalización libre de colores, tipografía, estilo de apertura, itinerario, portada y más — **funciona con cualquier tema del catálogo**, no solo "Personalizado 🎨" (desde el 2026-11-19). Si no tocas nada aquí, cada control se queda con lo que trae el tema elegido. |
 
 **Máximo de fotos por paquete:** Básico 4 — Estándar 8 — Premium 14.
 
@@ -51,6 +51,30 @@ Si no eliges ninguna, cada tema trae su propia apertura por default (ver `tipoAp
 - **Minimalista ⋯**: sin tarjetas, filas limpias con línea de puntos guía entre la hora y el evento — pensada para leerse bien en temas oscuros (Místico Celestial, Ciber Cyber Neon).
 
 Los íconos (misa/iglesia → libro, brindis/cena → campana, recepción/coctel → edificio, baile/vals/show → música, cualquier otro → reloj) se detectan solos por palabras clave del texto del evento, igual en los 3 estilos — no hace falta elegirlos a mano. Una invitación guardada antes de que existiera este selector se ve exactamente igual que siempre (Clásica).
+
+**Diseño de la Portada (pestañas 1 y 9, junto a Itinerario)**: cómo se presenta la foto principal arriba de la invitación — también aplica a cualquier tema. 4 opciones, con mini-vista previa en los colores del tema:
+- **Circular ⚪** (default si no eliges nada): foto redonda con anillo y efecto de flotación — el diseño de siempre.
+- **Arco 🪟**: foto tipo ventana, en forma de arco, con borde doble de acento.
+- **Fondo 🖼️**: la foto ocupa TODA la portada de fondo, con un velo del color del tema encima para que el texto se siga leyendo bien. Si todavía no subiste ninguna foto, cae automáticamente a "Circular" (sin foto no hay nada que poner de fondo).
+- **Marco 🖼️**: foto rectangular con marco ornamental doble y esquinas decorativas (florituras/emoji del tema).
+
+Los 4 estilos conservan el nombre, "Mis XV Años", la pastilla "15 Primaveras", la fecha y la flecha de scroll tal cual — solo cambia cómo se presenta la foto.
+
+**Fuentes y Paleta de Colores (pestaña 9, "A Medida") — ya funcionan con cualquier tema desde el 2026-11-19**: antes solo tenían efecto con el tema "Personalizado 🎨" — ahora se pueden usar para ajustar la tipografía o el color de acento de CUALQUIERA de los 14 temas del catálogo, sin perder el resto del diseño del tema (fondo, íconos, decoración). Si no tocas nada aquí, el tema se queda con su tipografía/color original. Fuentes disponibles: Inter, Garamond, Poppins, Montserrat, Jost.
+
+**Animación al Hacer Scroll (pestaña 1, junto a "Efecto de Animación de Caída")**: activa que cada sección entre con una subida suave y desvanecido al llegar a ella, en vez de aparecer de golpe (como hoy, si lo dejas apagado). Respeta "Reducir movimiento" del dispositivo del invitado, y nunca deja contenido oculto permanentemente aunque algo falle en el navegador del invitado.
+
+**Diseño de la Cuenta Regresiva (pestaña 1, junto a Formato de la Galería)**: 3 opciones —
+- **Cajas** (default): 4 cajas con fondo del tema — el diseño de siempre.
+- **Elegante**: sin cajas, números grandes en la fuente de encabezado del tema.
+- **Línea**: una sola fila compacta ("23 días · 04 hrs · 12 min · 05 seg") en una pastilla translúcida — ideal para temas oscuros como Místico Celestial o Ciber Cyber Neon.
+
+**Formato de la Galería de Fotos (pestaña 1)** — ahora con 3 opciones, cada una con mini-vista previa en los colores del tema:
+- **Cuadrícula** (default): todas las fotos a la vista, en columnas — como siempre.
+- **Carrusel**: una fila que se desliza, no crece en alto sin importar cuántas fotos tenga el álbum.
+- **Polaroid 📸**: fotos instantáneas con marco blanco y rotación alternada, como pegadas en un álbum. Las tres reusan el mismo lightbox (toca una foto y se abre en grande).
+
+**Analítica de aperturas**: cada vez que un invitado real abre su invitación (no solo que cargue el link), se registra en silencio cuántas aperturas lleva esa invitación — sin guardar nada más (ni IP, ni dispositivo, ni ubicación). En "Mis Invitaciones", al expandir la fila de confirmaciones de una invitación verás "📊 Aperturas: N" arriba de la lista de RSVP. Si ves "—" en vez de un número, es que esa consulta no se pudo completar (por ejemplo, si el administrador del sistema no corrió la configuración necesaria en la base de datos) — nunca rompe la lista, solo deja ese dato sin mostrar.
 
 ### 3.1 Qué secciones vienen en cada paquete
 

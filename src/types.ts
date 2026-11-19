@@ -37,7 +37,7 @@ export interface InvitacionDatos {
   estiloCajasSecciones?: "normal" | "sin_cajon" | "solo_borde";
   /** Formato de la sección "Mi Álbum de Fotos". Si no está definido se usa "grid" (el look de
    *  siempre), para no cambiarle el look a invitaciones guardadas antes de este campo. */
-  estiloGaleria?: "grid" | "carrusel";
+  estiloGaleria?: "grid" | "carrusel" | "polaroid";
   hashtag: string;
   whatsappConfirmacion: string;
   cancion: string;
@@ -81,6 +81,20 @@ export interface InvitacionDatos {
      *  igual que tipoApertura. Si no está definido o trae un valor desconocido, cae a "clasica"
      *  (el diseño original) -- ver estiloItinerarioEfectivo en templates.ts. */
     estiloItinerario?: "clasica" | "editorial" | "minimalista";
+    /** Diseño visual de la Portada -- aplica al tema activo sea cual sea. Si no está definido,
+     *  trae un valor desconocido, o es "fondo" sin ninguna foto capturada, cae a "circular" (el
+     *  diseño original) -- ver estiloPortadaEfectivo en templates.ts. */
+    estiloPortada?: "circular" | "arco" | "fondo" | "marco";
+    /** Animación de entrada por scroll de cada sección de contenido. "ninguna" (o ausente) es
+     *  el comportamiento de siempre -- las secciones aparecen sin animación propia (solo la
+     *  portada anima al cargar, como hoy). "suave" activa un IntersectionObserver con
+     *  fallback seguro (nunca deja contenido oculto si algo falla) -- ver DOMContentLoaded en
+     *  templates.ts. */
+    animacionScroll?: "ninguna" | "suave";
+    /** Diseño visual de la Cuenta Regresiva -- aplica al tema activo sea cual sea. Si no está
+     *  definido o trae un valor desconocido, cae a "cajas" (el diseño original) -- ver
+     *  estiloCuentaEfectivo en templates.ts. */
+    estiloCuenta?: "cajas" | "elegante" | "linea";
   };
 }
 

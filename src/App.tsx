@@ -631,7 +631,7 @@ const NOMBRES_SECCIONES: Record<string, string> = {
 // son exactamente las fuentes que ya usan los 14 temas del catálogo, así que ya están
 // cargadas y probadas — no hay riesgo de romper la carga de Google Fonts.
 const FUENTES_ENCABEZADO = ["Playfair Display", "Cormorant Garamond", "Lora", "Cinzel", "Outfit", "Syne", "Orbitron"];
-const FUENTES_TEXTO = ["Inter", "Garamond"];
+const FUENTES_TEXTO = ["Inter", "Garamond", "Poppins", "Montserrat", "Jost"];
 const FUENTES_CURSIVA = ["Great Vibes", "Alex Brush", "Pinyon Script", "Monsieur La Doulaise", "Petit Formal Script", "WindSong", "Sacramento", "Parisienne", "Dancing Script"];
 
 type TipoApertura = "sobre" | "cortina" | "tarjeta" | "puertas" | "destellos";
@@ -867,6 +867,86 @@ const SelectorEstiloItinerario = memo(({ tema, valorActual, onSelect, colorAcent
   );
 });
 
+type EstiloPortada = "circular" | "arco" | "fondo" | "marco";
+
+const ESTILOS_PORTADA: { id: EstiloPortada; nombre: string; desc: string }[] = [
+  { id: "circular", nombre: "Circular 🔘", desc: "Foto redonda con anillo y flotación (el diseño original)" },
+  { id: "arco", nombre: "Arco 🪟", desc: "Foto tipo ventana, arco arriba, borde doble de acento" },
+  { id: "fondo", nombre: "Fondo 🖼️", desc: "Tu foto ocupa toda la portada, con velo del tema encima" },
+  { id: "marco", nombre: "Marco 🖼️", desc: "Foto rectangular con marco ornamental y esquinas decorativas" }
+];
+
+// Mini-vista previa del estilo de portada -- mismo patrón que MiniPreviewApertura/Itinerario:
+// CSS puro, coloreado con el tema activo, sin imagen real (un bloque sólido representa la foto).
+const MiniPreviewPortada = memo(({ estilo, tema }: { estilo: EstiloPortada; tema: TemaConfig }) => {
+  const c = tema.colors;
+  const marco = { width: 56, height: 56 };
+  const fotoFalsa = { background: `linear-gradient(145deg, ${c.light}, ${c.secondary})` };
+  if (estilo === "arco") {
+    return (
+      <div className="relative shrink-0 overflow-hidden rounded-lg flex items-center justify-center" style={{ ...marco, background: tema.bgGradient }}>
+        <div style={{ width: 26, height: 32, borderRadius: "50% 50% 3px 3px / 55% 55% 3px 3px", boxShadow: `0 0 0 2px white, 0 0 0 4px ${c.accent}`, ...fotoFalsa }} />
+      </div>
+    );
+  }
+  if (estilo === "fondo") {
+    return (
+      <div className="relative shrink-0 overflow-hidden rounded-lg flex items-end justify-center p-1" style={{ ...marco, ...fotoFalsa }}>
+        <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.35)" }} />
+        <span className="relative z-10 block w-7 h-1 rounded-full" style={{ background: "white" }} />
+      </div>
+    );
+  }
+  if (estilo === "marco") {
+    return (
+      <div className="relative shrink-0 overflow-hidden rounded-lg flex items-center justify-center" style={{ ...marco, background: tema.bgGradient }}>
+        <div style={{ width: 28, height: 34, border: `2px solid ${c.accent}`, padding: 2, background: "white" }}>
+          <div className="w-full h-full" style={fotoFalsa} />
+        </div>
+      </div>
+    );
+  }
+  // circular
+  return (
+    <div className="relative shrink-0 overflow-hidden rounded-lg flex items-center justify-center" style={{ ...marco, background: tema.bgGradient }}>
+      <div className="rounded-full" style={{ width: 30, height: 30, boxShadow: `0 0 0 2px white, 0 0 0 4px ${c.primary}33`, ...fotoFalsa }} />
+    </div>
+  );
+});
+
+// Panel visual "Diseño de la Portada" -- mismo patrón compartido que los selectores de arriba.
+const SelectorEstiloPortada = memo(({ tema, valorActual, onSelect, colorAcento }: {
+  tema: TemaConfig;
+  valorActual: EstiloPortada;
+  onSelect: (id: EstiloPortada) => void;
+  colorAcento: "purple" | "indigo";
+}) => {
+  const borde = colorAcento === "purple" ? "border-purple-500 bg-purple-50/40" : "border-indigo-500 bg-indigo-50/40";
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" id={`selector-portada-${colorAcento}`}>
+      {ESTILOS_PORTADA.map(e => {
+        const isSelected = valorActual === e.id;
+        return (
+          <button
+            key={e.id}
+            onClick={() => onSelect(e.id)}
+            className={`flex items-center gap-2.5 text-left p-2 rounded-xl border-2 transition cursor-pointer ${isSelected ? borde : "border-slate-200 bg-white hover:border-slate-300"}`}
+          >
+            <MiniPreviewPortada estilo={e.id} tema={tema} />
+            <div className="min-w-0 flex-1">
+              <span className="flex items-center gap-1 text-xs font-bold text-slate-700">
+                {e.nombre}
+                {isSelected && <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${colorAcento === "purple" ? "bg-purple-600" : "bg-indigo-600"} text-white`}>✓ Elegido</span>}
+              </span>
+              <span className="block text-[10px] text-slate-500 mt-0.5 leading-snug">{e.desc}</span>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+});
+
 // Paletas de la lluvia decorativa ("Efecto de Animación de Caída"): conjuntos de emojis
 // coordinados por estética, en vez de dejar elegir emoji por emoji.
 const ESTILOS_CAJAS_SECCIONES: { id: "normal" | "sin_cajon" | "solo_borde"; nombre: string; desc: string }[] = [
@@ -875,9 +955,87 @@ const ESTILOS_CAJAS_SECCIONES: { id: "normal" | "sin_cajon" | "solo_borde"; nomb
   { id: "solo_borde", nombre: "Solo borde", desc: "Quita el relleno pero deja un marco delgado" }
 ];
 
-const ESTILOS_GALERIA: { id: "grid" | "carrusel"; nombre: string; desc: string }[] = [
+type EstiloGaleria = "grid" | "carrusel" | "polaroid";
+const ESTILOS_GALERIA: { id: EstiloGaleria; nombre: string; desc: string }[] = [
   { id: "grid", nombre: "Cuadrícula", desc: "Todas las fotos a la vista, en columnas (como hoy)" },
-  { id: "carrusel", nombre: "Carrusel", desc: "Una fila que se desliza -- no crece en alto sin importar cuántas fotos tenga el álbum" }
+  { id: "carrusel", nombre: "Carrusel", desc: "Una fila que se desliza -- no crece en alto sin importar cuántas fotos tenga el álbum" },
+  { id: "polaroid", nombre: "Polaroid 📸", desc: "Fotos instantáneas con marco blanco y rotación alternada, como pegadas en un álbum" }
+];
+
+// Mini-vista previa del estilo de galería -- mismo patrón CSS-puro que apertura/itinerario/
+// portada, en los colores del tema activo (cada "foto" es un bloque sólido, no una imagen real).
+const MiniPreviewGaleria = memo(({ estilo, tema }: { estilo: EstiloGaleria; tema: TemaConfig }) => {
+  const c = tema.colors;
+  const marco = { width: 56, height: 56 };
+  const fotoFalsa = { background: `linear-gradient(145deg, ${c.secondary}, ${c.accent}99)` };
+  if (estilo === "carrusel") {
+    return (
+      <div className="relative shrink-0 overflow-hidden rounded-lg flex items-center gap-1 p-1.5" style={{ ...marco, background: tema.bgGradient }}>
+        <div className="rounded-sm shrink-0" style={{ width: 16, height: 36, ...fotoFalsa }} />
+        <div className="rounded-sm shrink-0" style={{ width: 16, height: 36, ...fotoFalsa, opacity: 0.85 }} />
+        <div className="rounded-sm shrink-0" style={{ width: 10, height: 36, ...fotoFalsa, opacity: 0.5 }} />
+      </div>
+    );
+  }
+  if (estilo === "polaroid") {
+    return (
+      <div className="relative shrink-0 overflow-hidden rounded-lg flex items-center justify-center" style={{ ...marco, background: tema.bgGradient }}>
+        <div className="absolute bg-white shadow-sm" style={{ width: 22, height: 26, transform: "rotate(-8deg)", padding: 2 }}>
+          <div className="w-full" style={{ height: 16, ...fotoFalsa }} />
+        </div>
+        <div className="absolute bg-white shadow-sm" style={{ width: 22, height: 26, transform: "rotate(7deg) translateX(10px)", padding: 2 }}>
+          <div className="w-full" style={{ height: 16, ...fotoFalsa }} />
+        </div>
+      </div>
+    );
+  }
+  // grid
+  return (
+    <div className="relative shrink-0 overflow-hidden rounded-lg grid grid-cols-2 gap-1 p-1.5" style={{ ...marco, background: tema.bgGradient }}>
+      <div className="rounded-sm" style={fotoFalsa} />
+      <div className="rounded-sm" style={{ ...fotoFalsa, opacity: 0.85 }} />
+      <div className="rounded-sm" style={{ ...fotoFalsa, opacity: 0.7 }} />
+      <div className="rounded-sm" style={{ ...fotoFalsa, opacity: 0.55 }} />
+    </div>
+  );
+});
+
+// Panel visual "Formato de la Galería" -- antes botones de solo texto (pedido 2026-11-19:
+// convertir al mismo patrón de tarjetas con mini-vista previa que apertura/itinerario/portada).
+const SelectorEstiloGaleria = memo(({ tema, valorActual, onSelect }: {
+  tema: TemaConfig;
+  valorActual: EstiloGaleria;
+  onSelect: (id: EstiloGaleria) => void;
+}) => {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      {ESTILOS_GALERIA.map(e => {
+        const isSelected = valorActual === e.id;
+        return (
+          <button
+            key={e.id}
+            onClick={() => onSelect(e.id)}
+            className={`flex items-center gap-2.5 text-left p-2 rounded-xl border-2 transition cursor-pointer ${isSelected ? "border-pink-500 bg-pink-50/40" : "border-slate-200 bg-white hover:border-slate-300"}`}
+          >
+            <MiniPreviewGaleria estilo={e.id} tema={tema} />
+            <div className="min-w-0 flex-1">
+              <span className="flex items-center gap-1 text-xs font-bold text-slate-700">
+                {e.nombre}
+                {isSelected && <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-pink-600 text-white">✓ Elegido</span>}
+              </span>
+              <span className="block text-[10px] text-slate-500 mt-0.5 leading-snug">{e.desc}</span>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+});
+
+const ESTILOS_CUENTA: { id: "cajas" | "elegante" | "linea"; nombre: string; desc: string }[] = [
+  { id: "cajas", nombre: "Cajas", desc: "4 cajas con fondo del tema (el diseño original)" },
+  { id: "elegante", nombre: "Elegante", desc: "Sin cajas -- números grandes en la fuente de encabezado" },
+  { id: "linea", nombre: "Línea", desc: "Una sola fila compacta en una pastilla translúcida -- ideal en temas oscuros" }
 ];
 
 const PALETAS_ANIMACION: { id: string; nombre: string; simbolos: string[] }[] = [
@@ -2750,6 +2908,10 @@ export default function App() {
   // Confirmaciones (RSVP) por invitación, cargadas bajo demanda al expandir una fila en el
   // panel (evita N+1 queries al abrir la lista si hay muchas invitaciones guardadas).
   const [confirmacionesPorInvitacion, setConfirmacionesPorInvitacion] = useState<Record<string, ConfirmacionRSVP[]>>({});
+  // Analítica de aperturas (2026-11-19) -- número de aperturas de cada invitación, cargado
+  // bajo demanda igual que confirmacionesPorInvitacion. null = la consulta falló (ej. la tabla
+  // "aperturas" todavía no existe en Supabase) -- se muestra "—" en vez de romper la lista.
+  const [aperturasPorInvitacion, setAperturasPorInvitacion] = useState<Record<string, number | null>>({});
   const [invitacionExpandidaId, setInvitacionExpandidaId] = useState<string | null>(null);
   const [invitacionPagosExpandidaId, setInvitacionPagosExpandidaId] = useState<string | null>(null);
   const [invitacionMensajesExpandidaId, setInvitacionMensajesExpandidaId] = useState<string | null>(null);
@@ -3135,6 +3297,21 @@ export default function App() {
       return;
     }
     setInvitacionExpandidaId(row.id);
+    // Analítica de aperturas (2026-11-19): se carga EN PARALELO con las confirmaciones, mismo
+    // momento/mismo disparador (lazy, solo al abrir esta pestaña, no para las N filas de la
+    // lista de un jalón) -- pero en su propio try/catch independiente: si la tabla "aperturas"
+    // todavía no existe en Supabase (el dueño corre docs/sql/aperturas.sql por separado), eso
+    // nunca debe tumbar ni bloquear la carga de confirmaciones, que sí es una tabla real de
+    // siempre. Se queda en "—" (ver render) en vez de un número si falla.
+    if (aperturasPorInvitacion[row.id] === undefined && window.supabaseClient) {
+      window.supabaseClient
+        .from("aperturas")
+        .select("id", { count: "exact", head: true })
+        .eq("invitacion_id", row.id)
+        .then(({ count, error }: { count: number | null; error: any }) => {
+          setAperturasPorInvitacion(prev => ({ ...prev, [row.id]: error ? null : (count ?? 0) }));
+        });
+    }
     if (confirmacionesPorInvitacion[row.id] || !window.supabaseClient) return;
     setCargandoConfirmaciones(true);
     try {
@@ -5923,6 +6100,29 @@ export default function App() {
                         </span>
                       </label>
                     </div>
+
+                    <div className="flex items-center justify-between border-t border-pink-100/60 pt-3">
+                      <div className="pr-3">
+                        <span className="block text-xs font-bold text-slate-800">
+                          Animación al Hacer Scroll
+                        </span>
+                        <span className="block text-[11px] text-slate-500 leading-normal mt-0.5">
+                          Cada sección entra con una subida suave y desvanecido al llegar a ella, en vez de aparecer de golpe. Respeta "Reducir movimiento" del dispositivo del invitado.
+                        </span>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={datos.personalizacion?.animacionScroll === "suave"}
+                          onChange={(e) => setDatos(prev => ({ ...prev, personalizacion: { ...(prev.personalizacion || {}), animacionScroll: e.target.checked ? "suave" : "ninguna" } }))}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-550"></div>
+                        <span className="ml-2 text-xs font-bold text-pink-700 w-12 text-right uppercase">
+                          {datos.personalizacion?.animacionScroll === "suave" ? "ON" : "OFF"}
+                        </span>
+                      </label>
+                    </div>
                   </div>
                 </div>
 
@@ -5939,12 +6139,30 @@ export default function App() {
                     <span className="block text-[11px] text-slate-500 leading-normal mt-0.5 mb-2">
                       El carrusel conviene con álbumes grandes (Premium, 10-14 fotos): la sección no crece en alto sin importar cuántas fotos tenga.
                     </span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {ESTILOS_GALERIA.map(e => (
+                    <SelectorEstiloGaleria
+                      tema={temaActual}
+                      valorActual={datos.estiloGaleria || "grid"}
+                      onSelect={(id) => setDatos(prev => ({ ...prev, estiloGaleria: id }))}
+                    />
+                  </div>
+                </div>
+
+                {/* DISEÑO DE LA CUENTA REGRESIVA */}
+                <div className="border-t border-slate-200 pt-6">
+                  <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-pink-500 animate-pulse"></span>
+                    Diseño de la Cuenta Regresiva
+                  </h3>
+                  <div className="p-4 bg-rose-50/20 border border-pink-100 rounded-xl">
+                    <span className="block text-[11px] text-slate-500 leading-normal mb-2">
+                      💡 Aplica al tema activo, sea cual sea. Si no eliges ninguno, se usa "Cajas" (el diseño de siempre).
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      {ESTILOS_CUENTA.map(e => (
                         <button
                           key={e.id}
-                          onClick={() => setDatos(prev => ({ ...prev, estiloGaleria: e.id }))}
-                          className={`text-left p-3 rounded-xl border-2 transition cursor-pointer ${(datos.estiloGaleria || "grid") === e.id ? "border-pink-500 bg-pink-50/40" : "border-slate-200 bg-white hover:border-slate-300"}`}
+                          onClick={() => setDatos(prev => ({ ...prev, personalizacion: { ...(prev.personalizacion || {}), estiloCuenta: e.id } }))}
+                          className={`text-left p-3 rounded-xl border-2 transition cursor-pointer ${(datos.personalizacion?.estiloCuenta || "cajas") === e.id ? "border-pink-500 bg-pink-50/40" : "border-slate-200 bg-white hover:border-slate-300"}`}
                         >
                           <span className="block text-xs font-bold text-slate-700">{e.nombre}</span>
                           <span className="block text-[10px] text-slate-500 mt-0.5">{e.desc}</span>
@@ -5979,6 +6197,17 @@ export default function App() {
                         tema={temaActual}
                         valorActual={datos.personalizacion?.estiloItinerario || "clasica"}
                         onSelect={(id) => setDatos(prev => ({ ...prev, personalizacion: { ...(prev.personalizacion || {}), estiloItinerario: id } }))}
+                        colorAcento="purple"
+                      />
+                    </div>
+
+                    <div className="border-t border-purple-100/60 pt-3">
+                      <h4 className="text-xs font-bold text-slate-700 mb-2">Diseño de la Portada</h4>
+                      <p className="text-[10px] text-slate-400 mb-2">💡 Aplica al tema activo, sea cual sea. "Fondo" necesita que ya tengas una foto subida.</p>
+                      <SelectorEstiloPortada
+                        tema={temaActual}
+                        valorActual={datos.personalizacion?.estiloPortada || "circular"}
+                        onSelect={(id) => setDatos(prev => ({ ...prev, personalizacion: { ...(prev.personalizacion || {}), estiloPortada: id } }))}
                         colorAcento="purple"
                       />
                     </div>
@@ -7216,15 +7445,17 @@ export default function App() {
               <div className="space-y-6 animate-fadeIn">
                 <div>
                   <h3 className="text-sm font-semibold text-indigo-600 mb-1">Invitación 100% a la Medida</h3>
-                  <p className="text-xs text-slate-500 mb-4">Tipografías, color de acento y tipo de apertura, para invitaciones que el cliente pidió totalmente personalizadas.</p>
+                  <p className="text-xs text-slate-500 mb-4">Tipografías, color de acento, tipo de apertura y más — funciona con <strong>cualquier tema</strong> del catálogo, no solo "Personalizado". Si no tocas nada aquí, se queda con lo que trae el tema elegido.</p>
                 </div>
 
-                {datos.tema !== "personalizado" ? (
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800">
-                    ⚠️ Esta personalización solo aplica al tema <strong>"Personalizado 🎨 (A Medida)"</strong>. Selecciona ese tema en la pestaña <strong>Tema/Paquete</strong> para habilitar estos controles.
-                  </div>
-                ) : (
-                  <>
+                {(() => {
+                  // 2026-11-19: estos 4 overrides (tipografías, paleta, apertura, itinerario)
+                  // ya aplican a cualquier tema (ver generarHTMLFinal) -- antes solo
+                  // funcionaban con el tema "personalizado" y el panel lo avisaba con una
+                  // advertencia que bloqueaba los controles. Se quitó el candado: ahora siempre
+                  // se muestran y funcionan, sea cual sea el tema activo.
+                  return (
+                    <>
                     <div>
                       <h4 className="text-xs font-bold text-slate-700 mb-2">Tipografías</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -7309,6 +7540,16 @@ export default function App() {
                     </div>
 
                     <div>
+                      <h4 className="text-xs font-bold text-slate-700 mb-2">Diseño de la Portada</h4>
+                      <SelectorEstiloPortada
+                        tema={temaActual}
+                        valorActual={datos.personalizacion?.estiloPortada || "circular"}
+                        onSelect={(id) => setDatos(prev => ({ ...prev, personalizacion: { ...(prev.personalizacion || {}), estiloPortada: id } }))}
+                        colorAcento="indigo"
+                      />
+                    </div>
+
+                    <div>
                       <h4 className="text-xs font-bold text-slate-700 mb-2">Animación de la Lluvia Decorativa</h4>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {PALETAS_ANIMACION.map(a => {
@@ -7328,8 +7569,9 @@ export default function App() {
                       </div>
                       <p className="text-[10px] text-slate-400 mt-2">Solo se ve si "Efecto de Animación de Caída" está en ON (pestaña Tema/Paquete).</p>
                     </div>
-                  </>
-                )}
+                    </>
+                  );
+                })()}
               </div>
             )}
 
@@ -8315,6 +8557,9 @@ export default function App() {
 
                       {invitacionExpandidaId === row.id && (
                         <div className="mt-3 pt-3 border-t border-slate-200/60">
+                          <p className="text-[11px] font-bold text-slate-500 mb-2">
+                            📊 Aperturas: {aperturasPorInvitacion[row.id] === undefined ? "…" : aperturasPorInvitacion[row.id] === null ? "—" : aperturasPorInvitacion[row.id]}
+                          </p>
                           {cargandoConfirmaciones && !confirmacionesPorInvitacion[row.id] ? (
                             <p className="text-[11px] text-slate-500">Cargando confirmaciones...</p>
                           ) : (() => {
