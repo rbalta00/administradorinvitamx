@@ -854,16 +854,30 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
   }
 
   // Estilo visual de la Portada (2026-11-19): mismo patrón que tipoAperturaEfectivo/
-  // estiloItinerarioEfectivo -- si no está definido o trae un valor desconocido, cae a
-  // "circular" (el diseño original, intacto). "fondo" requiere una foto real (es la foto
-  // misma la que se usa de fondo); sin foto, o con "Mostrar foto de portada" apagado, cae a
-  // "circular" también -- nunca se queda a medias.
+  // estiloItinerarioEfectivo -- si no está definido o trae un valor desconocido, cae al
+  // DISEÑO POR DEFECTO DEL TEMA (ver más abajo; antes siempre caía a "circular" fijo, pedido
+  // 2026-11-19 para que la portada ya no se vea igual sin importar el tema). La elección
+  // explícita del admin en el editor SIEMPRE manda sobre ese default, incluyendo si elige
+  // "circular" a propósito en un tema cuyo default sea otro -- por eso el check de abajo
+  // valida los 4 valores posibles, no solo los 3 "no circular" como antes. "fondo" requiere
+  // una foto real (es la foto misma la que se usa de fondo); sin foto, o con "Mostrar foto de
+  // portada" apagado, cae a "circular" también -- nunca se queda a medias.
   const hayFotoPrincipalPortada = (datos.fotoPortada && datos.fotoPortada.trim() !== "") || fotosFiltradas.length > 0;
   const urlFotoPrincipalPortada = (datos.fotoPortada && datos.fotoPortada.trim() !== "") ? datos.fotoPortada.trim() : (fotosFiltradas[0] || "");
+  // Debe coincidir exactamente con estiloPortadaPorDefectoDelTema en App.tsx (misma lista de
+  // temas, mismo orden de prioridad).
+  const estiloPortadaPorDefectoDelTemaActivo: "circular" | "arco" | "fondo" | "marco" =
+    ["dorado-clasico", "marmol-oro"].includes(tema.id)
+      ? "marco"
+      : ["floral-acuarela", "botanico", "boho-chic", "princesa-elegante", "mariposas", "coquette-pink", "coquette-luxe"].includes(tema.id)
+        ? "arco"
+        : ["celestial", "neon", "aurora-boreal", "vino-elegante", "glam-rose"].includes(tema.id)
+          ? "fondo"
+          : "circular";
   const estiloPortadaElegido: "circular" | "arco" | "fondo" | "marco" =
-    datos.personalizacion?.estiloPortada === "arco" || datos.personalizacion?.estiloPortada === "fondo" || datos.personalizacion?.estiloPortada === "marco"
+    datos.personalizacion?.estiloPortada === "circular" || datos.personalizacion?.estiloPortada === "arco" || datos.personalizacion?.estiloPortada === "fondo" || datos.personalizacion?.estiloPortada === "marco"
       ? datos.personalizacion.estiloPortada
-      : "circular";
+      : estiloPortadaPorDefectoDelTemaActivo;
   const estiloPortadaEfectivo: "circular" | "arco" | "fondo" | "marco" =
     estiloPortadaElegido === "fondo" && (!hayFotoPrincipalPortada || datos.mostrarFotoPortada === false)
       ? "circular"

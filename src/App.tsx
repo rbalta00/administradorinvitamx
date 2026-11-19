@@ -660,6 +660,20 @@ const tipoAperturaPorDefectoDelTema = (temaId: string): TipoApertura =>
           ? "puertas"
           : "tarjeta";
 
+// Diseño de portada por defecto de cada tema cuando el usuario no lo sobreescribe manualmente
+// en personalizacion.estiloPortada -- mismo patrón que tipoAperturaPorDefectoDelTema de arriba.
+// Debe coincidir exactamente con la lógica equivalente de estiloPortadaElegido en templates.ts
+// (misma lista de temas, mismo orden de prioridad). Pedido 2026-11-19: antes todos los temas
+// caían a "circular" por default, por lo que la portada se veía igual sin importar el tema.
+const estiloPortadaPorDefectoDelTema = (temaId: string): "circular" | "arco" | "fondo" | "marco" =>
+  ["dorado-clasico", "marmol-oro"].includes(temaId)
+    ? "marco"
+    : ["floral-acuarela", "botanico", "boho-chic", "princesa-elegante", "mariposas", "coquette-pink", "coquette-luxe"].includes(temaId)
+      ? "arco"
+      : ["celestial", "neon", "aurora-boreal", "vino-elegante", "glam-rose"].includes(temaId)
+        ? "fondo"
+        : "circular";
+
 // Mini-vista previa animada (CSS puro, sin imágenes/GIFs) de cada tipo de apertura, pintada con
 // los colores del tema activo -- reemplaza los botones de solo texto del panel "Tipo de
 // Apertura" (pedido 2026-11-19). Son recreaciones a pequeña escala y en bucle suave, no las
@@ -6231,7 +6245,7 @@ export default function App() {
                       <p className="text-[10px] text-slate-400 mb-2">💡 Aplica al tema activo, sea cual sea. "Fondo" necesita que ya tengas una foto subida.</p>
                       <SelectorEstiloPortada
                         tema={temaActual}
-                        valorActual={datos.personalizacion?.estiloPortada || "circular"}
+                        valorActual={datos.personalizacion?.estiloPortada || estiloPortadaPorDefectoDelTema(temaActual.id)}
                         onSelect={(id) => setDatos(prev => ({ ...prev, personalizacion: { ...(prev.personalizacion || {}), estiloPortada: id } }))}
                         colorAcento="purple"
                       />
@@ -7568,7 +7582,7 @@ export default function App() {
                       <h4 className="text-xs font-bold text-slate-700 mb-2">Diseño de la Portada</h4>
                       <SelectorEstiloPortada
                         tema={temaActual}
-                        valorActual={datos.personalizacion?.estiloPortada || "circular"}
+                        valorActual={datos.personalizacion?.estiloPortada || estiloPortadaPorDefectoDelTema(temaActual.id)}
                         onSelect={(id) => setDatos(prev => ({ ...prev, personalizacion: { ...(prev.personalizacion || {}), estiloPortada: id } }))}
                         colorAcento="indigo"
                       />

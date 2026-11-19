@@ -53,10 +53,12 @@ Si no eliges ninguna, cada tema trae su propia apertura por default (ver `tipoAp
 Los íconos (misa/iglesia → libro, brindis/cena → campana, recepción/coctel → edificio, baile/vals/show → música, cualquier otro → reloj) se detectan solos por palabras clave del texto del evento, igual en los 3 estilos — no hace falta elegirlos a mano. Una invitación guardada antes de que existiera este selector se ve exactamente igual que siempre (Clásica).
 
 **Diseño de la Portada (pestañas 1 y 9, junto a Itinerario)**: cómo se presenta la foto principal arriba de la invitación — también aplica a cualquier tema. 4 opciones, con mini-vista previa en los colores del tema:
-- **Circular ⚪** (default si no eliges nada): foto redonda con anillo y efecto de flotación — el diseño de siempre.
+- **Circular ⚪**: foto redonda con anillo y efecto de flotación — el diseño de siempre.
 - **Arco 🪟**: foto tipo ventana, en forma de arco, con borde doble de acento.
 - **Fondo 🖼️**: la foto ocupa TODA la portada de fondo, con un velo del color del tema encima para que el texto se siga leyendo bien. Si todavía no subiste ninguna foto, cae automáticamente a "Circular" (sin foto no hay nada que poner de fondo).
 - **Marco 🖼️**: foto rectangular con marco ornamental doble y esquinas decorativas (florituras/emoji del tema).
+
+Si no eliges ninguno a mano, **cada tema trae su propio diseño de portada por default** (desde el 2026-11-19 — antes todos caían a "Circular" por igual): Marco en Dorado Clásico y Mármol & Oro; Arco en Floral Acuarela, Eucalipto Botánico, Rustique Boho Chic, Princesa Elegante, Vuelo de Mariposas, XV Coquette Listones Rose y XV Coquette Luxe; Fondo en Místico Celestial, Ciber Cyber Neon, Aurora Boreal, Vino Elegante y Glam Rose Oro; Circular en el resto (incluido Personalizado). El panel siempre marca "✓ Elegido" sobre el que esté activo de verdad (tu elección manual, o el default del tema si no tocaste nada) — una elección manual, incluyendo "Circular" a propósito, siempre manda sobre el default del tema.
 
 Los 4 estilos conservan el nombre, "Mis XV Años", la pastilla "15 Primaveras", la fecha y la flecha de scroll tal cual — solo cambia cómo se presenta la foto.
 

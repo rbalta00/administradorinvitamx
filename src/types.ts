@@ -81,9 +81,12 @@ export interface InvitacionDatos {
      *  igual que tipoApertura. Si no está definido o trae un valor desconocido, cae a "clasica"
      *  (el diseño original) -- ver estiloItinerarioEfectivo en templates.ts. */
     estiloItinerario?: "clasica" | "editorial" | "minimalista";
-    /** Diseño visual de la Portada -- aplica al tema activo sea cual sea. Si no está definido,
-     *  trae un valor desconocido, o es "fondo" sin ninguna foto capturada, cae a "circular" (el
-     *  diseño original) -- ver estiloPortadaEfectivo en templates.ts. */
+    /** Diseño visual de la Portada -- aplica al tema activo sea cual sea. Si no está definido o
+     *  trae un valor desconocido, cae al default propio del tema (2026-11-19, ver
+     *  estiloPortadaPorDefectoDelTema en App.tsx) -- ya no siempre "circular". Elegir "fondo"
+     *  sin ninguna foto capturada cae a "circular" de todas formas (ver estiloPortadaEfectivo
+     *  en templates.ts). Una elección explícita, incluyendo "circular" a propósito, siempre
+     *  manda sobre el default del tema. */
     estiloPortada?: "circular" | "arco" | "fondo" | "marco";
     /** Animación de entrada por scroll de cada sección de contenido. "ninguna" (o ausente) es
      *  el comportamiento de siempre -- las secciones aparecen sin animación propia (solo la
