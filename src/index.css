@@ -1,1 +1,87 @@
 @import "tailwindcss";
+
+/* Mini-vistas previas animadas del panel "Tipo de Apertura" (MiniPreviewApertura en App.tsx) --
+   recreaciones a pequeña escala, en bucle suave, de las 5 aperturas reales de templates.ts.
+   Solo transform/opacity por rendimiento, igual que las aperturas reales. */
+.mini-apertura-brillo-tarjeta {
+  position: absolute;
+  top: -40%;
+  left: -70%;
+  width: 36%;
+  height: 180%;
+  transform: rotate(18deg);
+  animation: miniAperturaBrilloTarjeta 3.2s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes miniAperturaBrilloTarjeta {
+  0% { left: -70%; }
+  55%, 100% { left: 130%; }
+}
+
+.mini-apertura-solapa {
+  animation: miniAperturaSolapa 3.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@keyframes miniAperturaSolapa {
+  0%, 55% { transform: rotateX(0deg); }
+  80%, 100% { transform: rotateX(140deg); }
+}
+
+.mini-apertura-cortina-izq {
+  animation: miniAperturaCortinaIzq 3.6s ease-in-out infinite;
+}
+.mini-apertura-cortina-der {
+  animation: miniAperturaCortinaDer 3.6s ease-in-out infinite;
+}
+@keyframes miniAperturaCortinaIzq {
+  0%, 40% { transform: translateX(0); }
+  70%, 100% { transform: translateX(-62%); }
+}
+@keyframes miniAperturaCortinaDer {
+  0%, 40% { transform: translateX(0); }
+  70%, 100% { transform: translateX(62%); }
+}
+
+.mini-apertura-puerta-izq {
+  animation: miniAperturaPuertaIzq 3.6s ease-in-out infinite;
+}
+.mini-apertura-puerta-der {
+  animation: miniAperturaPuertaDer 3.6s ease-in-out infinite;
+}
+@keyframes miniAperturaPuertaIzq {
+  0%, 40% { transform: rotateY(0deg); }
+  70%, 100% { transform: rotateY(-100deg); }
+}
+@keyframes miniAperturaPuertaDer {
+  0%, 40% { transform: rotateY(0deg); }
+  70%, 100% { transform: rotateY(100deg); }
+}
+
+.mini-apertura-destello {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0.5);
+  opacity: 0;
+  animation: miniAperturaDestello 2.6s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes miniAperturaDestello {
+  0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0; }
+  35% { opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(7); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mini-apertura-brillo-tarjeta,
+  .mini-apertura-solapa,
+  .mini-apertura-cortina-izq,
+  .mini-apertura-cortina-der,
+  .mini-apertura-puerta-izq,
+  .mini-apertura-puerta-der,
+  .mini-apertura-destello {
+    animation: none;
+  }
+}

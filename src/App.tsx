@@ -634,20 +634,145 @@ const FUENTES_ENCABEZADO = ["Playfair Display", "Cormorant Garamond", "Lora", "C
 const FUENTES_TEXTO = ["Inter", "Garamond"];
 const FUENTES_CURSIVA = ["Great Vibes", "Alex Brush", "Pinyon Script", "Monsieur La Doulaise", "Petit Formal Script", "WindSong", "Sacramento", "Parisienne", "Dancing Script"];
 
-const TIPOS_APERTURA: { id: "sobre" | "cortina" | "tarjeta"; nombre: string; desc: string }[] = [
-  { id: "tarjeta", nombre: "Tarjeta 🎴", desc: "Tarjeta simple con botón para abrir" },
+type TipoApertura = "sobre" | "cortina" | "tarjeta" | "puertas" | "destellos";
+
+const TIPOS_APERTURA: { id: TipoApertura; nombre: string; desc: string }[] = [
+  { id: "tarjeta", nombre: "Tarjeta 🎴", desc: "Tarjeta elegante con brillo metálico y botón para abrir" },
   { id: "sobre", nombre: "Sobre 💌", desc: "Sobre con sello de cera que se abre" },
-  { id: "cortina", nombre: "Cortina 🎭", desc: "Telón que se descorre a los lados" }
+  { id: "cortina", nombre: "Cortina 🎭", desc: "Telón que se recoge hacia los lados" },
+  { id: "puertas", nombre: "Puertas 🚪 (Puertas de gala)", desc: "Dos hojas que se abren hacia afuera, con luz desde el centro" },
+  { id: "destellos", nombre: "Destellos ✨ (Lluvia de luz)", desc: "Explosión de luz y destellos que disuelve la pantalla" }
 ];
 
 // Apertura por defecto de cada tema cuando el usuario no la sobreescribe manualmente.
-// Debe coincidir exactamente con tipoAperturaEfectivo en templates.ts.
-const tipoAperturaPorDefectoDelTema = (temaId: string): "sobre" | "cortina" | "tarjeta" =>
+// Debe coincidir exactamente con tipoAperturaEfectivo en templates.ts. "puertas"/"destellos"
+// agregados 2026-11-19: "puertas" como default de Dorado Clásico/Mármol & Oro (antes caían al
+// "tarjeta" genérico del else); "destellos" sustituyendo "cortina" en Neón/Celestial -- pedido
+// explícito del encargo ("ideal para temas oscuros como Neón y Celestial").
+const tipoAperturaPorDefectoDelTema = (temaId: string): TipoApertura =>
   ["mariposas", "floral-acuarela", "boho-chic", "coquette-pink", "coquette-luxe"].includes(temaId)
     ? "sobre"
-    : ["celestial", "princesa-elegante", "neon"].includes(temaId)
+    : ["princesa-elegante"].includes(temaId)
       ? "cortina"
-      : "tarjeta";
+      : ["celestial", "neon"].includes(temaId)
+        ? "destellos"
+        : ["dorado-clasico", "marmol-oro"].includes(temaId)
+          ? "puertas"
+          : "tarjeta";
+
+// Mini-vista previa animada (CSS puro, sin imágenes/GIFs) de cada tipo de apertura, pintada con
+// los colores del tema activo -- reemplaza los botones de solo texto del panel "Tipo de
+// Apertura" (pedido 2026-11-19). Son recreaciones a pequeña escala y en bucle suave, no las
+// animaciones reales (esas solo corren una vez, al abrir la invitación real en templates.ts).
+const MiniPreviewApertura = memo(({ tipo, tema }: { tipo: TipoApertura; tema: TemaConfig }) => {
+  const c = tema.colors;
+  const marco: { width: number; height: number } = { width: 56, height: 56 };
+  const base = (
+    <div
+      className="absolute inset-0 rounded-lg overflow-hidden"
+      style={{ background: tema.bgGradient }}
+    />
+  );
+  if (tipo === "tarjeta") {
+    return (
+      <div className="relative shrink-0 overflow-hidden rounded-lg" style={marco}>
+        {base}
+        <div
+          className="absolute inset-1.5 rounded-md border"
+          style={{ background: "rgba(255,255,255,0.72)", borderColor: c.border }}
+        />
+        <div className="mini-apertura-brillo-tarjeta" style={{ background: `linear-gradient(100deg, transparent 0%, ${c.accent}99 50%, transparent 100%)` }} />
+        <span className="absolute inset-0 flex items-center justify-center text-[18px]" style={{ color: c.accent }}>{tema.decorativeEmoji}</span>
+      </div>
+    );
+  }
+  if (tipo === "sobre") {
+    return (
+      <div className="relative shrink-0 overflow-hidden rounded-lg" style={marco}>
+        {base}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" style={{ width: 34, height: 24 }}>
+          <div className="w-full h-full rounded-[2px]" style={{ background: c.light, border: `1px solid ${c.border}` }} />
+          <div
+            className="mini-apertura-solapa absolute top-0 left-0 w-0 h-0"
+            style={{ borderLeft: "17px solid transparent", borderRight: "17px solid transparent", borderTop: `12px solid ${c.accent}`, transformOrigin: "top" }}
+          />
+          <span className="absolute left-1/2 top-[9px] -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center text-[7px] font-bold" style={{ width: 11, height: 11, background: c.accent, color: tema.textLight, border: "1px solid white" }}>
+            {(tema.decorativeEmoji || "♥").slice(0, 1)}
+          </span>
+        </div>
+      </div>
+    );
+  }
+  if (tipo === "cortina") {
+    return (
+      <div className="relative shrink-0 overflow-hidden rounded-lg" style={{ ...marco, background: c.dark }}>
+        <div className="absolute inset-0" style={{ background: "radial-gradient(circle, " + c.accent + "55 0%, transparent 65%)" }} />
+        <div className="mini-apertura-cortina-izq absolute top-0 bottom-0 left-0 w-1/2" style={{ background: c.dark, borderRight: `2px solid ${c.accent}` }} />
+        <div className="mini-apertura-cortina-der absolute top-0 bottom-0 right-0 w-1/2" style={{ background: c.dark, borderLeft: `2px solid ${c.border}` }} />
+        <span className="absolute inset-0 flex items-center justify-center text-[14px] z-10">{tema.decorativeEmoji}</span>
+      </div>
+    );
+  }
+  if (tipo === "puertas") {
+    return (
+      <div className="relative shrink-0 overflow-hidden rounded-lg" style={{ ...marco, background: c.dark, perspective: "300px" }}>
+        <div className="absolute inset-0" style={{ background: "radial-gradient(circle, " + c.accent + "55 0%, transparent 65%)" }} />
+        <div className="mini-apertura-puerta-izq absolute top-0 bottom-0 left-0 w-1/2" style={{ transformOrigin: "left center" }}>
+          <div className="absolute inset-0.5 rounded-sm" style={{ background: c.dark, border: `1px solid ${c.border}` }} />
+        </div>
+        <div className="mini-apertura-puerta-der absolute top-0 bottom-0 right-0 w-1/2" style={{ transformOrigin: "right center" }}>
+          <div className="absolute inset-0.5 rounded-sm" style={{ background: c.dark, border: `1px solid ${c.border}` }} />
+        </div>
+        <span className="absolute inset-0 flex items-center justify-center text-[14px] z-10" style={{ color: c.accent }}>{tema.decorativeEmoji}</span>
+      </div>
+    );
+  }
+  // destellos
+  return (
+    <div className="relative shrink-0 overflow-hidden rounded-lg" style={marco}>
+      {base}
+      <div className="mini-apertura-destello" style={{ background: `radial-gradient(circle, white 0%, ${c.accent} 55%, transparent 100%)` }} />
+      <span className="absolute inset-0 flex items-center justify-center text-[18px] z-10" style={{ color: c.accent }}>{tema.decorativeEmoji}</span>
+    </div>
+  );
+});
+
+// Panel visual "Tipo de Apertura" (reemplaza los botones de solo texto, pedido 2026-11-19):
+// cada tarjeta trae su MiniPreviewApertura animada en bucle con los colores del tema activo.
+// Extraído a un componente compartido porque el selector se renderiza en 2 lugares del editor
+// (pestaña "Tema/Paquete" y pestaña "A Medida") -- antes de esto, los 2 lugares repetían el
+// mismo JSX dos veces; ahora solo cambia el color de acento (purple/indigo) entre ambos.
+const SelectorTipoApertura = memo(({ tema, valorActual, onSelect, colorAcento }: {
+  tema: TemaConfig;
+  valorActual: TipoApertura;
+  onSelect: (id: TipoApertura) => void;
+  colorAcento: "purple" | "indigo";
+}) => {
+  const borde = colorAcento === "purple" ? "border-purple-500 bg-purple-50/40" : "border-indigo-500 bg-indigo-50/40";
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" id={`selector-apertura-${colorAcento}`}>
+      {TIPOS_APERTURA.map(t => {
+        const isSelected = valorActual === t.id;
+        return (
+          <button
+            key={t.id}
+            onClick={() => onSelect(t.id)}
+            className={`flex items-center gap-2.5 text-left p-2 rounded-xl border-2 transition cursor-pointer ${isSelected ? borde : "border-slate-200 bg-white hover:border-slate-300"}`}
+          >
+            <MiniPreviewApertura tipo={t.id} tema={tema} />
+            <div className="min-w-0 flex-1">
+              <span className="flex items-center gap-1 text-xs font-bold text-slate-700">
+                {t.nombre}
+                {isSelected && <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${colorAcento === "purple" ? "bg-purple-600" : "bg-indigo-600"} text-white`}>✓ Elegido</span>}
+              </span>
+              <span className="block text-[10px] text-slate-500 mt-0.5 leading-snug">{t.desc}</span>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+});
 
 // Paletas de la lluvia decorativa ("Efecto de Animación de Caída"): conjuntos de emojis
 // coordinados por estética, en vez de dejar elegir emoji por emoji.
@@ -5746,18 +5871,12 @@ export default function App() {
                     <div>
                       <h4 className="text-xs font-bold text-slate-700 mb-2">Tipo de Apertura</h4>
                       <p className="text-[10px] text-slate-400 mb-2">💡 Aplica al tema activo, sea cual sea. Si no eliges ninguno, se usa la apertura por defecto de "{temaActual.nombre}".</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        {TIPOS_APERTURA.map(t => (
-                          <button
-                            key={t.id}
-                            onClick={() => setDatos(prev => ({ ...prev, personalizacion: { ...(prev.personalizacion || {}), tipoApertura: t.id } }))}
-                            className={`text-left p-3 rounded-xl border-2 transition cursor-pointer ${(datos.personalizacion?.tipoApertura || tipoAperturaPorDefectoDelTema(temaActual.id)) === t.id ? "border-purple-500 bg-purple-50/40" : "border-slate-200 bg-white hover:border-slate-300"}`}
-                          >
-                            <span className="block text-xs font-bold text-slate-700">{t.nombre}</span>
-                            <span className="block text-[10px] text-slate-500 mt-0.5">{t.desc}</span>
-                          </button>
-                        ))}
-                      </div>
+                      <SelectorTipoApertura
+                        tema={temaActual}
+                        valorActual={datos.personalizacion?.tipoApertura || tipoAperturaPorDefectoDelTema(temaActual.id)}
+                        onSelect={(id) => setDatos(prev => ({ ...prev, personalizacion: { ...(prev.personalizacion || {}), tipoApertura: id } }))}
+                        colorAcento="purple"
+                      />
                     </div>
 
                     <div className="border-t border-purple-100/60 pt-3">
@@ -7067,18 +7186,12 @@ export default function App() {
 
                     <div>
                       <h4 className="text-xs font-bold text-slate-700 mb-2">Tipo de Apertura</h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        {TIPOS_APERTURA.map(t => (
-                          <button
-                            key={t.id}
-                            onClick={() => setDatos(prev => ({ ...prev, personalizacion: { ...(prev.personalizacion || {}), tipoApertura: t.id } }))}
-                            className={`text-left p-3 rounded-xl border-2 transition cursor-pointer ${(datos.personalizacion?.tipoApertura || tipoAperturaPorDefectoDelTema(temaActual.id)) === t.id ? "border-indigo-500 bg-indigo-50/40" : "border-slate-200 bg-white hover:border-slate-300"}`}
-                          >
-                            <span className="block text-xs font-bold text-slate-700">{t.nombre}</span>
-                            <span className="block text-[10px] text-slate-500 mt-0.5">{t.desc}</span>
-                          </button>
-                        ))}
-                      </div>
+                      <SelectorTipoApertura
+                        tema={temaActual}
+                        valorActual={datos.personalizacion?.tipoApertura || tipoAperturaPorDefectoDelTema(temaActual.id)}
+                        onSelect={(id) => setDatos(prev => ({ ...prev, personalizacion: { ...(prev.personalizacion || {}), tipoApertura: id } }))}
+                        colorAcento="indigo"
+                      />
                     </div>
 
                     <div>

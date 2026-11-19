@@ -36,6 +36,15 @@ Estas son las secciones donde capturas los datos de la invitación. Son 9 — si
 
 **Máximo de fotos por paquete:** Básico 4 — Estándar 8 — Premium 14.
 
+**Tipo de Apertura (pestañas 1 y 9, mismo control en ambos lugares)**: la pantalla animada que ve el invitado antes de entrar a la invitación. 5 opciones, cada una con su mini-vista previa animada en los colores del tema activo — **aplica a cualquier tema**, no solo a "Personalizado" (a diferencia de fuente/colores de la pestaña 9, que sí requieren ese tema):
+- **Tarjeta 🎴**: tarjeta con brillo metálico y botón "Tocar para abrir" — usa de fondo la foto de portada si ya la subiste, difuminada.
+- **Sobre 💌**: sobre de papel con sello de cera (la inicial de la quinceañera) que se rompe y se abre.
+- **Cortina 🎭**: telón de tela que se recoge hacia los lados, con cenefa y resplandor de luz de escenario.
+- **Puertas 🚪 (Puertas de gala)**: dos hojas con marco que se abren hacia afuera revelando luz desde el centro.
+- **Destellos ✨ (Lluvia de luz)**: explosión de destellos que disuelve la pantalla — la más ligera/rápida, pensada para temas oscuros como Místico Celestial y Ciber Cyber Neon.
+
+Si no eliges ninguna, cada tema trae su propia apertura por default (ver `tipoAperturaPorDefectoDelTema` en el código si necesitas la lista exacta). Las 5 respetan "Reducir movimiento" del sistema del invitado — si lo tiene activo, la animación se salta y entra directo.
+
 ### 3.1 Qué secciones vienen en cada paquete
 
 Precios y estructura vigentes desde el rediseño de 2026-11-18. Esto está prendido/apagado por default según el paquete que compró el cliente — no hay que preguntar caso por caso, el editor ya lo filtra solo (pestaña "Tema/Paquete" → "Personalizar Secciones Habilitadas"):

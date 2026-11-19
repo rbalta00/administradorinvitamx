@@ -204,20 +204,31 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
   // Tipo de pantalla de apertura ("carta"): cada tema trae un tipo por defecto, pero el
   // control "Tipo de Apertura" del editor lo puede sobreescribir para cualquier tema, ya
   // que sobre/cortina/tarjeta se pintan con los colores del tema activo, no con CSS fijo.
-  const tipoAperturaEfectivo: "sobre" | "cortina" | "tarjeta" =
+  // "puertas"/"destellos" agregados 2026-11-19 -- debe coincidir exactamente con
+  // tipoAperturaPorDefectoDelTema en App.tsx (misma lista de temas, mismo orden de prioridad).
+  const tipoAperturaEfectivo: "sobre" | "cortina" | "tarjeta" | "puertas" | "destellos" =
     datos.personalizacion?.tipoApertura
       ? datos.personalizacion.tipoApertura
       : ["mariposas", "floral-acuarela", "boho-chic", "coquette-pink", "coquette-luxe"].includes(tema.id)
         ? "sobre"
-        : ["celestial", "princesa-elegante", "neon"].includes(tema.id)
+        : ["princesa-elegante"].includes(tema.id)
           ? "cortina"
-          : "tarjeta";
+          : ["celestial", "neon"].includes(tema.id)
+            ? "destellos"
+            : ["dorado-clasico", "marmol-oro"].includes(tema.id)
+              ? "puertas"
+              : "tarjeta";
 
   // Estilo de los cajones/tarjetas de sección: si ya se eligió con los botones nuevos, se
   // respeta; si no, se deriva del boolean legacy `mostrarCajasSecciones` para no cambiarle el
   // look a invitaciones guardadas antes de este campo.
   const estiloCajasEfectivo: "normal" | "sin_cajon" | "solo_borde" =
     datos.estiloCajasSecciones || (datos.mostrarCajasSecciones === false ? "sin_cajon" : "normal");
+
+  // Inicial de la festejada (sello del sobre, medallón de puertas) -- cae a un corazón si no
+  // hay nombre capturado todavía (demos/catálogo antes de llenar datos).
+  const inicialNombre = (datos.nombre || "").trim().charAt(0).toUpperCase() || "♥";
+  const fuenteCursivaTema = tema.fontCursive || tema.fontHeading;
 
   let aperturaHTML = "";
   if (isSectionActive("apertura")) {
@@ -233,7 +244,8 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         border-radius: 0 0 16px 16px;
         box-shadow: 0 15px 40px rgba(0,0,0,0.18);
         margin-top: 20px;
-        transition: all 0.5s ease;
+        transition: box-shadow 1.1s ease;
+        perspective: 1000px;
       }
       .envelope-flap {
         position: absolute;
@@ -244,9 +256,26 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         border-left: 155px solid transparent;
         border-right: 155px solid transparent;
         border-top: 105px solid ${tema.colors.border};
+        background: linear-gradient(135deg, ${tema.colors.border} 0%, ${tema.colors.accent} 55%, ${tema.colors.border} 100%);
+        box-shadow: inset 0 -6px 10px rgba(0,0,0,0.12);
         transform-origin: top;
-        transition: transform 0.6s ease-in-out;
+        transition: transform 1.1s cubic-bezier(0.65, 0, 0.35, 1);
+        backface-visibility: hidden;
         z-index: 30;
+      }
+      /* Forro interior: mismo triángulo, pre-rotado 180° y oculto por backface-visibility --
+         al abrirse el flap principal (también backface-visibility: hidden) desaparece y este
+         forro queda de frente, revelando un color contrastante. */
+      .envelope-flap::before {
+        content: '';
+        position: absolute;
+        top: 0; left: -155px;
+        width: 0; height: 0;
+        border-left: 155px solid transparent;
+        border-right: 155px solid transparent;
+        border-top: 105px solid ${tema.colors.light};
+        backface-visibility: hidden;
+        transform: rotateX(180deg);
       }
       .envelope-pocket {
         position: absolute;
@@ -254,10 +283,19 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         left: 0;
         width: 100%;
         height: 100%;
-        background: ${tema.colors.bg};
+        background: linear-gradient(180deg, ${tema.colors.bg} 0%, ${tema.colors.light} 100%);
+        box-shadow: inset 0 10px 18px rgba(0,0,0,0.07), inset 0 -4px 8px rgba(0,0,0,0.05);
         border-radius: 0 0 16px 16px;
         border: 2px solid ${tema.colors.border};
         z-index: 20;
+        overflow: hidden;
+      }
+      .envelope-pocket::after {
+        content: '';
+        position: absolute;
+        left: 50%; top: 0; bottom: 0; width: 1px;
+        background: linear-gradient(180deg, transparent, ${tema.colors.border}aa, transparent);
+        transform: translateX(-50%);
       }
       .envelope-letter {
         position: absolute;
@@ -268,10 +306,10 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         background: white;
         border-radius: 12px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.06);
-        border: 1.5px solid ${tema.colors.border}30;
+        border: 1.5px solid ${tema.colors.accent}55;
         padding: 16px 12px;
         text-align: center;
-        transition: transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        transition: transform 1.1s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 1.1s ease;
         z-index: 10;
         display: flex;
         flex-direction: column;
@@ -285,15 +323,16 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         transform: translate(-50%, -50%);
         width: 60px;
         height: 60px;
-        background: ${tema.colors.accent};
+        background: radial-gradient(circle at 35% 30%, ${tema.colors.accent}, ${tema.colors.dark} 115%);
         color: ${tema.textLight};
-        border-radius: 50%;
+        border-radius: 48% 52% 50% 50% / 54% 48% 52% 46%;
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.22);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.4), inset 0 -4px 6px rgba(0,0,0,0.3);
         z-index: 40;
-        font-size: 22px;
+        font-size: 26px;
+        font-family: ${fuenteCursivaTema};
         transition: all 0.4s ease;
         border: 2px solid white;
         cursor: pointer;
@@ -301,12 +340,24 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       .envelope-wax-seal:hover {
         transform: translate(-50%, -50%) scale(1.08);
       }
+      .envelope-wax-seal.sello-rompiendo {
+        animation: selloRomperApertura 0.5s ease-in forwards;
+      }
+      @keyframes selloRomperApertura {
+        0% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+        60% { opacity: 0.55; transform: translate(-50%, -50%) scale(1.18) rotate(-7deg); }
+        100% { opacity: 0; transform: translate(-50%, -50%) scale(0.55) rotate(10deg); }
+      }
+      .envelope-container.open {
+        box-shadow: 0 30px 60px rgba(0,0,0,0.28);
+      }
       .envelope-container.open .envelope-flap {
         transform: rotateX(180deg);
         z-index: 5;
       }
       .envelope-container.open .envelope-letter {
-        transform: translateY(-90px) scale(1.05);
+        transform: translateY(-110px) scale(1.12);
+        box-shadow: 0 25px 45px rgba(0,0,0,0.18);
         z-index: 25;
       }
       .envelope-container.open .envelope-wax-seal {
@@ -318,7 +369,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
 
     <div class="max-w-md w-full flex flex-col items-center animate-float" onclick="event.stopPropagation()">
       <p class="text-xs uppercase tracking-[0.25em] font-serif mb-2" style="color: ${tema.colors.accent}; font-weight: 600;">💌 Tienes una invitación exclusiva</p>
-      
+
       <div class="envelope-container" id="sobre-interactivo" onclick="comenzarExperienciaEnvoltura()">
         <div class="envelope-flap"></div>
         <div class="envelope-letter font-sans">
@@ -328,27 +379,62 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
           <p class="text-[9px] text-gray-400 font-sans italic">Es un honor invitarte</p>
         </div>
         <div class="envelope-pocket"></div>
-        <div class="envelope-wax-seal">
-          <span>✉️</span>
+        <div class="envelope-wax-seal" id="sobre-sello">
+          <span>${inicialNombre}</span>
         </div>
       </div>
-      
+
       <p class="text-[10px] text-gray-500 mt-6 font-light font-sans">Haz clic en el sobre o el sello para abrir la invitación 🌸</p>
     </div>
   </div>`;
     } else if (tipoAperturaEfectivo === "cortina") {
       const ribbonColor = tema.id === "neon" ? "#FF007F" : tema.colors.accent;
       const oppositeColor = tema.id === "neon" ? "#00F0FF" : tema.colors.border;
+      const telaBase = tema.id === "neon" ? "#0d0a1a" : tema.colors.dark;
       aperturaHTML = `
   <div id="pantalla-apertura" class="fixed inset-0 z-50 flex overflow-hidden select-none" style="background: ${tema.colors.bg};" onclick="comenzarExperienciaCortina()">
     <style>
+      .curtain-glow {
+        position: absolute;
+        top: 50%; left: 50%;
+        width: 140vw; height: 140vh;
+        transform: translate(-50%, -50%) scale(0.4);
+        background: radial-gradient(circle, ${tema.colors.accent}55 0%, transparent 60%);
+        opacity: 0;
+        transition: opacity 1s ease 0.3s, transform 1.4s cubic-bezier(0.22, 1, 0.36, 1) 0.3s;
+        z-index: 10;
+        pointer-events: none;
+      }
+      .curtains-opened .curtain-glow {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+      .curtain-cenefa {
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 34px;
+        background: linear-gradient(180deg, ${ribbonColor} 0%, ${tema.colors.dark} 100%);
+        z-index: 70;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.35);
+        background-image:
+          linear-gradient(180deg, ${ribbonColor} 0%, ${tema.colors.dark} 100%),
+          repeating-linear-gradient(90deg, transparent 0 14px, rgba(0,0,0,0.18) 14px 16px);
+        transition: transform 0.9s ease 0.5s, opacity 0.6s ease 0.5s;
+      }
+      .curtains-opened .curtain-cenefa {
+        transform: translateY(-40px);
+        opacity: 0;
+      }
       .curtain-panel {
         position: absolute;
-        top: 0;
+        top: 34px;
         bottom: 0;
-        width: 50%;
-        background: ${tema.id === "neon" ? "linear-gradient(to bottom, #090616 0%, #030307 100%)" : "linear-gradient(to bottom, " + tema.colors.dark + " 0%, " + (tema.colors.light === "#FCF9F2" ? "#1A150B" : tema.colors.dark) + " 100%)"};
+        width: 52%;
+        background: linear-gradient(to bottom, ${telaBase} 0%, ${(tema.colors.light === "#FCF9F2" ? "#1A150B" : telaBase)} 100%),
+          repeating-linear-gradient(90deg, rgba(255,255,255,0.05) 0 10px, rgba(0,0,0,0.12) 10px 22px);
+        background-blend-mode: normal, overlay;
         transition: transform 1.2s cubic-bezier(0.77, 0, 0.175, 1);
+        transform-origin: center;
         z-index: 50;
         display: flex;
         flex-direction: column;
@@ -382,6 +468,8 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         height: 100px;
         background: ${tema.id === "neon" ? "#120D21" : "white"};
         border: 3px solid ${ribbonColor};
+        outline: 2px solid ${oppositeColor}66;
+        outline-offset: 4px;
         color: ${oppositeColor};
         border-radius: 50%;
         display: inline-flex;
@@ -398,10 +486,10 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         50% { transform: scale(1.06); box-shadow: 0 0 35px ${tema.id === "neon" ? "rgba(0,240,255,0.8)" : "rgba(218,165,32,0.7)"}; }
       }
       .curtains-opened .curtain-left {
-        transform: translateX(-100%);
+        transform: translateX(-102%) scaleX(0.72);
       }
       .curtains-opened .curtain-right {
-        transform: translateX(100%);
+        transform: translateX(102%) scaleX(0.72);
       }
       .curtains-opened .curtain-seal-container {
         opacity: 0;
@@ -409,17 +497,20 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       }
     </style>
 
+    <div class="curtain-glow"></div>
+    <div class="curtain-cenefa"></div>
+
     <div class="curtain-panel curtain-left">
       <div class="pr-6 text-right w-full font-serif font-black" style="opacity: 0.12; font-size: 80px; color: ${ribbonColor}; line-height: 100px;">XV</div>
     </div>
-    
+
     <div class="curtain-panel curtain-right">
       <div class="pl-6 text-left w-full font-serif font-black" style="opacity: 0.12; font-size: 80px; color: ${oppositeColor}; line-height: 100px;">XV</div>
     </div>
 
     <div class="curtain-seal-container" id="contenedor-sello">
       <div class="curtain-seal-circle" onclick="comenzarExperienciaCortina()">
-        <span class="text-3xl animate-bounce" style="margin-top: 4px;">✨</span>
+        <span class="text-3xl animate-bounce" style="margin-top: 4px;">${tema.decorativeEmoji}</span>
         <span class="text-[9px] uppercase tracking-wider font-extrabold mt-1 font-sans">Gala XV</span>
         <span class="text-[8px] opacity-75 font-sans font-medium">Entrar</span>
       </div>
@@ -430,19 +521,228 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       </div>
     </div>
   </div>`;
-    } else {
+    } else if (tipoAperturaEfectivo === "puertas") {
+      const marcoColor = tema.colors.border;
+      const hojaBase = tema.colors.dark;
       aperturaHTML = `
-  <div id="pantalla-apertura" class="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 text-center transition-all duration-1000" style="background: ${tema.bgGradient};">
-    <div class="max-w-md w-full bg-white/75 backdrop-blur-md rounded-3xl p-8 border border-borderTheme/40 shadow-2xl flex flex-col items-center animate-float">
-      <span class="text-4xl mb-4 text-accent animate-pulse">${tema.decorativeEmoji}</span>
-      <h2 class="font-serif text-xs uppercase tracking-[0.25em] text-gray-500 mb-2">Estás cordialmente invitado a los</h2>
-      <h1 class="font-cursive text-5xl text-accent my-3">XV Años de</h1>
-      <h3 class="font-serif text-3xl font-bold tracking-tight text-dark mb-6">${datos.nombre}</h3>
-      <p class="text-xs text-gray-600 mb-8 font-light italic">Por favor activa el sonido antes de entrar para disfrutar de una mejor experiencia.</p>
-      
-      <button onclick="comenzarExperiencia()" class="relative px-8 py-4 bg-accent text-white font-serif tracking-widest text-xs uppercase rounded-full shadow-lg hover:shadow-xl hover:bg-accent/95 cursor-pointer transform hover:scale-105 active:scale-95 transition-all">
+  <div id="pantalla-apertura" class="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 overflow-hidden select-none" style="background: ${tema.colors.dark};" onclick="comenzarExperienciaPuertas()">
+    <style>
+      .puertas-glow {
+        position: absolute;
+        top: 50%; left: 50%;
+        width: 120vw; height: 120vh;
+        transform: translate(-50%, -50%) scale(0.3);
+        background: radial-gradient(circle, ${tema.colors.accent}66 0%, transparent 62%);
+        opacity: 0;
+        transition: opacity 1.1s ease 0.2s, transform 1.3s cubic-bezier(0.22, 1, 0.36, 1) 0.2s;
+        z-index: 5;
+        pointer-events: none;
+      }
+      .puertas-glow.activo {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+      .puertas-escenario {
+        position: relative;
+        width: min(320px, 78vw);
+        height: min(420px, 56vh);
+        perspective: 1500px;
+        z-index: 20;
+      }
+      .puerta-hoja {
+        position: absolute;
+        top: 0;
+        height: 100%;
+        width: 50%;
+        transition: transform 1.15s cubic-bezier(0.68, -0.15, 0.27, 1.1);
+        transform-style: preserve-3d;
+      }
+      .puerta-izq { left: 0; transform-origin: left center; }
+      .puerta-der { right: 0; transform-origin: right center; }
+      .puerta-panel {
+        position: absolute;
+        inset: 4px;
+        background: linear-gradient(135deg, ${hojaBase} 0%, ${tema.colors.accent}33 50%, ${hojaBase} 100%);
+        border: 2px solid ${marcoColor};
+        box-shadow: inset 0 0 0 6px rgba(0,0,0,0.25), inset 0 10px 20px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.5);
+      }
+      .puerta-izq .puerta-panel { border-right-width: 1px; }
+      .puerta-der .puerta-panel { border-left-width: 1px; }
+      .puerta-panel::before {
+        content: '';
+        position: absolute;
+        inset: 14px;
+        border: 1.5px solid ${marcoColor}99;
+      }
+      .puertas-medallon {
+        position: absolute;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        width: 72px; height: 72px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 35% 30%, ${tema.colors.accent}, ${tema.colors.dark} 115%);
+        border: 3px solid white;
+        outline: 2px solid ${marcoColor};
+        outline-offset: 3px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: ${fuenteCursivaTema};
+        font-size: 28px;
+        color: ${tema.textLight};
+        box-shadow: 0 0 25px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,255,255,0.35);
+        z-index: 30;
+        cursor: pointer;
+        animation: pulse-soft 2.6s ease-in-out infinite;
+        transition: opacity 0.5s ease, transform 0.5s ease;
+      }
+      .puertas-escenario.abiertas .puerta-izq { transform: rotateY(-112deg); }
+      .puertas-escenario.abiertas .puerta-der { transform: rotateY(112deg); }
+      .puertas-escenario.abiertas .puertas-medallon {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0);
+      }
+      .puertas-texto {
+        margin-top: 28px;
+        text-align: center;
+        z-index: 20;
+        transition: opacity 0.5s ease;
+      }
+      .puertas-escenario.abiertas + .puertas-texto {
+        opacity: 0;
+      }
+    </style>
+
+    <div class="puertas-glow" id="puertas-glow"></div>
+
+    <div class="puertas-escenario" id="puertas-escenario" onclick="event.stopPropagation(); comenzarExperienciaPuertas()">
+      <div class="puerta-hoja puerta-izq"><div class="puerta-panel"></div></div>
+      <div class="puerta-hoja puerta-der"><div class="puerta-panel"></div></div>
+      <div class="puertas-medallon">${inicialNombre}</div>
+    </div>
+
+    <div class="puertas-texto">
+      <h2 class="text-xs uppercase tracking-[0.3em] font-semibold font-sans mb-2" style="color: ${tema.colors.accent};">Puertas de Gala</h2>
+      <h1 class="font-cursive text-4xl my-1" style="color: white; font-family: ${fuenteCursivaTema};">${datos.nombre}</h1>
+      <p class="text-[10px] text-gray-300 tracking-widest font-sans uppercase mt-2">Toca las puertas para entrar 🚪</p>
+    </div>
+  </div>`;
+    } else if (tipoAperturaEfectivo === "destellos") {
+      aperturaHTML = `
+  <div id="pantalla-apertura" class="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 text-center overflow-hidden select-none" style="background: ${tema.bgGradient};" onclick="comenzarExperienciaDestellos()">
+    <style>
+      .destellos-expansor {
+        position: absolute;
+        top: 50%; left: 50%;
+        width: 16px; height: 16px;
+        border-radius: 50%;
+        background: radial-gradient(circle, white 0%, ${tema.colors.accent} 55%, transparent 100%);
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 0;
+        z-index: 5;
+        pointer-events: none;
+      }
+      #pantalla-apertura.destellos-abriendo .destellos-expansor {
+        transition: transform 1s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.9s ease-out;
+        transform: translate(-50%, -50%) scale(70);
+        opacity: 1;
+      }
+      #pantalla-apertura.destellos-abriendo .destellos-contenido {
+        transition: opacity 0.45s ease, transform 0.45s ease;
+        opacity: 0;
+        transform: scale(1.08);
+      }
+    </style>
+
+    <div class="destellos-expansor"></div>
+
+    <div class="destellos-contenido max-w-md w-full flex flex-col items-center animate-float" style="position: relative; z-index: 10;" onclick="event.stopPropagation()">
+      <span class="text-4xl mb-3 animate-pulse" style="color: ${tema.colors.accent};">${tema.decorativeEmoji}</span>
+      <h2 class="font-serif text-xs uppercase tracking-[0.25em] mb-2" style="color: ${tema.colors.accent};">Estás cordialmente invitado a los</h2>
+      <h1 class="font-cursive text-5xl my-2" style="color: ${tema.colors.accent}; font-family: ${fuenteCursivaTema};">XV Años de</h1>
+      <h3 class="font-serif text-3xl font-bold tracking-tight mb-6" style="color: ${tema.textDark};">${datos.nombre}</h3>
+      <button onclick="comenzarExperienciaDestellos()" class="relative px-8 py-4 text-white font-serif tracking-widest text-xs uppercase rounded-full shadow-lg cursor-pointer transform hover:scale-105 active:scale-95 transition-all" style="background: ${tema.colors.accent};">
         ✨ Tocar Para Abrir ✨
       </button>
+    </div>
+  </div>`;
+    } else {
+      aperturaHTML = `
+  <div id="pantalla-apertura" class="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 text-center transition-all duration-1000" style="background: ${tema.bgGradient};" onclick="comenzarExperienciaTarjeta()">
+    <style>
+      .tarjeta-interactiva {
+        position: relative;
+        transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.6s ease 0.1s;
+        border-radius: 1.5rem;
+        padding: 2px;
+        background: linear-gradient(135deg, ${tema.colors.accent}, ${tema.colors.border}, ${tema.colors.accent});
+        overflow: hidden;
+      }
+      .tarjeta-interactiva::before {
+        content: '';
+        position: absolute;
+        top: -50%; left: -60%;
+        width: 40%; height: 220%;
+        background: linear-gradient(100deg, transparent 0%, rgba(255,255,255,0.65) 50%, transparent 100%);
+        transform: rotate(18deg);
+        animation: tarjetaBrillo 4.5s ease-in-out infinite;
+        z-index: 5;
+        pointer-events: none;
+      }
+      @keyframes tarjetaBrillo {
+        0% { left: -60%; }
+        55%, 100% { left: 140%; }
+      }
+      .tarjeta-interactiva-fondo {
+        position: relative;
+        border-radius: calc(1.5rem - 2px);
+        overflow: hidden;
+      }
+      ${(datos.fotoPortada && datos.fotoPortada.trim() !== "") ? `
+      .tarjeta-foto-fondo {
+        position: absolute;
+        inset: -10%;
+        background-image: url('${datos.fotoPortada.trim()}');
+        background-size: cover;
+        background-position: center;
+        filter: blur(18px) brightness(0.75) saturate(1.1);
+        transform: scale(1.15);
+        z-index: 1;
+      }
+      ` : ``}
+      .tarjeta-interactiva.abriendo {
+        transform: translateY(-26px) scale(1.07);
+        opacity: 0;
+      }
+      .tarjeta-boton-brillo {
+        position: relative;
+        overflow: hidden;
+      }
+      .tarjeta-boton-brillo::after {
+        content: '';
+        position: absolute;
+        top: 0; left: -75%;
+        width: 50%; height: 100%;
+        background: linear-gradient(100deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%);
+        animation: tarjetaBrillo 3.2s ease-in-out infinite;
+      }
+    </style>
+
+    <div class="max-w-md w-full tarjeta-interactiva shadow-2xl" id="tarjeta-interactiva">
+      <div class="tarjeta-interactiva-fondo bg-white/75 backdrop-blur-md p-8 border border-borderTheme/40 flex flex-col items-center animate-float">
+        ${(datos.fotoPortada && datos.fotoPortada.trim() !== "") ? `<div class="tarjeta-foto-fondo"></div>` : ``}
+        <div style="position: relative; z-index: 10;" class="flex flex-col items-center">
+          <span class="text-4xl mb-4 text-accent animate-pulse">${tema.decorativeEmoji}</span>
+          <h2 class="font-serif text-xs uppercase tracking-[0.25em] text-gray-500 mb-2">Estás cordialmente invitado a los</h2>
+          <h1 class="font-cursive text-5xl text-accent my-3">XV Años de</h1>
+          <h3 class="font-serif text-3xl font-bold tracking-tight text-dark mb-6">${datos.nombre}</h3>
+          <p class="text-xs text-gray-600 mb-8 font-light italic">Por favor activa el sonido antes de entrar para disfrutar de una mejor experiencia.</p>
+
+          <button onclick="comenzarExperienciaTarjeta()" class="tarjeta-boton-brillo relative px-8 py-4 bg-accent text-white font-serif tracking-widest text-xs uppercase rounded-full shadow-lg hover:shadow-xl hover:bg-accent/95 cursor-pointer transform hover:scale-105 active:scale-95 transition-all">
+            ✨ Tocar Para Abrir ✨
+          </button>
+        </div>
+      </div>
     </div>
   </div>`;
     }
@@ -1182,6 +1482,15 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       will-change: transform, opacity;
       user-select: none;
     }
+
+    /* Ráfaga corta de destellos al abrir cualquiera de las 5 aperturas (crearRafagaDestellos) --
+       estalla desde el centro hacia --dx/--dy (en vw/vh, variable puesta por elemento en JS) y
+       se desvanece, nada queda corriendo después. */
+    @keyframes destelloEstallido {
+      0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0; }
+      25% { opacity: 1; }
+      100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1); opacity: 0; }
+    }
   </style>
 </head>
 <body class="theme-container min-h-screen text-textThemeDark selection:bg-primary/20 selection:text-accent ${datos.seccionesExcluidas?.includes('apertura') ? 'experiencia-iniciada' : ''}">
@@ -1300,26 +1609,142 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
     const speakerWidget = document.getElementById('music-widget');
     let isPlaying = false;
 
+    // Símbolos del tema (compartidos entre la lluvia continua de iniciarAnimacionCaida y la
+    // ráfaga corta de apertura crearRafagaDestellos, para no duplicar la tabla dos veces).
+    const SIMBOLOS_POR_TEMA = {
+      'dorado-clasico': ['✨', '🌟', '🪙', '✨'],
+      'mariposas': ['🦋', '🌸', '✨', '💜'],
+      'floral-acuarela': ['🌸', '🌹', '🍃', '💮'],
+      'celestial': ['⭐', '✨', '🌙', '🌌'],
+      'coquette-pink': ['🎀', '💖', '🤍', '🌸'],
+      'coquette-luxe': ['🎀', '✨', '💖', '⚜️'],
+      'boho-chic': ['🍃', '🍂', '🌾', '✨'],
+      'neon': ['⚡', '✨', '🎵', '💚', '💖', '💙'],
+      'princesa-elegante': ['👑', '✨', '💖', '⭐'],
+      'rose-gold': ['🌸', '✨', '🌹', '🌟'],
+      'esmeralda': ['🍃', '✨', '💚', '🌟'],
+      'vintage-garden': ['🌸', '🌹', '🍃', '🦋']
+    };
+    const simbolosOverrideApertura = ${(datos.personalizacion?.simbolosCaida && datos.personalizacion.simbolosCaida.length > 0) ? JSON.stringify(datos.personalizacion.simbolosCaida) : 'null'};
+    const simbolosTemaActual = simbolosOverrideApertura || SIMBOLOS_POR_TEMA['${tema.id}'] || ['✨', '🌸', '🍃'];
+
+    // Respeta "Reducir movimiento" del sistema/navegador: las 5 aperturas lo consultan antes de
+    // iniciar su coreografía por etapas y, si está activo, saltan directo a comenzarExperiencia()
+    // sin animación larga (la ráfaga de destellos tampoco se dispara en ese caso).
+    function prefiereMenosMovimiento() {
+      try {
+        return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+      } catch (e) {
+        return false;
+      }
+    }
+
+    // Ráfaga breve de destellos al momento de abrir cualquiera de las 5 aperturas (distinta de
+    // la lluvia continua de iniciarAnimacionCaida): un puñado de símbolos del tema que estallan
+    // desde el centro de la pantalla y se desvanecen en menos de 1 segundo, sin dejar nada
+    // corriendo después. No se dispara si "Reducir movimiento" está activo.
+    function crearRafagaDestellos() {
+      if (prefiereMenosMovimiento()) return;
+      const contenedor = document.createElement('div');
+      contenedor.style.position = 'fixed';
+      contenedor.style.top = '0';
+      contenedor.style.left = '0';
+      contenedor.style.width = '100vw';
+      contenedor.style.height = '100vh';
+      contenedor.style.pointerEvents = 'none';
+      contenedor.style.zIndex = '98';
+      contenedor.style.overflow = 'hidden';
+      document.body.appendChild(contenedor);
+
+      const total = 16;
+      for (let i = 0; i < total; i++) {
+        const d = document.createElement('div');
+        d.innerText = simbolosTemaActual[Math.floor(Math.random() * simbolosTemaActual.length)];
+        const angulo = (360 / total) * i + (Math.random() * 18 - 9);
+        const distancia = 32 + Math.random() * 28;
+        const dx = Math.cos(angulo * Math.PI / 180) * distancia;
+        const dy = Math.sin(angulo * Math.PI / 180) * distancia;
+        d.style.position = 'absolute';
+        d.style.top = '50%';
+        d.style.left = '50%';
+        d.style.fontSize = (14 + Math.random() * 14) + 'px';
+        d.style.setProperty('--dx', dx + 'vw');
+        d.style.setProperty('--dy', dy + 'vh');
+        d.style.animation = 'destelloEstallido ' + (0.7 + Math.random() * 0.4) + 's cubic-bezier(0.17, 0.89, 0.32, 1.28) forwards';
+        contenedor.appendChild(d);
+      }
+      setTimeout(() => contenedor.remove(), 1300);
+    }
+
     function comenzarExperienciaEnvoltura() {
+      if (prefiereMenosMovimiento()) { comenzarExperiencia(); return; }
       const container = document.getElementById('sobre-interactivo');
+      const sello = document.getElementById('sobre-sello');
       if (container) {
         if (container.classList.contains('open')) return;
-        container.classList.add('open');
+        if (sello) sello.classList.add('sello-rompiendo');
+        setTimeout(() => {
+          container.classList.add('open');
+          crearRafagaDestellos();
+        }, 450);
       }
       setTimeout(() => {
         comenzarExperiencia();
-      }, 1500);
+      }, 1900);
     }
 
     function comenzarExperienciaCortina() {
+      if (prefiereMenosMovimiento()) { comenzarExperiencia(); return; }
       const container = document.getElementById('pantalla-apertura');
       if (container) {
         if (container.classList.contains('curtains-opened')) return;
         container.classList.add('curtains-opened');
+        crearRafagaDestellos();
       }
       setTimeout(() => {
         comenzarExperiencia();
-      }, 1250);
+      }, 1400);
+    }
+
+    function comenzarExperienciaTarjeta() {
+      if (prefiereMenosMovimiento()) { comenzarExperiencia(); return; }
+      const tarjeta = document.getElementById('tarjeta-interactiva');
+      if (tarjeta) {
+        if (tarjeta.classList.contains('abriendo')) return;
+        tarjeta.classList.add('abriendo');
+        crearRafagaDestellos();
+      }
+      setTimeout(() => {
+        comenzarExperiencia();
+      }, 650);
+    }
+
+    function comenzarExperienciaPuertas() {
+      if (prefiereMenosMovimiento()) { comenzarExperiencia(); return; }
+      const escenario = document.getElementById('puertas-escenario');
+      if (escenario) {
+        if (escenario.classList.contains('abiertas')) return;
+        escenario.classList.add('abiertas');
+        const glow = document.getElementById('puertas-glow');
+        if (glow) glow.classList.add('activo');
+        crearRafagaDestellos();
+      }
+      setTimeout(() => {
+        comenzarExperiencia();
+      }, 1300);
+    }
+
+    function comenzarExperienciaDestellos() {
+      if (prefiereMenosMovimiento()) { comenzarExperiencia(); return; }
+      const overlay = document.getElementById('pantalla-apertura');
+      if (overlay) {
+        if (overlay.classList.contains('destellos-abriendo')) return;
+        overlay.classList.add('destellos-abriendo');
+        crearRafagaDestellos();
+      }
+      setTimeout(() => {
+        comenzarExperiencia();
+      }, 950);
     }
 
     function comenzarExperiencia() {
@@ -1366,24 +1791,9 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       container.style.overflow = 'hidden';
       document.body.appendChild(container);
 
-      // Símbolos de caída dependiendo del tema
-      const simbolosPorTema = {
-        'dorado-clasico': ['✨', '🌟', '🪙', '✨'],
-        'mariposas': ['🦋', '🌸', '✨', '💜'],
-        'floral-acuarela': ['🌸', '🌹', '🍃', '💮'],
-        'celestial': ['⭐', '✨', '🌙', '🌌'],
-        'coquette-pink': ['🎀', '💖', '🤍', '🌸'],
-        'coquette-luxe': ['🎀', '✨', '💖', '⚜️'],
-        'boho-chic': ['🍃', '🍂', '🌾', '✨'],
-        'neon': ['⚡', '✨', '🎵', '💚', '💖', '💙'],
-        'princesa-elegante': ['👑', '✨', '💖', '⭐'],
-        'rose-gold': ['🌸', '✨', '🌹', '🌟'],
-        'esmeralda': ['🍃', '✨', '💚', '🌟'],
-        'vintage-garden': ['🌸', '🌹', '🍃', '🦋']
-      };
-
-      const simbolosOverride = ${(datos.personalizacion?.simbolosCaida && datos.personalizacion.simbolosCaida.length > 0) ? JSON.stringify(datos.personalizacion.simbolosCaida) : 'null'};
-      const simbolos = simbolosOverride || simbolosPorTema['${tema.id}'] || ['✨', '🌸', '🍃'];
+      // Reusa la misma tabla/override ya resuelto arriba (SIMBOLOS_POR_TEMA/simbolosTemaActual),
+      // compartida con crearRafagaDestellos -- antes esta función tenía su propia copia.
+      const simbolos = simbolosTemaActual;
 
       function crearParticula() {
         if (!document.getElementById('particle-container')) return;
