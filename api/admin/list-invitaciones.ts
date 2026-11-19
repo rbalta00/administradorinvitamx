@@ -47,7 +47,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   try {
     const reqUrl = new URL(req.url || "", `http://${req.headers.host || "localhost"}`);
     const full = reqUrl.searchParams.get("full") === "1";
-    const columnas = full ? `${COLUMNAS_BASE}, datos_completos` : `${COLUMNAS_BASE}, paquete:datos_completos->>paquete`;
+    const columnas = full ? `${COLUMNAS_BASE}, datos_completos` : `${COLUMNAS_BASE}, paquete:datos_completos->>paquete, tipoEvento:datos_completos->>tipoEvento`;
 
     const supabase = createClient(url, serviceKey);
     const { data, error } = await supabase

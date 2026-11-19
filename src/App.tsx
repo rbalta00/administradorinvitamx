@@ -72,6 +72,10 @@ interface InvitacionGuardadaRow {
   link_invitacion: string | null;
   datos_completos?: InvitacionDatos | null;
   paquete?: "basico" | "premium" | "deluxe" | null;
+  // Mismo mecanismo que `paquete` (2026-11-19): extraído server-side de
+  // `datos_completos->>tipoEvento` para poder mostrar el ícono/filtrar por evento sin pedir el
+  // jsonb completo. Ausente o desconocido = "xv" (ver tipoEventoDeFila más abajo).
+  tipoEvento?: TipoEvento | null;
   telefono_whatsapp: string | null;
   precio_total: number | null;
   precio_pagado: number | null;
@@ -122,6 +126,21 @@ const TIPOS_EVENTO: { id: TipoEvento; label: string; emoji: string }[] = [
   { id: "baby-shower", label: "Baby Shower", emoji: "👶" },
   { id: "aniversario", label: "Aniversario", emoji: "💍" }
 ];
+
+// Resuelve el tipo de evento de una fila de "Mis Invitaciones" (campo ligero `tipoEvento`,
+// extraído server-side en list-invitaciones.ts) -- ausente o desconocido = "xv", mismo criterio
+// que templates.ts/textosEventoDe (toda invitación guardada antes de este campo es XV).
+const tipoEventoDeFila = (row: InvitacionGuardadaRow): TipoEvento =>
+  (row.tipoEvento && TIPOS_EVENTO.some(t => t.id === row.tipoEvento)) ? row.tipoEvento : "xv";
+
+// Grupo del filtro "Todos/XV/Bodas/Cumpleaños/Otros" del panel "Mis Invitaciones" (pedido
+// 2026-11-19) -- bautizo, primera comunión, graduación, baby shower y aniversario caen todos
+// en "otros" para no llenar el filtro de opciones poco usadas.
+type GrupoFiltroEvento = "xv" | "boda" | "cumpleanos" | "otros";
+const grupoFiltroEventoDeFila = (row: InvitacionGuardadaRow): GrupoFiltroEvento => {
+  const tipo = tipoEventoDeFila(row);
+  return tipo === "xv" || tipo === "boda" || tipo === "cumpleanos" ? tipo : "otros";
+};
 
 // Etiqueta del campo "nombre" (usada como <label> del campo y en los mensajes de validación
 // que antes decían "quinceañera" fijo) -- "xv" se queda igual que siempre.
@@ -3115,6 +3134,9 @@ export default function App() {
   // antes, 2026-11-19): "atencion" (evento próximo + saldo pendiente) es la vista inicial al
   // abrir el panel -- ver el onClick que abre "Mis Invitaciones", que la resetea cada vez.
   const [pestanaListaInvitaciones, setPestanaListaInvitaciones] = useState<"atencion" | "activas" | "pasados">("atencion");
+  // Filtro por tipo de evento (2026-11-19) -- se combina con la pestaña de estado y el
+  // buscador de arriba, todo sobre la lista ya cargada (sin pedir nada nuevo a Supabase).
+  const [filtroEventoInvitaciones, setFiltroEventoInvitaciones] = useState<"todos" | GrupoFiltroEvento>("todos");
   // "Mías / Todas" -- todos ven el trabajo de todos por default (no se ocultan invitaciones
   // entre isaac/vladimir/nidia), este filtro es solo para que cada quien pueda ubicar rápido
   // lo suyo sin tener que buscarlo entre el resto.
@@ -3479,7 +3501,8 @@ export default function App() {
       const filaCompleta: InvitacionGuardadaRow = {
         ...row,
         ...data,
-        paquete: (data?.datos_completos?.paquete as "basico" | "premium" | "deluxe" | undefined) ?? row.paquete
+        paquete: (data?.datos_completos?.paquete as "basico" | "premium" | "deluxe" | undefined) ?? row.paquete,
+        tipoEvento: (data?.datos_completos?.tipoEvento as TipoEvento | undefined) ?? row.tipoEvento
       };
       setListaInvitaciones(prev => prev.map(r => r.id === row.id ? filaCompleta : r));
       return filaCompleta;
@@ -5615,9 +5638,19 @@ export default function App() {
   const normalizarBusqueda = (texto: string) =>
     texto.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
+  // Conteos del filtro por tipo de evento (2026-11-19) -- sobre TODA la lista cargada, no sobre
+  // lo ya filtrado por pestaña/búsqueda, para que el admin vea de un vistazo cuántas hay de
+  // cada tipo en total (igual que el conteo de las pestañas de estado).
+  const conteoPorGrupoEvento = (() => {
+    const mapa: Record<GrupoFiltroEvento, number> = { xv: 0, boda: 0, cumpleanos: 0, otros: 0 };
+    for (const r of listaInvitaciones) mapa[grupoFiltroEventoDeFila(r)]++;
+    return mapa;
+  })();
+
   // Filtro del panel "Mis Invitaciones": primero la pestaña activa (Requieren atención /
-  // Activas / Eventos pasados), luego "Mías/Todas" y el estatus puntual, y por último la
-  // búsqueda libre por nombre de la quinceañera, tema, o teléfono de WhatsApp.
+  // Activas / Eventos pasados), luego tipo de evento, "Mías/Todas" y el estatus puntual, y por
+  // último la búsqueda libre por nombre de la quinceañera, tema, o teléfono de WhatsApp. Todos
+  // se combinan a la vez, sobre la misma lista ya cargada (sin pedir nada nuevo a Supabase).
   const invitacionesFiltradas = (() => {
     const q = normalizarBusqueda(busquedaInvitaciones.trim());
     const qDigitos = busquedaInvitaciones.replace(/[^0-9]/g, "");
@@ -5625,6 +5658,7 @@ export default function App() {
       if (pestanaListaInvitaciones === "atencion" && !invitacionesUrgentes.includes(row)) return false;
       if (pestanaListaInvitaciones === "activas" && invitacionEsPasada(row)) return false;
       if (pestanaListaInvitaciones === "pasados" && !invitacionEsPasada(row)) return false;
+      if (filtroEventoInvitaciones !== "todos" && grupoFiltroEventoDeFila(row) !== filtroEventoInvitaciones) return false;
       if (filtroCreadorInvitaciones === "mias" && row.creado_por !== usuarioActual) return false;
       if (filtroEstatusInvitaciones !== "todos" && (row.estado || "cotizacion") !== filtroEstatusInvitaciones) return false;
       if (!q) return true;
@@ -5810,6 +5844,115 @@ export default function App() {
           </div>
 
           <div className="flex flex-col gap-1">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 px-0.5">Landing y catálogo</span>
+            <div className="flex items-center gap-2 flex-wrap">
+          {/* Grupo nuevo (2026-11-19, reorganización pedida por el usuario): antes estos 4
+              botones vivían mezclados dentro de "Cuenta / dispositivo", sin relación real con
+              cuenta ni dispositivo -- aquí quedan agrupados por lo que realmente son: abrir o
+              compartir landing/catálogo. "Abrir landing" es nuevo (antes solo existía mandarla
+              por WhatsApp); "Abrir catálogo de temas" ya existía, solo se movió aquí. */}
+          <button
+            onClick={() => window.open("https://www.invitamx.online", "_blank")}
+            title="Abre la página de ventas (invitamx.online) aquí mismo, en una pestaña nueva"
+            className="px-3.5 py-2 bg-white hover:bg-rose-50 text-rose-700 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+          >
+            <span>🌐 Abrir landing</span>
+          </button>
+
+          <button
+            onClick={() => {
+              // Deferimos la actualización pesada del estado para mantener la interactividad instantánea (INP óptimo)
+              setTimeout(() => {
+                setIsCatalogMode(true);
+              }, 0);
+            }}
+            title="Abre aquí mismo el catálogo de temas, para probarlos en vivo antes de mandar nada"
+            className="px-3.5 py-2 bg-white hover:bg-indigo-50 text-indigo-700 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+          >
+            <span>👁️ Abrir catálogo</span>
+          </button>
+
+          <button
+            onClick={() => {
+              const url = "https://www.invitamx.online";
+              const msg = `Hola! 🌸 Aquí tienes nuestra página de Invitaciones Digitales de XV Años, con precios, paquetes y todo lo que incluye:\n\n${url}`;
+              window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, "_blank");
+            }}
+            title="Abre WhatsApp con el link de la página de ventas (invitamx.online) ya listo para compartir -- tú eliges el contacto o grupo"
+            className="px-3.5 py-2 bg-white hover:bg-rose-50 text-rose-700 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+          >
+            <span>💬 Enviar landing</span>
+          </button>
+
+          <button
+            onClick={() => {
+              // Antes vivía dentro de la caja "4. Catálogo Digital de Temas" (quitada
+              // 2026-11-18 por ocupar mucho espacio) -- mismo getCatalogUrl() de siempre, ahora
+              // como botón directo junto a los otros "enviar link".
+              const catUrl = getCatalogUrl();
+              const msg = `Hola! 🌸 Aquí tienes nuestro catálogo con los 14 temas de invitación digital de XV años, con demos en vivo de cada uno:\n\n${catUrl}`;
+              window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, "_blank");
+            }}
+            title="Abre WhatsApp con el link del catálogo de temas ya listo para compartir -- tú eliges el contacto o grupo"
+            className="px-3.5 py-2 bg-white hover:bg-indigo-50 text-indigo-700 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+          >
+            <span>💬 Enviar catálogo</span>
+          </button>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 px-0.5">Diseño de este tema en catálogo</span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              type="button"
+              onClick={() => {
+                try {
+                  localStorage.setItem(`xv_diseño_guardado_tema_${selectedTemaId}`, JSON.stringify(datos));
+                  setTieneDiseñoGuardado(true);
+                  mostrarToast(`¡Diseño guardado con éxito en el catálogo para el tema "${temaActual.nombre}"! 🌟💖`, "success");
+                } catch (err) {
+                  mostrarToast("Error al guardar el diseño en el catálogo.", "error");
+                }
+              }}
+              title="Guarda esta invitación como la versión activa de este tema en el catálogo"
+              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Guardar Diseño en Catálogo 🌸</span>
+            </button>
+            {tieneDiseñoGuardado ? (
+              <span className="text-[10px] text-emerald-600 font-bold whitespace-nowrap">✓ Personalizado activo</span>
+            ) : (
+              <span className="text-[10px] text-slate-400 whitespace-nowrap">Usando diseño predeterminado</span>
+            )}
+            {tieneDiseñoGuardado && (
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmModal({
+                    titulo: "Restablecer diseño predeterminado",
+                    onAceptar: () => {
+                      try {
+                        localStorage.removeItem(`xv_diseño_guardado_tema_${selectedTemaId}`);
+                        setTieneDiseñoGuardado(false);
+                        mostrarToast(`Se ha restablecido el diseño de fábrica para "${temaActual.nombre}".`, "info");
+                      } catch (err) {
+                        mostrarToast("Error al restablecer el diseño.", "error");
+                      }
+                    },
+                    mensaje: `¿Deseas eliminar tu diseño personalizado para el tema "${temaActual.nombre}" en el catálogo y volver al de fábrica?`
+                  });
+                }}
+                className="text-[10px] text-rose-500 hover:text-rose-700 transition font-bold underline cursor-pointer select-none whitespace-nowrap"
+              >
+                Restablecer
+              </button>
+            )}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1">
             <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 px-0.5">Cuenta / dispositivo</span>
             <div className="flex items-center gap-2 flex-wrap">
           {/* Grupo 4: cuenta / dispositivo */}
@@ -5870,97 +6013,6 @@ export default function App() {
           >
             <span>💬 Enviar link a colaborador</span>
           </button>
-
-          <button
-            onClick={() => {
-              // Antes vivía dentro de la caja "4. Catálogo Digital de Temas" (quitada
-              // 2026-11-18 por ocupar mucho espacio) -- mismo getCatalogUrl() de siempre, ahora
-              // como botón directo junto a los otros "enviar link".
-              const catUrl = getCatalogUrl();
-              const msg = `Hola! 🌸 Aquí tienes nuestro catálogo con los 14 temas de invitación digital de XV años, con demos en vivo de cada uno:\n\n${catUrl}`;
-              window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, "_blank");
-            }}
-            title="Abre WhatsApp con el link del catálogo de temas ya listo para compartir -- tú eliges el contacto o grupo"
-            className="px-3.5 py-2 bg-white hover:bg-indigo-50 text-indigo-700 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
-          >
-            <span>📂 Enviar link del catálogo</span>
-          </button>
-
-          <button
-            onClick={() => {
-              const url = "https://www.invitamx.online";
-              const msg = `Hola! 🌸 Aquí tienes nuestra página de Invitaciones Digitales de XV Años, con precios, paquetes y todo lo que incluye:\n\n${url}`;
-              window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, "_blank");
-            }}
-            title="Abre WhatsApp con el link de la página de ventas (invitamx.online) ya listo para compartir -- tú eliges el contacto o grupo"
-            className="px-3.5 py-2 bg-white hover:bg-rose-50 text-rose-700 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
-          >
-            <span>🌐 Enviar link de la landing</span>
-          </button>
-
-          <button
-            onClick={() => {
-              // Deferimos la actualización pesada del estado para mantener la interactividad instantánea (INP óptimo)
-              setTimeout(() => {
-                setIsCatalogMode(true);
-              }, 0);
-            }}
-            title="Abre aquí mismo el catálogo de temas, para probarlos en vivo antes de mandar nada"
-            className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
-          >
-            <span>👁️ Abrir catálogo de temas</span>
-          </button>
-
-          {/* Antes vivía en una barra fija debajo del Monitor de Invitación (pedido
-              2026-11-18: "que no esté dentro del monitor para que tenga más espacio") --
-              movido aquí junto a los demás botones del catálogo. */}
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => {
-                try {
-                  localStorage.setItem(`xv_diseño_guardado_tema_${selectedTemaId}`, JSON.stringify(datos));
-                  setTieneDiseñoGuardado(true);
-                  mostrarToast(`¡Diseño guardado con éxito en el catálogo para el tema "${temaActual.nombre}"! 🌟💖`, "success");
-                } catch (err) {
-                  mostrarToast("Error al guardar el diseño en el catálogo.", "error");
-                }
-              }}
-              title="Guarda esta invitación como la versión activa de este tema en el catálogo"
-              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Guardar Diseño en Catálogo de este Tema 🌸</span>
-            </button>
-            {tieneDiseñoGuardado ? (
-              <span className="text-[10px] text-emerald-600 font-bold whitespace-nowrap">✓ Personalizado activo</span>
-            ) : (
-              <span className="text-[10px] text-slate-400 whitespace-nowrap">Usando diseño predeterminado</span>
-            )}
-            {tieneDiseñoGuardado && (
-              <button
-                type="button"
-                onClick={() => {
-                  setConfirmModal({
-                    titulo: "Restablecer diseño predeterminado",
-                    onAceptar: () => {
-                      try {
-                        localStorage.removeItem(`xv_diseño_guardado_tema_${selectedTemaId}`);
-                        setTieneDiseñoGuardado(false);
-                        mostrarToast(`Se ha restablecido el diseño de fábrica para "${temaActual.nombre}".`, "info");
-                      } catch (err) {
-                        mostrarToast("Error al restablecer el diseño.", "error");
-                      }
-                    },
-                    mensaje: `¿Deseas eliminar tu diseño personalizado para el tema "${temaActual.nombre}" en el catálogo y volver al de fábrica?`
-                  });
-                }}
-                className="text-[10px] text-rose-500 hover:text-rose-700 transition font-bold underline cursor-pointer select-none whitespace-nowrap"
-              >
-                Restablecer
-              </button>
-            )}
-          </div>
 
           <button
             onClick={() => {
@@ -6692,11 +6744,6 @@ export default function App() {
                     </div>
                   </div>
                 </div>
-
-                {/* Caja "4. Catálogo Digital de Temas" quitada 2026-11-18 (ocupaba mucho
-                    espacio) -- sus 3 acciones (enviar link del catálogo por WhatsApp, enviar
-                    link de la landing, abrir el catálogo aquí mismo) ahora viven como botones
-                    compactos junto a "💬 Enviar link a colaborador", arriba del todo. */}
 
               </div>
             )}
@@ -8071,8 +8118,9 @@ export default function App() {
           {/* Antes había una barra fija completa aquí (botón "Guardar Diseño en Catálogo de
               este Tema" + estatus + "Restablecer") -- quitada 2026-11-18 ("que no esté dentro
               del monitor para que tenga más espacio"): el botón y su estatus se movieron al
-              panel izquierdo, junto a "👁️ Abrir catálogo de temas". Solo queda este aviso
-              corto, de una línea, para no perder la aclaración sobre música/animaciones. */}
+              panel izquierdo, en su propio grupo "Diseño de este tema en catálogo". Solo queda
+              este aviso corto, de una línea, para no perder la aclaración sobre
+              música/animaciones. */}
           <p className="shrink-0 text-[10px] text-slate-400 font-medium text-center leading-normal px-4 py-1.5 bg-white border-t border-slate-200">
             La simulación representa cómo se verá el archivo final según la pantalla. La música, animaciones de caída {datos.mostrarAnimacionCaida !== false ? '("ON")' : '("OFF")'} y efectos táctiles están incluidos.
           </p>
@@ -8368,7 +8416,32 @@ export default function App() {
             )}
 
             {listaInvitaciones.length > 0 && (
-              <div className="flex gap-2 mb-4 mt-3">
+              <div className="flex gap-1.5 mb-3 mt-3 flex-wrap">
+                {/* Filtro por tipo de evento (2026-11-19) -- se combina con la pestaña de
+                    estado de arriba y el buscador de abajo, todo sobre la lista ya cargada.
+                    Bautizo/Primera Comunión/Graduación/Baby Shower/Aniversario van agrupados en
+                    "Otros" para no llenar esta fila de opciones poco usadas. */}
+                {([
+                  { id: "todos" as const, label: "Todos", n: listaInvitaciones.length },
+                  { id: "xv" as const, label: "🎂 XV", n: conteoPorGrupoEvento.xv },
+                  { id: "boda" as const, label: "💍 Bodas", n: conteoPorGrupoEvento.boda },
+                  { id: "cumpleanos" as const, label: "🎉 Cumpleaños", n: conteoPorGrupoEvento.cumpleanos },
+                  { id: "otros" as const, label: "Otros", n: conteoPorGrupoEvento.otros },
+                ]).map(op => (
+                  <button
+                    key={op.id}
+                    onClick={() => setFiltroEventoInvitaciones(op.id)}
+                    disabled={op.id !== "todos" && op.n === 0}
+                    className={`px-2.5 py-1.5 rounded-full text-[11px] font-bold border transition disabled:opacity-40 disabled:cursor-not-allowed ${filtroEventoInvitaciones === op.id ? "bg-indigo-600 border-indigo-600 text-white" : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                  >
+                    {op.label} ({op.n})
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {listaInvitaciones.length > 0 && (
+              <div className="flex gap-2 mb-4">
                 <input
                   type="text"
                   value={busquedaInvitaciones}
@@ -8420,6 +8493,7 @@ export default function App() {
                   const expandida = invitacionFilaExpandidaId === row.id;
                   const estatusLabelFila = ESTATUS_PEDIDO.find(e => e.id === (row.estado || "cotizacion"))?.label || row.estado || "";
                   const faltaFila = (row.precio_total || 0) - (row.precio_pagado || 0);
+                  const iconoEventoFila = TIPOS_EVENTO.find(t => t.id === tipoEventoDeFila(row))?.emoji || "🎂";
                   const linkFormularioFila = `${window.location.origin}/?intake=1&iid=${row.id}`;
                   const linkCheckinFila = `${window.location.origin}/?checkin=1&iid=${row.id}`;
                   return (
@@ -8433,6 +8507,7 @@ export default function App() {
                         className="w-full flex items-center gap-2 flex-wrap text-left px-4 py-2.5 cursor-pointer"
                       >
                         {expandida ? <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
+                        <span className="shrink-0" title={TIPOS_EVENTO.find(t => t.id === tipoEventoDeFila(row))?.label}>{iconoEventoFila}</span>
                         <span className="text-sm font-bold text-slate-900 truncate">{row.nombre_quinceanera || "Sin nombre"}</span>
                         <span className="text-slate-300">·</span>
                         <span className="text-[11px] text-slate-500 whitespace-nowrap">{row.fecha_fiesta ? new Date(row.fecha_fiesta + "T00:00:00").toLocaleDateString("es-MX") : "Sin fecha"}</span>
