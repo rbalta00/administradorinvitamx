@@ -2158,6 +2158,15 @@ export default function App() {
     }
   }, [datos]);
 
+  // Título de la pestaña del navegador con el nombre del cliente que se está editando (pedido
+  // explícito 2026-11-18: antes siempre decía "Invitación Digital de XV Años", sin importar qué
+  // cliente tuvieras abierto -- imposible distinguir pestañas si tenías varios clientes a la vez.
+  // Se queda sin efecto en modo vista/catálogo/intake porque esas rutas nunca llegan a montar este
+  // efecto como editor real (view mode sobreescribe document entero con document.write más abajo).
+  useEffect(() => {
+    document.title = datos?.nombre?.trim() ? `${datos.nombre.trim()} — Editor XV` : "Invitación sin guardar — Editor XV";
+  }, [datos?.nombre]);
+
   // Estado para notificaciones Toast no bloqueantes (reemplazo de alert)
   const [toast, setToast] = useState<{ mensaje: string; tipo: "success" | "error" | "info" } | null>(null);
 
@@ -4927,11 +4936,20 @@ export default function App() {
             <Sparkles className="w-6 h-6 text-white" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-lg font-extrabold tracking-tight text-slate-900">GENERADOR PRIVADO XV</h1>
               <span className="bg-slate-100 text-slate-600 border border-slate-200 text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full">
                 ADMIN WORKSPACE
               </span>
+              {datos?.nombre?.trim() ? (
+                <span className="bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  Editando: {datos.nombre.trim()}
+                </span>
+              ) : (
+                <span className="bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  Invitación sin guardar / sin nombre
+                </span>
+              )}
             </div>
             <p className="text-xs text-slate-500">Diseña, compila y exporta invitaciones de 15 años profesionales en segundos.</p>
           </div>
