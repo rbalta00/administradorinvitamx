@@ -28,7 +28,8 @@ import {
   Palette,
   ArrowUp,
   ArrowDown,
-  LogOut
+  LogOut,
+  MoreVertical
 } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 import { InvitacionDatos, TemaConfig } from "./types";
@@ -2525,6 +2526,13 @@ export default function App() {
   const [invitacionExpandidaId, setInvitacionExpandidaId] = useState<string | null>(null);
   const [invitacionPagosExpandidaId, setInvitacionPagosExpandidaId] = useState<string | null>(null);
   const [invitacionMensajesExpandidaId, setInvitacionMensajesExpandidaId] = useState<string | null>(null);
+  // Pestaña "Vigencia y acceso" de la ficha de cliente (2026-11-18, rediseño de "Mis
+  // Invitaciones" pedido por el usuario: antes vigencia/bloqueo se mostraban siempre
+  // visibles en la fila; ahora viven como una 4ta pestaña, igual que pagos/mensajes/confirmaciones).
+  const [invitacionAccesoExpandidaId, setInvitacionAccesoExpandidaId] = useState<string | null>(null);
+  // Menú "⋯" (duplicar/respaldo/eliminar) de una fila -- mismo rediseño, mueve las acciones
+  // poco usadas fuera de la vista siempre-visible.
+  const [invitacionMenuAbiertoId, setInvitacionMenuAbiertoId] = useState<string | null>(null);
   // Historial de abonos por invitación (tabla `abonos`), cargado bajo demanda al ver el
   // historial en el panel de Pagos y estatus.
   const [abonosPorInvitacion, setAbonosPorInvitacion] = useState<Record<string, Abono[]>>({});
@@ -3460,17 +3468,45 @@ export default function App() {
   // Ver confirmaciones), este botón simplemente los abre los TRES a la vez usando los mismos
   // toggles de siempre (con forzarAbrir=true para que nunca los cierre por accidente si solo
   // alguno ya estaba abierto). Vuelve a cerrarlos todos si ya estaban los tres abiertos.
-  const handleAdministrarCliente = (row: InvitacionGuardadaRow) => {
-    const yaAbierto = invitacionPagosExpandidaId === row.id && invitacionMensajesExpandidaId === row.id && invitacionExpandidaId === row.id;
-    if (yaAbierto) {
-      setInvitacionPagosExpandidaId(null);
-      setInvitacionMensajesExpandidaId(null);
-      setInvitacionExpandidaId(null);
+  // Ficha de cliente (rediseño 2026-11-18): pagos/mensajes/confirmaciones/acceso ya no son 3-4
+  // toggles independientes que se podían dejar todos abiertos a la vez (lo que hacía que la
+  // fila creciera con 3 bloques apilados) -- ahora son pestañas mutuamente excluyentes de UNA
+  // sola ficha por cliente, igual que pidió el usuario ("que sea fácil de usar y ver").
+  type PestanaCliente = "pagos" | "mensajes" | "confirmaciones" | "acceso";
+  const pestanaClienteDe = (row: InvitacionGuardadaRow): PestanaCliente | null => {
+    if (invitacionPagosExpandidaId === row.id) return "pagos";
+    if (invitacionMensajesExpandidaId === row.id) return "mensajes";
+    if (invitacionExpandidaId === row.id) return "confirmaciones";
+    if (invitacionAccesoExpandidaId === row.id) return "acceso";
+    return null;
+  };
+  const cerrarFichaCliente = (row: InvitacionGuardadaRow) => {
+    if (invitacionPagosExpandidaId === row.id) setInvitacionPagosExpandidaId(null);
+    if (invitacionMensajesExpandidaId === row.id) setInvitacionMensajesExpandidaId(null);
+    if (invitacionExpandidaId === row.id) setInvitacionExpandidaId(null);
+    if (invitacionAccesoExpandidaId === row.id) setInvitacionAccesoExpandidaId(null);
+  };
+  const abrirPestanaCliente = (row: InvitacionGuardadaRow, pestana: PestanaCliente) => {
+    if (pestanaClienteDe(row) === pestana) {
+      cerrarFichaCliente(row);
       return;
     }
-    togglePagosInvitacion(row, true);
-    setInvitacionMensajesExpandidaId(row.id);
-    toggleConfirmacionesInvitacion(row, true);
+    if (invitacionPagosExpandidaId === row.id && pestana !== "pagos") setInvitacionPagosExpandidaId(null);
+    if (invitacionMensajesExpandidaId === row.id && pestana !== "mensajes") setInvitacionMensajesExpandidaId(null);
+    if (invitacionExpandidaId === row.id && pestana !== "confirmaciones") setInvitacionExpandidaId(null);
+    if (invitacionAccesoExpandidaId === row.id && pestana !== "acceso") setInvitacionAccesoExpandidaId(null);
+    if (pestana === "pagos") togglePagosInvitacion(row, true);
+    else if (pestana === "mensajes") setInvitacionMensajesExpandidaId(row.id);
+    else if (pestana === "confirmaciones") toggleConfirmacionesInvitacion(row, true);
+    else setInvitacionAccesoExpandidaId(row.id);
+  };
+
+  const handleAdministrarCliente = (row: InvitacionGuardadaRow) => {
+    if (pestanaClienteDe(row)) {
+      cerrarFichaCliente(row);
+      return;
+    }
+    abrirPestanaCliente(row, "pagos");
   };
 
   // Complemento à la carte "Control de Acceso QR": manda el link GENERAL de check-in
@@ -7562,32 +7598,30 @@ export default function App() {
                             {esLaCargada && (
                               <span className="px-2 py-0.5 rounded-full bg-indigo-600 text-white text-[9px] font-bold uppercase">Abierta ahora</span>
                             )}
-                            {vigenciaVencida && (
-                              <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[9px] font-bold uppercase">Vigencia vencida</span>
-                            )}
-                            {row.bloqueada && (
+                            {row.bloqueada ? (
                               <span className="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[9px] font-bold uppercase">🔒 Acceso apagado</span>
-                            )}
-                            {row.intake_actualizado_en ? (
-                              <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[9px] font-bold" title={new Date(row.intake_actualizado_en).toLocaleString("es-MX")}>
-                                📋 Cliente respondió {new Date(row.intake_actualizado_en).toLocaleDateString("es-MX")}
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-500 text-[9px] font-bold">📋 Sin respuesta del cliente</span>
-                            )}
-                            {row.creado_por && (
-                              <span className="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[9px] font-bold uppercase">👤 {row.creado_por}</span>
-                            )}
+                            ) : vigenciaVencida ? (
+                              <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[9px] font-bold uppercase">Vigencia vencida</span>
+                            ) : null}
                           </div>
                           <span className="block text-[11px] text-slate-500 mt-0.5">
                             {tema?.nombre || row.tema_elegido || "Sin tema"} · {row.fecha_fiesta ? new Date(row.fecha_fiesta + "T00:00:00").toLocaleDateString("es-MX") : "Sin fecha"}
                             {row.telefono_whatsapp?.trim() && <> · 📱 {row.telefono_whatsapp}</>}
+                            {" · "}
+                            {row.intake_actualizado_en ? (
+                              <span className="text-emerald-600 font-semibold" title={new Date(row.intake_actualizado_en).toLocaleString("es-MX")}>
+                                📋 Cliente respondió {new Date(row.intake_actualizado_en).toLocaleDateString("es-MX")}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">📋 Sin respuesta del cliente</span>
+                            )}
+                            {row.creado_por && <> · 👤 {row.creado_por}</>}
                           </span>
                           {!row.datos_completos && (
                             <span className="block text-[10px] text-amber-600 font-semibold mt-1">⚠️ Guardada antes de esta función — solo se puede ver el resumen, no reabrir para editar.</span>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-1.5 shrink-0">
                           <button
                             onClick={() => handleAbrirInvitacionGuardada(row)}
                             disabled={!row.datos_completos}
@@ -7597,95 +7631,113 @@ export default function App() {
                           </button>
                           <button
                             onClick={() => handleAdministrarCliente(row)}
-                            title="Abre toda la información de este cliente: pagos/saldo, mensajes predeterminados y confirmaciones"
+                            title="Abre la ficha de este cliente: pagos/saldo, mensajes predeterminados, confirmaciones y acceso"
                             className="px-3 py-1.5 bg-white hover:bg-violet-50 border border-violet-200 text-violet-700 text-[10px] font-bold rounded-lg transition"
                           >
                             👤 Administrar cliente
                           </button>
-                          <button
-                            onClick={() => handleDuplicarInvitacionGuardada(row)}
-                            disabled={!row.datos_completos}
-                            title="Duplicar como punto de partida para un cliente nuevo"
-                            className="p-1.5 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 text-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition"
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleDescargarRespaldoInvitacion(row)}
-                            disabled={!row.datos_completos}
-                            title="Descargar respaldo completo (JSON) de esta invitación"
-                            className="p-1.5 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleEliminarInvitacionGuardada(row)}
-                            className="p-1.5 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-300 text-rose-500 rounded-lg transition"
-                            title="Eliminar registro"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="relative">
+                            <button
+                              onClick={() => setInvitacionMenuAbiertoId(prev => prev === row.id ? null : row.id)}
+                              title="Más acciones"
+                              className="p-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-500 rounded-lg transition"
+                            >
+                              <MoreVertical className="w-3.5 h-3.5" />
+                            </button>
+                            {invitacionMenuAbiertoId === row.id && (
+                              <>
+                                <div className="fixed inset-0 z-10" onClick={() => setInvitacionMenuAbiertoId(null)} />
+                                <div className="absolute right-0 top-full mt-1 z-20 w-52 bg-white border border-slate-200 rounded-lg shadow-xl py-1">
+                                  <button
+                                    onClick={() => { setInvitacionMenuAbiertoId(null); handleDuplicarInvitacionGuardada(row); }}
+                                    disabled={!row.datos_completos}
+                                    className="w-full text-left px-3 py-1.5 text-[11px] text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                                  >
+                                    <Copy className="w-3.5 h-3.5 text-indigo-500" /> Duplicar como cliente nuevo
+                                  </button>
+                                  <button
+                                    onClick={() => { setInvitacionMenuAbiertoId(null); handleDescargarRespaldoInvitacion(row); }}
+                                    disabled={!row.datos_completos}
+                                    className="w-full text-left px-3 py-1.5 text-[11px] text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                                  >
+                                    <Download className="w-3.5 h-3.5 text-slate-500" /> Descargar respaldo (JSON)
+                                  </button>
+                                  <button
+                                    onClick={() => { setInvitacionMenuAbiertoId(null); handleEliminarInvitacionGuardada(row); }}
+                                    className="w-full text-left px-3 py-1.5 text-[11px] text-rose-600 hover:bg-rose-50 flex items-center gap-2"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" /> Eliminar registro
+                                  </button>
+                                </div>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <div className="mt-3 pt-3 border-t border-slate-200/60 flex items-center gap-2 flex-wrap">
-                        <label className="text-[10px] font-bold text-slate-600">Activa hasta:</label>
-                        <input
-                          type="date"
-                          defaultValue={row.activo_hasta ? row.activo_hasta.substring(0, 10) : ""}
-                          onBlur={(e) => handleActualizarVigenciaInvitacion(row, e.target.value)}
-                          className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 outline-none focus:border-indigo-500"
-                        />
-                        {row.activo_hasta && (
+
+                      <div className="mt-3 pt-3 border-t border-slate-200/60 flex items-center gap-1.5 flex-wrap">
+                        {([
+                          { id: "pagos" as const, label: "💳 Pagos" },
+                          { id: "mensajes" as const, label: "💬 Mensajes" },
+                          { id: "confirmaciones" as const, label: `👥 Confirmaciones${confirmacionesPorInvitacion[row.id] ? ` · ${confirmacionesPorInvitacion[row.id].length}` : ""}` },
+                          { id: "acceso" as const, label: row.bloqueada ? "🔒 Acceso (apagado)" : "🔒 Vigencia y acceso" },
+                        ]).map(tab => (
                           <button
-                            onClick={() => handleActualizarVigenciaInvitacion(row, "")}
-                            className="text-[10px] font-bold text-slate-400 hover:text-slate-600"
+                            key={tab.id}
+                            onClick={() => abrirPestanaCliente(row, tab.id)}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition ${pestanaClienteDe(row) === tab.id ? "bg-indigo-600 text-white" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-100"}`}
                           >
-                            Quitar fecha
+                            {tab.label}
                           </button>
-                        )}
-                        <button
-                          onClick={() => togglePagosInvitacion(row)}
-                          className="text-[10px] font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1"
-                        >
-                          💳 {invitacionPagosExpandidaId === row.id ? "Ocultar pagos" : "Pagos y estatus"}
-                        </button>
-                        <button
-                          onClick={() => setInvitacionMensajesExpandidaId(prev => prev === row.id ? null : row.id)}
-                          className="text-[10px] font-bold text-[#128C7E] hover:text-[#0e6b5f] flex items-center gap-1"
-                        >
-                          💬 {invitacionMensajesExpandidaId === row.id ? "Ocultar mensajes" : "Mensajes"}
-                        </button>
-                        <button
-                          onClick={() => toggleConfirmacionesInvitacion(row)}
-                          className="ml-auto text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
-                        >
-                          👥 {invitacionExpandidaId === row.id ? "Ocultar confirmaciones" : "Ver confirmaciones"}
-                          {confirmacionesPorInvitacion[row.id] && (
-                            <span className="px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700">{confirmacionesPorInvitacion[row.id].length}</span>
-                          )}
-                        </button>
+                        ))}
                       </div>
-                      <div className="mt-2 pt-2 border-t border-slate-200/60 flex items-center gap-2 flex-wrap">
-                        <label className="text-[10px] font-bold text-slate-600">Acceso del invitado/cliente:</label>
-                        <select
-                          value={motivoBloqueoSeleccionado[row.id] ?? row.motivo_bloqueo ?? "evento_pasado"}
-                          onChange={(e) => {
-                            setMotivoBloqueoSeleccionado(prev => ({ ...prev, [row.id]: e.target.value }));
-                            if (row.bloqueada) handleActualizarBloqueoInvitacion(row, true, e.target.value);
-                          }}
-                          className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[10px] text-slate-700 outline-none focus:border-indigo-500"
-                        >
-                          {Object.entries(MOTIVOS_BLOQUEO).map(([id, label]) => (
-                            <option key={id} value={id}>{label}</option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() => handleActualizarBloqueoInvitacion(row, !row.bloqueada, motivoBloqueoSeleccionado[row.id] ?? row.motivo_bloqueo ?? "evento_pasado")}
-                          className={`text-[10px] font-bold rounded-lg px-2 py-1 transition ${row.bloqueada ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100" : "bg-rose-50 text-rose-700 hover:bg-rose-100"}`}
-                        >
-                          {row.bloqueada ? "🔓 Encender acceso" : "🔒 Apagar acceso"}
-                        </button>
-                      </div>
+
+                      {invitacionAccesoExpandidaId === row.id && (
+                        <div className="mt-3 pt-3 border-t border-slate-200/60 space-y-3">
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-600 block mb-1">Activa hasta (recordatorio para ti — no bloquea el link por sí solo)</label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="date"
+                                defaultValue={row.activo_hasta ? row.activo_hasta.substring(0, 10) : ""}
+                                onBlur={(e) => handleActualizarVigenciaInvitacion(row, e.target.value)}
+                                className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 outline-none focus:border-indigo-500"
+                              />
+                              {row.activo_hasta && (
+                                <button
+                                  onClick={() => handleActualizarVigenciaInvitacion(row, "")}
+                                  className="text-[10px] font-bold text-slate-400 hover:text-slate-600"
+                                >
+                                  Quitar fecha
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-600 block mb-1">Acceso del invitado/cliente (esto sí bloquea de verdad el link)</label>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <select
+                                value={motivoBloqueoSeleccionado[row.id] ?? row.motivo_bloqueo ?? "evento_pasado"}
+                                onChange={(e) => {
+                                  setMotivoBloqueoSeleccionado(prev => ({ ...prev, [row.id]: e.target.value }));
+                                  if (row.bloqueada) handleActualizarBloqueoInvitacion(row, true, e.target.value);
+                                }}
+                                className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[10px] text-slate-700 outline-none focus:border-indigo-500"
+                              >
+                                {Object.entries(MOTIVOS_BLOQUEO).map(([id, label]) => (
+                                  <option key={id} value={id}>{label}</option>
+                                ))}
+                              </select>
+                              <button
+                                onClick={() => handleActualizarBloqueoInvitacion(row, !row.bloqueada, motivoBloqueoSeleccionado[row.id] ?? row.motivo_bloqueo ?? "evento_pasado")}
+                                className={`text-[10px] font-bold rounded-lg px-2 py-1 transition ${row.bloqueada ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100" : "bg-rose-50 text-rose-700 hover:bg-rose-100"}`}
+                              >
+                                {row.bloqueada ? "🔓 Encender acceso" : "🔒 Apagar acceso"}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
                       {invitacionPagosExpandidaId === row.id && (() => {
                         const precioSugerido = paquetes[(row.datos_completos?.paquete || "basico")].precio.replace(/[^0-9.]/g, "");
