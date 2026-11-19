@@ -4873,11 +4873,25 @@ export default function App() {
   // (generarHTMLFinal + getDatosVisualizacionCatalog) que usan las tarjetas del catálogo interno,
   // para que invitacionmx-landing e invitacionmx-catalogo puedan incrustarla en un iframe y
   // garantizar que siempre coincida con lo que se ve aquí.
+  // &apertura=<tipo> (2026-11-19, pedido por invitacionmx-catalogo para su sección "Mira cómo
+  // se abre tu invitación"): con un valor válido, el demo SÍ muestra la pantalla de apertura
+  // (normalmente excluida en embed) con ese tipo forzado -- solo para esta vista demo, no se
+  // guarda ni afecta ninguna invitación real (datosEmbed es una copia local nueva en cada
+  // render). Sin el parámetro o con un valor inválido, se comporta exactamente como antes:
+  // apertura excluida, sin ningún override.
   useEffect(() => {
     if (isEmbedMode) {
       const embedTema = temas.find(t => t.id === initialCatalogTemaId) || temas[0];
       const datosEmbed = getDatosVisualizacionCatalog(embedTema, datos);
-      const htmlContent = generarHTMLFinal({ ...datosEmbed, seccionesExcluidas: [...(datosEmbed.seccionesExcluidas || []), "apertura"] }, embedTema, { esDemoDeCatalogo: true });
+      const aperturaParam = new URLSearchParams(window.location.search).get("apertura");
+      const aperturaValida: TipoApertura | null =
+        aperturaParam === "sobre" || aperturaParam === "cortina" || aperturaParam === "tarjeta" || aperturaParam === "puertas" || aperturaParam === "destellos"
+          ? aperturaParam
+          : null;
+      const datosParaRender = aperturaValida
+        ? { ...datosEmbed, personalizacion: { ...(datosEmbed.personalizacion || {}), tipoApertura: aperturaValida } }
+        : { ...datosEmbed, seccionesExcluidas: [...(datosEmbed.seccionesExcluidas || []), "apertura"] };
+      const htmlContent = generarHTMLFinal(datosParaRender, embedTema, { esDemoDeCatalogo: true });
 
       document.open();
       document.write(htmlContent);
