@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, ChangeEvent, useMemo, useCallback, memo } from "react";
+import { useState, useEffect, useRef, ChangeEvent, MouseEvent, useMemo, useCallback, memo } from "react";
 import {
   Sparkles,
   Settings,
@@ -2588,6 +2588,32 @@ export default function App() {
   const [previewDevice, setPreviewDevice] = useState<"mobile" | "tablet" | "desktop">("mobile");
   const [previewZoom, setPreviewZoom] = useState<number>(0.85);
 
+  // Arrastrar para mover el Monitor de Invitación (pedido 2026-11-18, junto con dejar el
+  // Monitor fijo mientras el panel izquierdo hace su propio scroll): a 100% de zoom el mockup
+  // de celular/tablet puede ser más alto que el espacio visible, y centrarlo con
+  // "items-center" (como estaba) hace que la parte de arriba quede atrapada -- sin forma de
+  // llegar ahí ni con la rueda del mouse ni arrastrando la barra de scroll (bug conocido de
+  // flexbox: contenido centrado que se desborda nunca deja alcanzar el lado de "antes" del
+  // centro). Se cambió a "items-start" (ver más abajo) y, además, se agregó arrastre real con
+  // el mouse sobre el fondo del Monitor para poder mover la vista con comodidad.
+  const previewScrollRef = useRef<HTMLDivElement>(null);
+  const [arrastrandoPreview, setArrastrandoPreview] = useState(false);
+  const previewDragInicio = useRef({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
+  const iniciarArrastrePreview = (e: MouseEvent) => {
+    const el = previewScrollRef.current;
+    if (!el) return;
+    previewDragInicio.current = { x: e.clientX, y: e.clientY, scrollLeft: el.scrollLeft, scrollTop: el.scrollTop };
+    setArrastrandoPreview(true);
+  };
+  const moverArrastrePreview = (e: MouseEvent) => {
+    if (!arrastrandoPreview) return;
+    const el = previewScrollRef.current;
+    if (!el) return;
+    el.scrollLeft = previewDragInicio.current.scrollLeft - (e.clientX - previewDragInicio.current.x);
+    el.scrollTop = previewDragInicio.current.scrollTop - (e.clientY - previewDragInicio.current.y);
+  };
+  const terminarArrastrePreview = () => setArrastrandoPreview(false);
+
   // Estados para compartir por WhatsApp
   const [whatsappDestino, setWhatsappDestino] = useState("522217445410");
   const [whatsappTemplateId, setWhatsappTemplateId] = useState("completo");
@@ -4923,7 +4949,7 @@ export default function App() {
   })();
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
+    <div className="h-screen bg-slate-50 text-slate-800 flex flex-col font-sans overflow-hidden">
 
       {/* HEADER PRINCIPAL DE LA HERRAMIENTA PRIVADA -- antes compartía esta franja con los 11
           botones de acción (ver nota 2026-10-20 más abajo), ocupando una fila entera por
@@ -4959,8 +4985,12 @@ export default function App() {
       {/* DASHBOARD PRINCIPAL DE TRABAJO */}
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
 
-        {/* PANEL IZQUIERDO: SECCIONES DE CONFIGURACIÓN Y FORMULARIO */}
-        <aside className="w-full lg:w-[48%] xl:w-[45%] border-r border-slate-200 flex flex-col bg-white shrink-0">
+        {/* PANEL IZQUIERDO: SECCIONES DE CONFIGURACIÓN Y FORMULARIO -- overflow-y-auto propio
+            (pedido 2026-11-18: "mantener fijo el monitor... el panel de botones que sí se
+            pueda dar scroll") para que este panel se desplace solo, SIN arrastrar consigo al
+            Monitor de Invitación (el <section> hermano de abajo), que ahora se queda fijo en
+            su lugar mientras el admin trabaja aquí. */}
+        <aside className="w-full lg:w-[48%] xl:w-[45%] border-r border-slate-200 flex flex-col bg-white shrink-0 overflow-y-auto">
 
         {/* Guía rápida de 3 pasos, pedida 2026-11-02 ("que encuentre todos los botones para
             generar la invitación") para alguien nuevo capacitándose con el editor: antes de
@@ -7107,17 +7137,24 @@ export default function App() {
           </div>
 
           {/* ÁREA DE CONTENEDOR CENTRAL: MOCKUP RENDERER */}
-          <div className="flex-1 p-6 overflow-y-auto flex items-center justify-center relative min-h-0 bg-slate-100/50">
+          <div
+            ref={previewScrollRef}
+            onMouseDown={iniciarArrastrePreview}
+            onMouseMove={moverArrastrePreview}
+            onMouseUp={terminarArrastrePreview}
+            onMouseLeave={terminarArrastrePreview}
+            className={`flex-1 p-6 overflow-auto flex items-start justify-center relative min-h-0 bg-slate-100/50 select-none ${arrastrandoPreview ? "cursor-grabbing" : "cursor-grab"}`}
+          >
             {/* Fondo decorativo blur */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-500/5 blur-3xl rounded-full pointer-events-none"></div>
-            
-            <div 
-              className="relative transition-all duration-300 ease-out z-10 flex flex-col items-center justify-center"
+
+            <div
+              className="relative transition-all duration-300 ease-out z-10 flex flex-col items-center justify-center shrink-0"
               style={{
                 width: previewDevice === "mobile" ? "375px" : previewDevice === "tablet" ? "768px" : "100%",
                 height: previewDevice === "mobile" ? "720px" : previewDevice === "tablet" ? "980px" : "100%",
                 transform: previewDevice !== "desktop" ? `scale(${previewZoom})` : "none",
-                transformOrigin: "center center",
+                transformOrigin: "top center",
               }}
             >
               
@@ -7981,12 +8018,21 @@ export default function App() {
                             </div>
 
                             <div>
-                              <button
-                                onClick={() => handleEnviarFormularioDatos(row)}
-                                className="w-full flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 rounded-lg text-[11px] font-bold transition"
-                              >
-                                📋 Enviar formulario de datos y fotos al cliente
-                              </button>
+                              <div className="flex gap-1.5">
+                                <button
+                                  onClick={() => handleEnviarFormularioDatos(row)}
+                                  className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 rounded-lg text-[11px] font-bold transition"
+                                >
+                                  📋 Enviar formulario de datos y fotos al cliente
+                                </button>
+                                <button
+                                  onClick={() => window.open(`${window.location.origin}/?intake=1&iid=${row.id}`, "_blank")}
+                                  title="Abre el formulario en una pestaña nueva, tal como lo ve el cliente -- para revisarlo o probarlo antes de mandarlo"
+                                  className="px-2.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded-lg text-[11px] font-bold transition shrink-0"
+                                >
+                                  👁️ Abrir
+                                </button>
+                              </div>
                               <p className="text-[9px] text-slate-400 mt-1">El cliente llena fecha, ceremonia/recepción, itinerario, padrinos y sube sus fotos directamente — se guarda solo en esta invitación.</p>
                             </div>
 
