@@ -47,6 +47,17 @@ if (supabaseUrl && supabaseAnonKey && typeof window !== "undefined") {
   console.warn("Supabase no configurado: faltan VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY");
 }
 
+// Dirección pública fija del negocio (agregado 2026-11-20) -- conectar el dominio en Vercel no
+// cambia cómo la app arma sus links; antes cada link salía con `window.location.origin` (la
+// dirección donde esté abierto el panel en ese momento), así que si el admin entraba por
+// costumbre a la URL vieja de `.vercel.app`, los links que le daba a sus clientes también
+// salían con esa URL vieja, sin la marca nueva. Usar esta constante como base SOLO en los links
+// que se ENTREGAN a la clienta o a los invitados (invitación, muestra, formulario de datos,
+// control de acceso/pases) -- la navegación interna del panel (ej. "Enviar link a colaborador",
+// el catálogo de demos) sigue construyéndose con `window.location.origin` a propósito, sin
+// cambios, para que el admin pueda seguir entrando por cualquier dirección del proyecto.
+const URL_PUBLICA_INVITAMX = "https://invitaciones.invitamx.app";
+
 // Fila fija (columna `id` es uuid) usada para guardar/leer los fondos personalizados compartidos
 const FONDOS_ROW_ID = "00000000-0000-0000-0000-000000000001";
 
@@ -532,7 +543,7 @@ async function guardarEnSupabase(datosInvitacion: InvitacionDatos, temaActual: T
     codigoCorto = await generarCodigoCortoUnico(supabase, datosInvitacion.nombre);
   }
   const datosConCodigo: InvitacionDatos = { ...datosInvitacion, codigoCorto };
-  const linkCorto = `${window.location.origin}/v/${codigoCorto}`;
+  const linkCorto = `${URL_PUBLICA_INVITAMX}/v/${codigoCorto}`;
 
   const datosParaGuardar = {
     nombre_quinceanera: datosInvitacion.nombre || 'Sin nombre',
@@ -4181,7 +4192,7 @@ export default function App() {
       return;
     }
     const numeroLimpio = row.telefono_whatsapp.replace(/[^0-9]/g, "");
-    const urlFormulario = `${window.location.origin}/?intake=1&iid=${row.id}`;
+    const urlFormulario = `${URL_PUBLICA_INVITAMX}/?intake=1&iid=${row.id}`;
     const msg = `¡Hola! 🌸 Para seguir con tu invitación de XV Años de *${row.nombre_quinceanera || "tu evento"}*, por favor llena tus datos y sube tus fotos en este link:\n${urlFormulario}`;
     window.open(`https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(msg)}`, "_blank");
   };
@@ -4203,7 +4214,7 @@ export default function App() {
     if (!row.datos_completos) return null;
     const datosListos = { ...row.datos_completos, tema: row.tema_elegido || row.datos_completos.tema, invitados: [] };
     const exp = Date.now() + MUESTRA_DIAS_VIGENCIA * 24 * 60 * 60 * 1000;
-    return `${window.location.origin}/?v=1&d=${encodeState(datosListos)}&iid=${encodeURIComponent(row.id)}&muestra=1&exp=${exp}`;
+    return `${URL_PUBLICA_INVITAMX}/?v=1&d=${encodeState(datosListos)}&iid=${encodeURIComponent(row.id)}&muestra=1&exp=${exp}`;
   };
 
   const handleEnviarPreviewWhatsApp = async (row: InvitacionGuardadaRow) => {
@@ -4292,13 +4303,13 @@ export default function App() {
       mostrarToast("Escribe el número del encargado de acceso (código de país + 10 dígitos)", "error");
       return;
     }
-    const urlCheckin = `${window.location.origin}/?checkin=1&iid=${row.id}`;
+    const urlCheckin = `${URL_PUBLICA_INVITAMX}/?checkin=1&iid=${row.id}`;
     const msg = `¡Hola! 🔳 Este es el link de control de acceso para la fiesta de XV Años de *${row.nombre_quinceanera || "el evento"}* -- ábrelo el día del evento para registrar la entrada de cada familia:\n${urlCheckin}`;
     window.open(`https://api.whatsapp.com/send?phone=${telefono}&text=${encodeURIComponent(msg)}`, "_blank");
   };
 
   const handleCopiarLinkCheckin = (row: InvitacionGuardadaRow) => {
-    const urlCheckin = `${window.location.origin}/?checkin=1&iid=${row.id}`;
+    const urlCheckin = `${URL_PUBLICA_INVITAMX}/?checkin=1&iid=${row.id}`;
     navigator.clipboard.writeText(urlCheckin);
     mostrarToast("Link de control de acceso copiado", "success");
   };
@@ -4344,7 +4355,7 @@ export default function App() {
       mostrarToast("No se pudo generar el link corto", "error");
       return;
     }
-    copiarLinkClienta(`${window.location.origin}/v/${codigoCorto}`);
+    copiarLinkClienta(`${URL_PUBLICA_INVITAMX}/v/${codigoCorto}`);
   };
 
   // Copia el link LARGO clásico (?v=1&d=...&iid=...) de esta fila -- opción secundaria "por si
@@ -4358,7 +4369,7 @@ export default function App() {
       return;
     }
     const datosListos = { ...fila.datos_completos, tema: fila.tema_elegido || fila.datos_completos.tema, invitados: [] };
-    const linkClasico = `${window.location.origin}/?v=1&d=${encodeState(datosListos)}&iid=${encodeURIComponent(fila.id)}`;
+    const linkClasico = `${URL_PUBLICA_INVITAMX}/?v=1&d=${encodeState(datosListos)}&iid=${encodeURIComponent(fila.id)}`;
     copiarLinkClienta(linkClasico);
   };
 
@@ -4738,7 +4749,7 @@ export default function App() {
   };
 
   const getShareUrl = (invitadoIndex = selectedInvitadoIndex) => {
-    const appUrl = window.location.origin + "/";
+    const appUrl = URL_PUBLICA_INVITAMX + "/";
     const invitadoObjetivo =
       invitadoIndex !== -1 && datos.invitados && datos.invitados[invitadoIndex]
         ? datos.invitados[invitadoIndex]
@@ -4752,7 +4763,7 @@ export default function App() {
     // sigue siendo el link largo clásico de siempre -- es un mecanismo aparte, deliberadamente
     // no tocado por este cambio.
     if (datos.codigoCorto && !esEnlaceMuestra) {
-      const baseCorta = `${window.location.origin}/v/${datos.codigoCorto}`;
+      const baseCorta = `${URL_PUBLICA_INVITAMX}/v/${datos.codigoCorto}`;
       return invitadoObjetivo ? `${baseCorta}?fam=${encodeURIComponent(invitadoObjetivo.nombre)}` : baseCorta;
     }
 
@@ -5493,7 +5504,7 @@ export default function App() {
                 // días el link deja de mostrar la invitación y en su lugar aparece el CTA de
                 // "contactar para comprar".
                 const exp = Date.now() + MUESTRA_DIAS_VIGENCIA * 24 * 60 * 60 * 1000;
-                const linkPersonalizado = `${window.location.origin}/?v=1&d=${encodeState(datosParaLink)}&muestra=1&exp=${exp}`;
+                const linkPersonalizado = `${URL_PUBLICA_INVITAMX}/?v=1&d=${encodeState(datosParaLink)}&muestra=1&exp=${exp}`;
                 const msg = `¡Hola! Así se vería mi invitación de XV años (tema "${temaDemoSel.nombre}", paquete ${paquetes[catalogDemoPaquete].nombre}${catalogDemoNombre.trim() ? `, a nombre de ${catalogDemoNombre.trim()}` : ""}): ${linkPersonalizado}`;
                 window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, "_blank");
               };
@@ -5895,9 +5906,17 @@ export default function App() {
   })();
 
   return (
-    <div className="h-screen bg-slate-50 text-slate-800 flex flex-col font-sans overflow-hidden">
+    <div className="min-h-screen lg:h-screen bg-slate-50 text-slate-800 flex flex-col font-sans overflow-y-auto lg:overflow-hidden">
 
-      {/* DASHBOARD PRINCIPAL DE TRABAJO -- ya no hay header de ancho completo arriba (quitado
+      {/* EN CELULAR/TABLET (<1024px): el panel izquierdo nunca se achicaba (tiene `shrink-0`,
+          sin altura fija) dentro de este contenedor que antes SIEMPRE era `h-screen
+          overflow-hidden` -- la página entera no podía hacer scroll, así que todo lo que no
+          cupiera en la primera pantalla (la mayoría del formulario, y el Monitor de Invitación
+          completo) quedaba inalcanzable, sin ningún aviso. Corregido 2026-11-19: en pantallas
+          angostas el contenedor ahora permite scroll normal de toda la página
+          (`overflow-y-auto`, sin altura fija) -- en escritorio (lg+) se queda exactamente igual
+          que antes (`h-screen overflow-hidden`, el split de panel fijo + monitor fijo sigue
+          intacto). DASHBOARD PRINCIPAL DE TRABAJO -- ya no hay header de ancho completo arriba (quitado
           2026-11-18, "que no esté dentro del monitor para que tenga más espacio": el título
           ahora vive SOLO del lado del panel izquierdo, fijo mientras ese panel hace scroll, ver
           <header> dentro del <aside> más abajo -- y el Monitor de Invitación (la <section>
@@ -8004,7 +8023,7 @@ export default function App() {
                                 <>
                                   <img
                                     src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(
-                                      `${window.location.origin}/?checkin=1&iid=${encodeURIComponent(supabaseRowId)}&fam=${encodeURIComponent(item.nombre)}`
+                                      `${URL_PUBLICA_INVITAMX}/?checkin=1&iid=${encodeURIComponent(supabaseRowId)}&fam=${encodeURIComponent(item.nombre)}`
                                     )}`}
                                     alt={`QR de acceso de ${item.nombre}`}
                                     className="w-16 h-16 rounded border border-amber-300 bg-white shrink-0"
@@ -8177,8 +8196,13 @@ export default function App() {
 
         </aside>
 
-        {/* PANEL DERECHO: VISTA PREVIA MULTIDISPOSITIVO (OPTIMIZADO PARA TRABAJO EN PC) */}
-        <section className="flex-1 bg-slate-100 flex flex-col relative overflow-hidden lg:h-full">
+        {/* PANEL DERECHO: VISTA PREVIA MULTIDISPOSITIVO -- en celular/tablet (<1024px) se apila
+            debajo del panel izquierdo y necesita una altura propia (antes dependía de `flex-1`
+            dentro de un contenedor acotado que solo existía en escritorio -- en móvil, sin esa
+            altura fija, colapsaba a 0 y quedaba invisible, ver nota del contenedor raíz arriba);
+            `h-[75vh]` le da suficiente alto para usar el simulador sin tener que scrollear
+            demasiado. En escritorio (lg+) sigue igual que antes (`h-full`, llena el panel fijo). */}
+        <section className="flex-1 bg-slate-100 flex flex-col relative overflow-hidden h-[75vh] lg:h-full">
           
           {/* BARRA DE HERRAMIENTAS DE MONITOR DE DISEÑO */}
           <div className="bg-white border-b border-slate-200 px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0 shadow-xs z-20">
@@ -8728,8 +8752,8 @@ export default function App() {
                   const estatusLabelFila = ESTATUS_PEDIDO.find(e => e.id === (row.estado || "cotizacion"))?.label || row.estado || "";
                   const faltaFila = (row.precio_total || 0) - (row.precio_pagado || 0);
                   const iconoEventoFila = TIPOS_EVENTO.find(t => t.id === tipoEventoDeFila(row))?.emoji || "🎂";
-                  const linkFormularioFila = `${window.location.origin}/?intake=1&iid=${row.id}`;
-                  const linkCheckinFila = `${window.location.origin}/?checkin=1&iid=${row.id}`;
+                  const linkFormularioFila = `${URL_PUBLICA_INVITAMX}/?intake=1&iid=${row.id}`;
+                  const linkCheckinFila = `${URL_PUBLICA_INVITAMX}/?checkin=1&iid=${row.id}`;
                   return (
                     <div key={row.id} className={`border rounded-xl ${esLaCargada ? "border-indigo-400 bg-indigo-50/40" : "border-slate-200 bg-slate-50"}`}>
                       {/* Renglón compacto -- un solo clic expande/colapsa el detalle completo
@@ -9180,7 +9204,7 @@ export default function App() {
                                   📋 Enviar formulario de datos y fotos al cliente
                                 </button>
                                 <button
-                                  onClick={() => window.open(`${window.location.origin}/?intake=1&iid=${row.id}`, "_blank")}
+                                  onClick={() => window.open(`${URL_PUBLICA_INVITAMX}/?intake=1&iid=${row.id}`, "_blank")}
                                   title="Abre el formulario en una pestaña nueva, tal como lo ve el cliente -- para revisarlo o probarlo antes de mandarlo"
                                   className="px-2.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded-lg text-[11px] font-bold transition shrink-0"
                                 >
