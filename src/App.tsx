@@ -7465,8 +7465,8 @@ export default function App() {
       )}
 
       {mostrarMisInvitaciones && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-4xl w-full shadow-2xl animate-scaleIn max-h-[85vh] overflow-y-auto">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 w-[95vw] max-w-6xl shadow-2xl animate-scaleIn max-h-[94vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-lg font-extrabold text-slate-900">📋 Mis Invitaciones</h3>
               <div className="flex items-center gap-2">
