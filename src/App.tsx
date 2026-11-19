@@ -5152,6 +5152,46 @@ export default function App() {
 
           <button
             onClick={() => {
+              // Antes vivía dentro de la caja "4. Catálogo Digital de Temas" (quitada
+              // 2026-11-18 por ocupar mucho espacio) -- mismo getCatalogUrl() de siempre, ahora
+              // como botón directo junto a los otros "enviar link".
+              const catUrl = getCatalogUrl();
+              const msg = `Hola! 🌸 Aquí tienes nuestro catálogo con los 14 temas de invitación digital de XV años, con demos en vivo de cada uno:\n\n${catUrl}`;
+              window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, "_blank");
+            }}
+            title="Abre WhatsApp con el link del catálogo de temas ya listo para compartir -- tú eliges el contacto o grupo"
+            className="px-3.5 py-2 bg-white hover:bg-indigo-50 text-indigo-700 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+          >
+            <span>📂 Enviar link del catálogo</span>
+          </button>
+
+          <button
+            onClick={() => {
+              const url = "https://www.invitamx.online";
+              const msg = `Hola! 🌸 Aquí tienes nuestra página de Invitaciones Digitales de XV Años, con precios, paquetes y todo lo que incluye:\n\n${url}`;
+              window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, "_blank");
+            }}
+            title="Abre WhatsApp con el link de la página de ventas (invitamx.online) ya listo para compartir -- tú eliges el contacto o grupo"
+            className="px-3.5 py-2 bg-white hover:bg-rose-50 text-rose-700 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+          >
+            <span>🌐 Enviar link de la landing</span>
+          </button>
+
+          <button
+            onClick={() => {
+              // Deferimos la actualización pesada del estado para mantener la interactividad instantánea (INP óptimo)
+              setTimeout(() => {
+                setIsCatalogMode(true);
+              }, 0);
+            }}
+            title="Abre aquí mismo el catálogo de temas, para probarlos en vivo antes de mandar nada"
+            className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+          >
+            <span>👁️ Abrir catálogo de temas</span>
+          </button>
+
+          <button
+            onClick={() => {
               // No hay sesión real de servidor que cerrar (el login es HTTP Basic Auth, sin
               // cookies) -- el navegador simplemente recuerda el usuario/contraseña que ya
               // funcionaron para este dominio. El truco estándar para "olvidarlos" es navegar
@@ -5824,60 +5864,10 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* ENLACE DEL CATÁLOGO DE DEMOS */}
-                <div className="border-t border-slate-200 pt-6">
-                  <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
-                    4. Catálogo Digital de Temas (Demos Interactivas)
-                  </h3>
-                  <div className="p-4 bg-indigo-50/50 border border-indigo-100/70 rounded-xl space-y-4">
-                    <p className="text-xs text-slate-600 leading-relaxed font-sans">
-                      Genera y comparte un link público para que tus clientes o invitados visualicen un precioso catálogo con botones para probar en vivo la demo interactiva de cada uno de los 14 temas.
-                    </p>
-                    
-                    <div className="space-y-2">
-                      <label className="block text-xs font-bold text-slate-700">Enlace de Tu Catálogo de Temas 🔗</label>
-                      <div className="flex gap-1.5 w-full">
-                        <input
-                          type="text"
-                          readOnly
-                          value={getCatalogUrl()}
-                          className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-600 text-[10px] outline-none font-mono truncate"
-                          title="Haz clic en copiar para compartir este link de catálogo de demostraciones en vivo"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const catUrl = getCatalogUrl();
-                            navigator.clipboard.writeText(catUrl)
-                              .then(() => mostrarToast("¡Enlace del Catálogo de Temas copiado con éxito! 📂✨ Admite navegación por todos los demos en vivo.", "success"))
-                              .catch(err => mostrarToast("Error al copiar enlace: " + err, "error"));
-                          }}
-                          className="px-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-lg text-xs font-bold transition flex items-center justify-center cursor-pointer shadow-xs"
-                          title="Copiar enlace del catálogo"
-                        >
-                          <Copy className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="pt-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          // Deferimos la actualización pesada del estado para mantener la interactividad instantánea (INP óptimo)
-                          setTimeout(() => {
-                            setIsCatalogMode(true);
-                          }, 0);
-                        }}
-                        className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-xs font-bold rounded-lg flex items-center justify-center gap-2 transition cursor-pointer shadow-sm shadow-indigo-500/10 font-sans"
-                      >
-                        <Sparkles className="w-4 h-4" />
-                        Abrir / Probar Catálogo de Temas 👁️
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                {/* Caja "4. Catálogo Digital de Temas" quitada 2026-11-18 (ocupaba mucho
+                    espacio) -- sus 3 acciones (enviar link del catálogo por WhatsApp, enviar
+                    link de la landing, abrir el catálogo aquí mismo) ahora viven como botones
+                    compactos junto a "💬 Enviar link a colaborador", arriba del todo. */}
 
               </div>
             )}

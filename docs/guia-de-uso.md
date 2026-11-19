@@ -73,6 +73,9 @@ Están agrupados por lo que hacen — cada grupo tiene su propia etiqueta:
   - *Instalar app*: instala el editor como app en tu celular/computadora (acceso directo, sin abrir el navegador cada vez).
   - *📖 Manual de uso*: abre este manual completo en una pestaña nueva — también sirve para capacitar a alguien que apenas está aprendiendo a usar el editor.
   - *💬 Enviar link a colaborador*: abre WhatsApp con el link de este administrador ya escrito, listo para mandárselo a quien te esté ayudando (otro vendedor, un asistente) — tú eliges a quién o a qué grupo se lo mandas. No incluye la contraseña (eso se lo compartes tú por separado).
+  - *📂 Enviar link del catálogo*: abre WhatsApp con el link del catálogo de los 14 temas ya escrito, para compartirlo con un cliente o prospecto (reemplaza la caja "4. Catálogo Digital de Temas" que antes vivía dentro de la pestaña "Tema/Paquete" — ocupaba mucho espacio, ahora es solo este botón).
+  - *🌐 Enviar link de la landing*: abre WhatsApp con el link de la página de ventas pública (invitamx.online) ya escrito — precios, paquetes y todo lo que incluye, para mandarle a alguien que todavía no decide comprar.
+  - *👁️ Abrir catálogo de temas*: abre el catálogo de temas directo en esta pestaña, para probarlo en vivo tú mismo antes de mandarlo.
   - *Cerrar sesión*: cierra tu sesión en este navegador (te va a volver a pedir usuario y contraseña).
 - **Limpiar** (en rojo, separado a propósito): borra el formulario actual para empezar de cero. Úsalo con cuidado — no es lo mismo que eliminar un cliente guardado.
 
