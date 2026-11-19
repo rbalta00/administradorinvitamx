@@ -5425,29 +5425,12 @@ export default function App() {
                         </span>
                         <span className="text-[10px] text-slate-500 block mt-0.5">Apaga las secciones que no desees incluir en el link final</span>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => {
-                            // Mismo recálculo que al cambiar de paquete (ver handleCambiarPaquete) --
-                            // familia/regalos/pases vuelven a lo que corresponde al paquete ACTUAL
-                            // (incluidas gratis prendidas, à la carte apagadas), deshaciendo cualquier
-                            // override manual que el admin haya hecho en esta lista. El resto de
-                            // seccionesExcluidas (ej. "Galería" apagada a mano) no se toca.
-                            setDatos({ ...datos, seccionesExcluidas: recalcularSeccionesPorPaquete(datos.seccionesExcluidas, datos.paquete) });
-                            mostrarToast(`Secciones fijadas según lo que incluye el paquete "${paquetes[datos.paquete].nombre}".`, "info");
-                          }}
-                          title="Deshace tus cambios manuales en familia/regalos/pases y los deja como vienen de fábrica en el paquete actual"
-                          className="text-[10px] font-bold text-violet-600 hover:text-violet-800 transition bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-xs cursor-pointer hover:border-slate-300"
-                        >
-                          📦 Fijar según paquete
-                        </button>
-                        <button
-                          onClick={() => setDatos({ ...datos, seccionesExcluidas: [] })}
-                          className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-xs cursor-pointer hover:border-slate-300"
-                        >
-                          🔄 Habilitar Todas
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => setDatos({ ...datos, seccionesExcluidas: [] })}
+                        className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-xs cursor-pointer hover:border-slate-300"
+                      >
+                        🔄 Habilitar Todas
+                      </button>
                     </div>
                     <SeccionesToggleList
                       secciones={["apertura", ...getOrdenSeccionesEfectivo(datos.paquete, datos.ordenSecciones), "cierre"]}

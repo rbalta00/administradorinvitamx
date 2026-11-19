@@ -51,7 +51,7 @@ Extras disponibles en cualquier paquete: familia extra arriba del tope de pases 
 
 **Regla:** si un cliente Básico pide Familia/Regalos, o un cliente Básico/Estándar pide Pases o PDF, se prende manualmente en "Personalizar Secciones Habilitadas" — solo porque el cliente lo pidió/pagó puntual, nunca por default. Hashtag y Calendario ya vienen incluidos por default desde Básico (no son una excepción que haya que negociar).
 
-Ese mismo panel trae 2 botones (pedido 2026-11-18): **🔄 Habilitar Todas** (prende absolutamente todo, sin importar lo que incluya el paquete) y **📦 Fijar según paquete** (deshace cualquier cambio manual que hayas hecho en familia/regalos/pases y los regresa a como vienen de fábrica en el paquete actual del cliente, sin tocar nada más que hayas apagado a mano, como por ejemplo la Galería).
+Ese mismo panel trae el botón **🔄 Habilitar Todas** (prende absolutamente todo, sin importar lo que incluya el paquete). Se probó un segundo botón "Fijar según paquete" (2026-11-18) que deshacía los apagados manuales de familia/regalos/pases según el paquete, pero se quitó el mismo día: el admin debe poder apagar CUALQUIER sección para un cliente puntual (aunque su paquete sí la incluya gratis, ej. "Mesa de Regalos") y que se quede apagada — un botón que la reactivara solo generaba confusión. Las secciones a la carte/exclusivas de cada paquete siguen marcadas con su badge (ver tabla de 3.1), pero apagar/prender cualquier sección siempre es decisión manual, nunca automática.
 
 ## 4. Mientras editas: el Monitor de Invitación
 
