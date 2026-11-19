@@ -2,6 +2,50 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Tipo de Evento: XV ya no es el único evento soportado (2026-11-19)
+
+Pedido explícito del usuario: generalizar el generador (hasta ahora 100% de quinceañeras) para
+poder producir invitaciones de Boda, Cumpleaños, Bautizo, Primera Comunión, Graduación, Baby
+Shower y Aniversario, con los mismos temas/fondos/paquetes/precios/secciones/RSVP/pases/PDF --
+**solo cambian las palabras** que ve el invitado.
+
+- **`InvitacionDatos.tipoEvento?`** (`types.ts`) -- `"xv" | "boda" | "cumpleanos" | "bautizo" |
+  "primera-comunion" | "graduacion" | "baby-shower" | "aniversario"`. Ausente o desconocido =
+  `"xv"`, para que cualquier invitación guardada antes de este campo se siga generando idéntica.
+- **`TEXTOS_POR_EVENTO`/`textosEventoDe()`** (`templates.ts`, exportados) -- diccionario único con
+  los ~15 textos que cambian por tipo (apertura ×3 estilos, portada, mensaje, familia, `<title>`,
+  calendario, frase de confirmación de RSVP), resuelto UNA vez en `generarHTMLFinal` como
+  `textosEvento` y usado en cada lugar que antes tenía el texto de XV fijo -- nunca ternarios
+  sueltos. De paso se encontró y generalizó un texto más no pedido explícitamente ("celebrar
+  juntos mis 15 años" del detalle de "Agregar a calendario") y se limpió un comentario HTML
+  interno que decía "quinceañera" (invisible para el invitado, pero por consistencia).
+- **Editor (`App.tsx`)**: selector "Tipo de Evento" (8 botones) al inicio de la pestaña
+  "Quinceañera", antes del campo de nombre -- `handleSeleccionarTipoEvento`. La etiqueta de ese
+  campo (`ETIQUETA_NOMBRE_POR_EVENTO`) y los mensajes de validación de nombre faltante se adaptan
+  por tipo; igual el encabezado "Padres de..." de la pestaña Familia (`ETIQUETA_PADRES_POR_EVENTO`
+  -- no estaba en el pedido original, se encontró al revisar esa pestaña y se generalizó con el
+  mismo mecanismo). El mensaje de bienvenida y el itinerario de ejemplo (solo para Boda, con un
+  array equivalente por paquete) se rellenan con un default del tipo nuevo SOLO si el texto
+  actual sigue siendo exactamente un default "de fábrica" conocido -- si el admin o el cliente
+  (desde su propio `?intake=1`) ya lo editó, nunca se pisa. El quick-create "+ Nuevo Cliente"
+  (sin selector de tipo) se deja tal cual, siempre crea XV por default -- fuera de alcance de este
+  cambio, declarado a propósito.
+- **`IntakeForm`** (el formulario público `?intake=1&iid=...`) ya lee `datos_completos.tipoEvento`
+  de la fila (estaba disponible, no se tocó el query) y lo usa para adaptar la frase de "Copiar
+  recordatorio" que el cliente le manda a sus propios invitados sin RSVP -- mismo
+  `TEXTOS_POR_EVENTO.fraseConfirmacion` que usa el aviso de Telegram al admin. El resto del
+  formulario de intake no depende del tipo de evento.
+- **Nada de temas, paquetes, precios, secciones ni fondos cambió** -- confirmado generando los 8
+  tipos con los 5 estilos de apertura (sobre/cortina/puertas/destellos/tarjeta) y ambas variantes
+  de portada (circular/fondo): ningún texto de XV ("Quince", "Primaveras", "XV", "Gala XV") quedó
+  en ningún tipo que no sea "xv"; una invitación sin el campo `tipoEvento` genera el mismo HTML
+  visible que una con `tipoEvento: "xv"` explícito (solo difiere el JSON de depuración embebido
+  en la página, que ahora sí trae esa llave -- no es texto visible). Verificado ejecutando
+  `generarHTMLFinal` directo (vía un bundle de esbuild con `import.meta.env` stubbeado, fuera del
+  repo) para los 8 tipos × 5 aperturas, no solo leyendo el código.
+- `docs/guia-de-uso.md`, `public/manual.html` y `D:\InvitaMX\invitamx-manual-usuario.html`
+  actualizados con el selector nuevo y la etiqueta adaptable (regla fija de abajo).
+
 ## Tema nuevo: "Vino Elegante" 🍷, color rojo/vino (2026-11-17)
 
 Pedido del usuario: "piensa primero si algún color falta para las quinceañeras y sobre de eso creamos
@@ -301,6 +345,7 @@ Referencia rápida de TODO lo que el producto hace hoy, para escribir/actualizar
 
 ### La invitación digital en sí (lo que ve el invitado)
 
+- **Ya no es solo para XV años (agregado 2026-11-19)**: el mismo generador (mismos temas, paquetes, precios y secciones) también sirve para Boda, Cumpleaños, Bautizo, Primera Comunión, Graduación, Baby Shower y Aniversario — solo cambian las palabras que ve el invitado (portada, apertura, etc.), nunca el diseño ni el precio. Ángulo de venta nuevo: el mismo catálogo de temas y paquetes ya no limita la oferta a un solo tipo de evento — **nota importante**: la landing (`invitacionmx-landing`) y el catálogo (`invitacionmx-catalogo`) siguen hablando exclusivamente de XV años (no se tocaron en este cambio, es trabajo aparte si se decide ofrecer esto públicamente) — este punto es sobre todo útil para ventas directas/a la medida por ahora.
 - **14 temas de diseño listos** (confirmado contra `src/data.ts` el 2026-11-17), cada uno con tipografía, paleta y decoración propia: Dorado Clásico, Vuelo de Mariposas, Floral Acuarela, Místico Celestial (tema noche), Eucalipto Botánico, Glam Rose Oro, Rustique Boho Chic, Princesa Elegante (gala), Mármol & Oro Geométrico, Ciber Cyber Neon (glow), XV Coquette Listones Rose, XV Coquette Luxe, Aurora Boreal, Vino Elegante (clásico, rojo/vino). Buen ángulo: "hay un diseño para cada estilo de quinceañera, del clásico elegante al neón moderno".
 - **+ 1 tema "Personalizado" (A Medida)**: para quien quiere colores/tipografía/estilo de apertura 100% a su gusto en vez de un catálogo fijo — ángulo de venta premium/exclusividad.
 - **3 estilos de apertura animada**: tarjeta con botón, sobre con sello de cera que se abre, o cortina/telón que se descorre — se puede elegir independiente del tema.

@@ -29,12 +29,14 @@ import {
   ArrowUp,
   ArrowDown,
   LogOut,
-  MoreVertical
+  MoreVertical,
+  ChevronDown,
+  ChevronRight
 } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 import { InvitacionDatos, TemaConfig } from "./types";
 import { temas, paquetes, datosDefault, getFotosPorTema, getOrdenSeccionesEfectivo, PALETAS_COLOR_PERSONALIZADO } from "./data";
-import { generarHTMLFinal } from "./templates";
+import { generarHTMLFinal, TipoEvento, TEXTOS_POR_EVENTO } from "./templates";
 
 // Inicializar cliente de Supabase a partir de variables de entorno (Vite las inyecta en build time)
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -50,6 +52,15 @@ const FONDOS_ROW_ID = "00000000-0000-0000-0000-000000000001";
 
 // Forma de una fila de la tabla `invitaciones` tal como la usa el panel "Mis Invitaciones"
 // (no son todas las columnas de la tabla, solo las que ese panel lee/muestra/edita).
+//
+// `datos_completos` es OPCIONAL (2026-11-19): la carga ligera de la lista (ver
+// api/admin/list-invitaciones.ts) ya no lo trae de entrada para no arrastrar el jsonb
+// completo (fotos/itinerario/etc.) de cada una de 200+ invitaciones solo para mostrar nombre y
+// estatus -- queda `undefined` hasta que `asegurarDatosCompletos()` lo trae bajo demanda (y
+// `null` después de ese fetch si la fila de verdad no tiene nada guardado ahí, el caso de una
+// invitación guardada antes de que existiera esta columna). `paquete` sí viaja siempre en la
+// carga ligera (extraído server-side de `datos_completos->>paquete`) porque la lista lo
+// necesita para mostrarlo sin tener que pedir el jsonb entero.
 interface InvitacionGuardadaRow {
   id: string;
   nombre_quinceanera: string | null;
@@ -59,7 +70,8 @@ interface InvitacionGuardadaRow {
   activo_hasta: string | null;
   updated_at: string | null;
   link_invitacion: string | null;
-  datos_completos: InvitacionDatos | null;
+  datos_completos?: InvitacionDatos | null;
+  paquete?: "basico" | "premium" | "deluxe" | null;
   telefono_whatsapp: string | null;
   precio_total: number | null;
   precio_pagado: number | null;
@@ -95,6 +107,118 @@ const MOTIVOS_BLOQUEO: Record<string, string> = {
   solicitud_cliente: "Cliente pidió cerrarlo",
   otro: "Otro motivo"
 };
+
+// Tipo de evento (2026-11-19) -- solo cambia las palabras que ve el invitado (ver
+// TEXTOS_POR_EVENTO en templates.ts) y, aquí en el editor, la etiqueta del campo de nombre y el
+// mensaje de bienvenida/itinerario por defecto de una invitación NUEVA. Ningún tema, paquete,
+// precio ni sección cambia por esto.
+const TIPOS_EVENTO: { id: TipoEvento; label: string; emoji: string }[] = [
+  { id: "xv", label: "XV Años", emoji: "🎂" },
+  { id: "boda", label: "Boda", emoji: "💍" },
+  { id: "cumpleanos", label: "Cumpleaños", emoji: "🎉" },
+  { id: "bautizo", label: "Bautizo", emoji: "🕊️" },
+  { id: "primera-comunion", label: "Primera Comunión", emoji: "⛪" },
+  { id: "graduacion", label: "Graduación", emoji: "🎓" },
+  { id: "baby-shower", label: "Baby Shower", emoji: "👶" },
+  { id: "aniversario", label: "Aniversario", emoji: "💍" }
+];
+
+// Etiqueta del campo "nombre" (usada como <label> del campo y en los mensajes de validación
+// que antes decían "quinceañera" fijo) -- "xv" se queda igual que siempre.
+const ETIQUETA_NOMBRE_POR_EVENTO: Record<TipoEvento, string> = {
+  xv: "Quinceañera",
+  boda: "Nombres de los novios",
+  cumpleanos: "Nombre del festejado",
+  bautizo: "Nombre del bebé",
+  "primera-comunion": "Nombre del festejado",
+  graduacion: "Nombre del festejado",
+  "baby-shower": "Nombre del bebé (si ya se conoce)",
+  aniversario: "Nombres de la pareja"
+};
+
+// Mismo criterio que ETIQUETA_NOMBRE_POR_EVENTO, para el encabezado "Padres de..." de la
+// pestaña Familia -- no estaba en el pedido original, pero se encontró al revisar esa pestaña
+// (decía "Padres de la Quinceañera" fijo, igual de descolocado que el campo de nombre en un
+// evento que no es XV) y se adapta con el mismo mecanismo, sin agregar nada nuevo.
+const ETIQUETA_PADRES_POR_EVENTO: Record<TipoEvento, string> = {
+  xv: "Padres de la Quinceañera",
+  boda: "Padres de los Novios",
+  cumpleanos: "Padres del Festejado",
+  bautizo: "Padres del Bebé",
+  "primera-comunion": "Padres del Festejado",
+  graduacion: "Padres del Festejado",
+  "baby-shower": "Padres del Bebé",
+  aniversario: "Padres de la Pareja"
+};
+
+// Mensaje de bienvenida por defecto para invitaciones NUEVAS, según el tipo elegido (no aplica
+// a "xv": ese default ya varía por paquete en datosDefault/handleLimpiarFormulario, se deja tal
+// cual). Se usa solo cuando el mensaje actual sigue siendo alguno de los defaults "de fábrica"
+// conocidos -- ver handleSeleccionarTipoEvento: si el admin ya escribió/editó el mensaje, nunca
+// se le pisa.
+const MENSAJE_BIENVENIDA_POR_EVENTO: Partial<Record<TipoEvento, string>> = {
+  boda: "Están invitados a compartir con nosotros la alegría de nuestra boda.",
+  cumpleanos: "Están invitados a celebrar conmigo un año más de vida.",
+  bautizo: "Están invitados a compartir con nosotros el bautizo de nuestro bebé.",
+  "primera-comunion": "Están invitados a compartir conmigo este día tan especial de mi Primera Comunión.",
+  graduacion: "Están invitados a celebrar conmigo el cierre de esta etapa.",
+  "baby-shower": "Están invitados a celebrar con nosotros la próxima llegada de nuestro bebé.",
+  aniversario: "Están invitados a celebrar con nosotros un año más de amor."
+};
+
+// Todos los mensajes de bienvenida "de fábrica" conocidos (los 3 de datosDefault por paquete +
+// el de handleLimpiarFormulario + los 7 de arriba) -- si el mensaje actual es exactamente uno de
+// estos, se considera "todavía sin editar por el admin" y es seguro reemplazarlo al cambiar el
+// tipo de evento. Cualquier otro texto (lo haya escrito el admin o el cliente desde su propio
+// formulario) nunca se toca.
+const MENSAJES_BIENVENIDA_DEFAULT_CONOCIDOS: string[] = [
+  datosDefault.basico.mensajeBienvenida,
+  datosDefault.premium.mensajeBienvenida,
+  datosDefault.deluxe.mensajeBienvenida,
+  "Estás invitado a compartir conmigo la alegría de mis quince años.",
+  ...Object.values(MENSAJE_BIENVENIDA_POR_EVENTO)
+];
+
+// Itinerario de ejemplo equivalente para Boda, un array por paquete para respetar la cantidad
+// de eventos/horarios que ya trae el default de cada uno (ver datosDefault en data.ts) -- solo
+// se usa como default de invitación NUEVA, igual que el mensaje de bienvenida de arriba. El
+// prompt solo pidió este tipo (boda); los demás tipos no tienen itinerario propio todavía y se
+// quedan con el itinerario que ya estuviera cargado.
+const ITINERARIO_BODA_POR_PAQUETE: Record<"basico" | "premium" | "deluxe", { hora: string; evento: string }[]> = {
+  basico: [
+    { hora: "17:00", evento: "Ceremonia Religiosa" },
+    { hora: "19:00", evento: "Recepción de Invitados en el Salón" },
+    { hora: "20:00", evento: "Entrada de los Novios & Primer Baile" },
+    { hora: "21:00", evento: "Cena de Gala" },
+    { hora: "22:30", evento: "Brindis & Apertura de la Pista de Baile" }
+  ],
+  premium: [
+    { hora: "16:30", evento: "Ceremonia Religiosa" },
+    { hora: "18:00", evento: "Cóctel de Bienvenida" },
+    { hora: "19:30", evento: "Entrada de los Novios & Primer Baile" },
+    { hora: "20:30", evento: "Cena de Tres Tiempos" },
+    { hora: "22:00", evento: "Brindis y Palabras de los Padrinos" },
+    { hora: "22:30", evento: "DJ Live Set & Fiesta" }
+  ],
+  deluxe: [
+    { hora: "18:00", evento: "Ceremonia Religiosa" },
+    { hora: "20:30", evento: "Alfombra de Bienvenida" },
+    { hora: "21:00", evento: "Entrada de los Novios & Primer Baile" },
+    { hora: "22:00", evento: "Banquete de Gala" },
+    { hora: "23:00", evento: "Brindis y Espectáculo de Fuegos Artificiales Fríos" },
+    { hora: "23:30", evento: "Mariachi en Vivo & Gran Baile" }
+  ]
+};
+
+// Los 3 itinerarios "de fábrica" conocidos, como JSON -- mismo criterio que
+// MENSAJES_BIENVENIDA_DEFAULT_CONOCIDOS: si el itinerario actual es exactamente uno de estos
+// (comparado por contenido, no por referencia), es seguro reemplazarlo; si el admin ya lo editó
+// (agregó, quitó o renombró algo), nunca se toca.
+const ITINERARIOS_DEFAULT_CONOCIDOS_JSON: string[] = [
+  JSON.stringify(datosDefault.basico.itinerario),
+  JSON.stringify(datosDefault.premium.itinerario),
+  JSON.stringify(datosDefault.deluxe.itinerario)
+];
 
 // Una respuesta del formulario de RSVP dentro de una invitación (tabla `confirmaciones`)
 interface ConfirmacionRSVP {
@@ -1374,6 +1498,9 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
   const [enviando, setEnviando] = useState(false);
   const [subiendoFoto, setSubiendoFoto] = useState<string | null>(null);
   const [nombreQuinceanera, setNombreQuinceanera] = useState("");
+  // Tipo de evento de esta invitación (2026-11-19) -- solo se usa aquí para adaptar la frase
+  // de "Copiar recordatorio" de abajo; el resto del formulario de intake no depende del tipo.
+  const [tipoEventoCliente, setTipoEventoCliente] = useState<TipoEvento>("xv");
   const [maxFotos, setMaxFotos] = useState(4);
   // Secciones que SÍ vienen en el paquete/à la carte que compró (fijo, el cliente no puede
   // activar algo que no pagó) y, dentro de esas, cuáles decidió apagar él mismo -- pedido
@@ -1452,6 +1579,7 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
         setNombreQuinceanera(data.nombre_quinceanera || "");
         setPedidoInfo({ estado: data.estado || null, precioTotal: data.precio_total ?? null, precioPagado: data.precio_pagado ?? null });
         const dc: Partial<InvitacionDatos> = data.datos_completos || {};
+        setTipoEventoCliente((dc.tipoEvento && TEXTOS_POR_EVENTO[dc.tipoEvento]) ? dc.tipoEvento : "xv");
         const paqueteDelCliente = (dc.paquete as "basico" | "premium" | "deluxe") || "basico";
         setMaxFotos(paquetes[paqueteDelCliente]?.maxFotos || 4);
         setSeccionesDisponibles(paquetes[paqueteDelCliente]?.secciones || []);
@@ -1801,7 +1929,7 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
             !confirmaciones.some(c => c.nombre_invitado.trim().toLowerCase() === inv.nombre.trim().toLowerCase())
           );
           const copiarRecordatorio = (nombreInvitado: string) => {
-            const msg = `¡Hola ${nombreInvitado}! 🌸 Nos encantaría contar con tu confirmación de asistencia a los XV años de ${nombreQuinceanera || "nuestra fiesta"}. ¿Nos confirmas cuando puedas? ¡Gracias!`;
+            const msg = `¡Hola ${nombreInvitado}! 🌸 Nos encantaría contar con tu confirmación de asistencia ${TEXTOS_POR_EVENTO[tipoEventoCliente].fraseConfirmacion} ${nombreQuinceanera || "nuestra fiesta"}. ¿Nos confirmas cuando puedas? ¡Gracias!`;
             navigator.clipboard.writeText(msg).catch(() => {});
           };
           return (
@@ -2943,6 +3071,9 @@ export default function App() {
   // deben quedarse activas (bookkeeping propio del admin, ver InvitacionGuardadaRow).
   const [mostrarMisInvitaciones, setMostrarMisInvitaciones] = useState(false);
   const [cargandoMisInvitaciones, setCargandoMisInvitaciones] = useState(false);
+  // "🗄️ Respaldo completo" ahora pide `datos_completos` de TODAS las invitaciones aparte (ver
+  // handleRespaldoCompletoInvitaciones) -- la lista ligera ya no lo trae de entrada (2026-11-19).
+  const [generandoRespaldoCompleto, setGenerandoRespaldoCompleto] = useState(false);
   const [listaInvitaciones, setListaInvitaciones] = useState<InvitacionGuardadaRow[]>([]);
   // Confirmaciones (RSVP) por invitación, cargadas bajo demanda al expandir una fila en el
   // panel (evita N+1 queries al abrir la lista si hay muchas invitaciones guardadas).
@@ -2980,11 +3111,18 @@ export default function App() {
   const [notaNuevoAbono, setNotaNuevoAbono] = useState<Record<string, string>>({});
   const [busquedaInvitaciones, setBusquedaInvitaciones] = useState("");
   const [filtroEstatusInvitaciones, setFiltroEstatusInvitaciones] = useState("todos");
-  const [filtroRapidoInvitaciones, setFiltroRapidoInvitaciones] = useState<"ninguno" | "pendientes" | "proximos" | "urgentes">("ninguno");
+  // Pestañas de la lista (reemplazan los chips sueltos de "urgentes/pendientes/próximos" de
+  // antes, 2026-11-19): "atencion" (evento próximo + saldo pendiente) es la vista inicial al
+  // abrir el panel -- ver el onClick que abre "Mis Invitaciones", que la resetea cada vez.
+  const [pestanaListaInvitaciones, setPestanaListaInvitaciones] = useState<"atencion" | "activas" | "pasados">("atencion");
   // "Mías / Todas" -- todos ven el trabajo de todos por default (no se ocultan invitaciones
   // entre isaac/vladimir/nidia), este filtro es solo para que cada quien pueda ubicar rápido
   // lo suyo sin tener que buscarlo entre el resto.
   const [filtroCreadorInvitaciones, setFiltroCreadorInvitaciones] = useState<"todas" | "mias">("todas");
+  // Qué fila está expandida mostrando su detalle (nombre completo/badges, botones, pestañas de
+  // pagos/mensajes/confirmaciones/acceso, links de la clienta) -- cada renglón empieza
+  // colapsado a una sola línea para que la lista siga siendo manejable con 200+ invitaciones.
+  const [invitacionFilaExpandidaId, setInvitacionFilaExpandidaId] = useState<string | null>(null);
 
   // Estado para el "Dashboard de Ingresos": totales y desglose histórico de ingresos, aparte
   // del detalle por-invitación que ya vive en "Mis Invitaciones". Usa la tabla `abonos`
@@ -3215,6 +3353,29 @@ export default function App() {
     });
   };
 
+  // Cambia el tipo de evento de la invitación actual (selector "Tipo de Evento", pestaña
+  // "Quinceañera"/datos principales). Solo rellena mensaje de bienvenida/itinerario con un
+  // ejemplo del tipo nuevo cuando el actual sigue siendo exactamente un default "de fábrica"
+  // conocido -- si el admin (o el cliente desde su propio formulario) ya los editó, se
+  // respetan tal cual, nunca se sobreescriben. Nada de esto toca temas, paquetes, precios ni
+  // secciones -- solo estas dos piezas de texto de ejemplo.
+  const handleSeleccionarTipoEvento = (tipo: TipoEvento) => {
+    setDatos(prev => {
+      const mensajeEsDefaultConocido = !prev.mensajeBienvenida?.trim() || MENSAJES_BIENVENIDA_DEFAULT_CONOCIDOS.includes(prev.mensajeBienvenida);
+      const nuevoMensajeDefault = MENSAJE_BIENVENIDA_POR_EVENTO[tipo];
+      const mensajeBienvenida = (tipo !== "xv" && nuevoMensajeDefault && mensajeEsDefaultConocido)
+        ? nuevoMensajeDefault
+        : prev.mensajeBienvenida;
+
+      let itinerario = prev.itinerario;
+      if (tipo === "boda" && ITINERARIOS_DEFAULT_CONOCIDOS_JSON.includes(JSON.stringify(prev.itinerario))) {
+        itinerario = ITINERARIO_BODA_POR_PAQUETE[prev.paquete] || prev.itinerario;
+      }
+
+      return { ...prev, tipoEvento: tipo, mensajeBienvenida, itinerario };
+    });
+  };
+
   // Limpiar formulario completo
   const handleLimpiarFormulario = () => {
     setConfirmModal({
@@ -3301,6 +3462,33 @@ export default function App() {
     }
   };
 
+  // Trae el `datos_completos` (y el resto de columnas) de UNA invitación bajo demanda, para
+  // las acciones que de verdad lo necesitan (abrir en editor, exportar JSON, duplicar, mandar
+  // su vista previa por WhatsApp, revisar sus invitados contra confirmaciones, etc.) -- la
+  // lista ligera de cargarListaInvitaciones ya no lo trae de entrada (ver el comentario ahí y
+  // en api/admin/list-invitaciones.ts). Si ya se había traído antes en esta misma sesión del
+  // panel (quedó cacheado en listaInvitaciones), no vuelve a pedirlo. Devuelve la fila con el
+  // dato ya resuelto (o `datos_completos: null` si de verdad no hay nada guardado ahí); el
+  // llamador sigue revisando `datos_completos` después de llamar esto, igual que antes.
+  const asegurarDatosCompletos = async (row: InvitacionGuardadaRow): Promise<InvitacionGuardadaRow> => {
+    if (row.datos_completos !== undefined) return row;
+    try {
+      const resp = await fetch(`/api/admin/get-invitacion?id=${encodeURIComponent(row.id)}`);
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data?.error || "Error al cargar la invitación completa");
+      const filaCompleta: InvitacionGuardadaRow = {
+        ...row,
+        ...data,
+        paquete: (data?.datos_completos?.paquete as "basico" | "premium" | "deluxe" | undefined) ?? row.paquete
+      };
+      setListaInvitaciones(prev => prev.map(r => r.id === row.id ? filaCompleta : r));
+      return filaCompleta;
+    } catch (err: any) {
+      mostrarToast("Error al cargar los datos completos de esta invitación: " + err.message, "error");
+      return row;
+    }
+  };
+
   // Carga los datos del "Dashboard de Ingresos": reutiliza listaInvitaciones (si ya se cargó
   // antes, no la vuelve a pedir) para los totales por paquete/pendiente, y trae la tabla
   // `abonos` COMPLETA (todas las invitaciones, no solo una) para el histórico mes a mes.
@@ -3336,6 +3524,10 @@ export default function App() {
       return;
     }
     setInvitacionExpandidaId(row.id);
+    // El detalle de "quién tiene pases asignados pero no ha confirmado" (ver abajo, en el
+    // render) necesita datos_completos.invitados -- que la lista ligera ya no trae de entrada
+    // (2026-11-19). Se pide en paralelo, igual que las aperturas, sin bloquear el resto.
+    asegurarDatosCompletos(row);
     // Analítica de aperturas (2026-11-19): se carga EN PARALELO con las confirmaciones, mismo
     // momento/mismo disparador (lazy, solo al abrir esta pestaña, no para las N filas de la
     // lista de un jalón) -- pero en su propio try/catch independiente: si la tabla "aperturas"
@@ -3403,9 +3595,11 @@ export default function App() {
   // Reabre en el editor una invitación previamente guardada, para seguir modificándola según
   // lo que vaya pidiendo el cliente. Las filas guardadas antes de que existiera la columna
   // `datos_completos` no se pueden recargar (solo tienen el resumen), así que se avisa en vez
-  // de cargar un estado incompleto/roto.
-  const handleAbrirInvitacionGuardada = (row: InvitacionGuardadaRow) => {
-    if (!row.datos_completos) {
+  // de cargar un estado incompleto/roto. Trae el contenido completo bajo demanda (ver
+  // asegurarDatosCompletos) -- la lista ligera de "Mis Invitaciones" ya no lo trae de entrada.
+  const handleAbrirInvitacionGuardada = async (row: InvitacionGuardadaRow) => {
+    const fila = await asegurarDatosCompletos(row);
+    if (!fila.datos_completos) {
       mostrarToast("Esta invitación se guardó antes de esta función y no tiene el estado completo disponible para recargar.", "error");
       return;
     }
@@ -3417,19 +3611,19 @@ export default function App() {
     // Cloudinary/Supabase, solo dejaba de verse el link guardado en el editor) hasta volver a
     // subirlos a mano.
     setDatos({
-      ...row.datos_completos,
+      ...fila.datos_completos,
       bgImages: {
-        ...(row.datos_completos.bgImages || {}),
+        ...(fila.datos_completos.bgImages || {}),
         ...(datos.bgImages || {}),
       },
     });
-    setSelectedTemaId(row.datos_completos.tema || "dorado-clasico");
-    setSupabaseRowId(row.id);
-    setIntakeBaselineAlAbrir(row.intake_actualizado_en || null);
-    try { localStorage.setItem("xv_supabase_row_id", row.id); } catch {}
+    setSelectedTemaId(fila.datos_completos.tema || "dorado-clasico");
+    setSupabaseRowId(fila.id);
+    setIntakeBaselineAlAbrir(fila.intake_actualizado_en || null);
+    try { localStorage.setItem("xv_supabase_row_id", fila.id); } catch {}
     setMostrarMisInvitaciones(false);
     setPanelPestana("ajustes");
-    mostrarToast(`Invitación de "${row.nombre_quinceanera || "cliente"}" cargada en el editor ✏️`, "success");
+    mostrarToast(`Invitación de "${fila.nombre_quinceanera || "cliente"}" cargada en el editor ✏️`, "success");
   };
 
   // "Guardar en Supabase" con chequeo de conflicto -- antes este botón llamaba a
@@ -3481,11 +3675,16 @@ export default function App() {
 
   // Descarga un respaldo del CONTENIDO completo de una invitación (todo InvitacionDatos: fotos,
   // itinerario, padrinos, mensaje, etc.) como archivo JSON -- el CSV de "Mis Invitaciones" solo
-  // trae los campos de administración (nombre, pagos, estatus), no el diseño en sí.
-  const handleDescargarRespaldoInvitacion = (row: InvitacionGuardadaRow) => {
-    if (!row.datos_completos) return;
-    const slug = (row.nombre_quinceanera || "invitacion").toLowerCase().replace(/[^a-z0-9]/g, "-");
-    const blob = new Blob([JSON.stringify(row.datos_completos, null, 2)], { type: "application/json;charset=utf-8" });
+  // trae los campos de administración (nombre, pagos, estatus), no el diseño en sí. Trae el
+  // contenido completo bajo demanda si todavía no se había pedido en esta sesión del panel.
+  const handleDescargarRespaldoInvitacion = async (row: InvitacionGuardadaRow) => {
+    const fila = await asegurarDatosCompletos(row);
+    if (!fila.datos_completos) {
+      mostrarToast("Esta invitación se guardó antes de esta función y no tiene el estado completo disponible para exportar.", "error");
+      return;
+    }
+    const slug = (fila.nombre_quinceanera || "invitacion").toLowerCase().replace(/[^a-z0-9]/g, "-");
+    const blob = new Blob([JSON.stringify(fila.datos_completos, null, 2)], { type: "application/json;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -3496,15 +3695,17 @@ export default function App() {
 
   // Clona una invitación ya guardada como punto de partida para un cliente nuevo (mismo
   // tema/estilo/secciones, distinto nombre) -- crea una FILA NUEVA en Supabase (no toca la
-  // original) y la deja cargada en el editor lista para renombrar y ajustar.
+  // original) y la deja cargada en el editor lista para renombrar y ajustar. Trae el contenido
+  // completo bajo demanda si todavía no se había pedido en esta sesión del panel.
   const handleDuplicarInvitacionGuardada = async (row: InvitacionGuardadaRow) => {
-    if (!row.datos_completos) {
+    const fila = await asegurarDatosCompletos(row);
+    if (!fila.datos_completos) {
       mostrarToast("Esta invitación se guardó antes de esta función y no tiene el estado completo disponible para duplicar.", "error");
       return;
     }
-    const temaDuplicado = temas.find(t => t.id === row.datos_completos!.tema) || temas[0];
+    const temaDuplicado = temas.find(t => t.id === fila.datos_completos!.tema) || temas[0];
     try {
-      const nuevaFila = await guardarEnSupabase(row.datos_completos, temaDuplicado, row.link_invitacion || undefined, null, usuarioActual);
+      const nuevaFila = await guardarEnSupabase(fila.datos_completos, temaDuplicado, fila.link_invitacion || undefined, null, usuarioActual);
       if (!nuevaFila?.id) {
         mostrarToast("No se pudo duplicar la invitación", "error");
         return;
@@ -3512,13 +3713,13 @@ export default function App() {
       // Mismo merge que handleAbrirInvitacionGuardada -- no pisar los fondos personalizados
       // compartidos con la foto vieja congelada en esta invitación duplicada.
       setDatos({
-        ...row.datos_completos,
+        ...fila.datos_completos,
         bgImages: {
-          ...(row.datos_completos.bgImages || {}),
+          ...(fila.datos_completos.bgImages || {}),
           ...(datos.bgImages || {}),
         },
       });
-      setSelectedTemaId(row.datos_completos.tema || "dorado-clasico");
+      setSelectedTemaId(fila.datos_completos.tema || "dorado-clasico");
       setSupabaseRowId(nuevaFila.id);
       setIntakeBaselineAlAbrir(null); // fila nueva (copia) -- sin intake propio todavia, nada con que pueda chocar
       try { localStorage.setItem("xv_supabase_row_id", nuevaFila.id); } catch {}
@@ -3622,7 +3823,7 @@ export default function App() {
   // real: si ya pagó "pases" aparte, aunque baje de Deluxe se respeta, vía pases_pagado).
   const handleCambiarPaqueteInvitacion = async (row: InvitacionGuardadaRow, nuevoPaquete: "basico" | "premium" | "deluxe") => {
     if (!window.supabaseClient) return;
-    const actual = row.datos_completos?.paquete || "basico";
+    const actual = row.paquete || "basico";
     if (actual === nuevoPaquete) return;
     try {
       const { data: fila, error: errLectura } = await window.supabaseClient
@@ -3664,7 +3865,7 @@ export default function App() {
         .update({ datos_completos: actualizado })
         .eq("id", row.id);
       if (errUpdate) throw errUpdate;
-      setListaInvitaciones(prev => prev.map(r => r.id === row.id ? { ...r, datos_completos: actualizado } : r));
+      setListaInvitaciones(prev => prev.map(r => r.id === row.id ? { ...r, datos_completos: actualizado, paquete: nuevoPaquete } : r));
       mostrarToast(`Paquete cambiado a ${paquetes[nuevoPaquete].nombre} -- el formulario que le envíes ya refleja las secciones de este paquete.`, "success");
     } catch (err: any) {
       mostrarToast("Error al cambiar el paquete: " + err.message, "error");
@@ -3742,6 +3943,10 @@ export default function App() {
     const abriendo = forzarAbrir || invitacionPagosExpandidaId !== row.id;
     if (!forzarAbrir) setInvitacionPagosExpandidaId(prev => prev === row.id ? null : row.id);
     else setInvitacionPagosExpandidaId(row.id);
+    // El selector de "Paquete" de esta pestaña ya no necesita datos_completos (usa row.paquete,
+    // la versión ligera), pero el bloque de "Control de Acceso QR" más abajo sí lo sigue
+    // necesitando (datos_completos.controlAccesoQR) -- se pide en paralelo al abrir.
+    if (abriendo) asegurarDatosCompletos(row);
     if (!abriendo || avisosPagoPorInvitacion[row.id] || !window.supabaseClient) return;
     try {
       const { data, error } = await window.supabaseClient
@@ -3907,18 +4112,19 @@ export default function App() {
     return `${window.location.origin}/?v=1&d=${encodeState(datosListos)}&iid=${encodeURIComponent(row.id)}&muestra=1&exp=${exp}`;
   };
 
-  const handleEnviarPreviewWhatsApp = (row: InvitacionGuardadaRow) => {
-    const url = getShareUrlDesdeFila(row);
+  const handleEnviarPreviewWhatsApp = async (row: InvitacionGuardadaRow) => {
+    const fila = await asegurarDatosCompletos(row);
+    const url = getShareUrlDesdeFila(fila);
     if (!url) {
       mostrarToast("Esta invitación se guardó antes de esta función y no tiene el estado completo disponible para compartir.", "error");
       return;
     }
-    if (!row.telefono_whatsapp?.trim()) {
+    if (!fila.telefono_whatsapp?.trim()) {
       mostrarToast("Esta invitación no tiene un número de WhatsApp guardado", "error");
       return;
     }
-    const numeroLimpio = row.telefono_whatsapp.replace(/[^0-9]/g, "");
-    const msg = `¡Hola! 🌸 Aquí está la vista previa (temporal, válida ${MUESTRA_DIAS_VIGENCIA} días) de tu invitación de XV Años de *${row.nombre_quinceanera || "tu evento"}*:\n${url}`;
+    const numeroLimpio = fila.telefono_whatsapp.replace(/[^0-9]/g, "");
+    const msg = `¡Hola! 🌸 Aquí está la vista previa (temporal, válida ${MUESTRA_DIAS_VIGENCIA} días) de tu invitación de XV Años de *${fila.nombre_quinceanera || "tu evento"}*:\n${url}`;
     window.open(`https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(msg)}`, "_blank");
   };
 
@@ -3960,6 +4166,10 @@ export default function App() {
       cerrarFichaCliente(row);
       return;
     }
+    // La pestaña "mensajes" (vista previa por WhatsApp) también necesita datos_completos --
+    // "pagos" y "confirmaciones" ya lo piden ellas mismas (togglePagosInvitacion/
+    // toggleConfirmacionesInvitacion), así que aquí solo hace falta cubrir "mensajes".
+    if (pestana === "mensajes") asegurarDatosCompletos(row);
     if (invitacionPagosExpandidaId === row.id && pestana !== "pagos") setInvitacionPagosExpandidaId(null);
     if (invitacionMensajesExpandidaId === row.id && pestana !== "mensajes") setInvitacionMensajesExpandidaId(null);
     if (invitacionExpandidaId === row.id && pestana !== "confirmaciones") setInvitacionExpandidaId(null);
@@ -3997,6 +4207,12 @@ export default function App() {
     const urlCheckin = `${window.location.origin}/?checkin=1&iid=${row.id}`;
     navigator.clipboard.writeText(urlCheckin);
     mostrarToast("Link de control de acceso copiado", "success");
+  };
+
+  // Copia cualquiera de los "Links de la clienta" (invitación/formulario/control de acceso) --
+  // helper genérico compartido por ese bloque del detalle de cada fila en "Mis Invitaciones".
+  const copiarLinkClienta = (url: string) => {
+    navigator.clipboard.writeText(url).then(() => mostrarToast("Link copiado", "success")).catch(() => {});
   };
 
   // Exporta la lista de "Mis Invitaciones" (respetando los filtros/búsqueda activos) a un CSV
@@ -4039,34 +4255,47 @@ export default function App() {
   // filtro/búsqueda actual, a diferencia del CSV de arriba -- un respaldo que se le puede
   // olvidar quitar un filtro y quedar incompleto no sirve como respaldo). Incluye el
   // datos_completos entero de cada una, así que este único archivo basta para reconstruir
-  // cualquier invitación si algo le pasa a la fila en Supabase.
-  const handleRespaldoCompletoInvitaciones = () => {
-    const respaldo = listaInvitaciones.map(row => ({
-      id: row.id,
-      nombre_quinceanera: row.nombre_quinceanera,
-      fecha_fiesta: row.fecha_fiesta,
-      tema_elegido: row.tema_elegido,
-      estado: row.estado,
-      precio_total: row.precio_total,
-      precio_pagado: row.precio_pagado,
-      telefono_whatsapp: row.telefono_whatsapp,
-      notas: row.notas,
-      link_pago: row.link_pago,
-      activo_hasta: row.activo_hasta,
-      intake_actualizado_en: row.intake_actualizado_en,
-      bloqueada: row.bloqueada,
-      motivo_bloqueo: row.motivo_bloqueo,
-      checkin_pagado: row.checkin_pagado,
-      datos_completos: row.datos_completos
-    }));
-    const blob = new Blob([JSON.stringify(respaldo, null, 2)], { type: "application/json;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `respaldo-completo-invitaciones-${new Date().toISOString().substring(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    mostrarToast(`Respaldo de ${respaldo.length} invitación${respaldo.length === 1 ? "" : "es"} descargado`, "success");
+  // cualquier invitación si algo le pasa a la fila en Supabase. Pide `?full=1` a
+  // list-invitaciones.ts (2026-11-19) en vez de usar listaInvitaciones tal cual -- la lista
+  // ligera ya no trae datos_completos de entrada (ver el comentario ahí).
+  const handleRespaldoCompletoInvitaciones = async () => {
+    setGenerandoRespaldoCompleto(true);
+    try {
+      const resp = await fetch("/api/admin/list-invitaciones?full=1");
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data?.error || "Error al generar el respaldo completo");
+      const filas = (data || []) as InvitacionGuardadaRow[];
+      const respaldo = filas.map(row => ({
+        id: row.id,
+        nombre_quinceanera: row.nombre_quinceanera,
+        fecha_fiesta: row.fecha_fiesta,
+        tema_elegido: row.tema_elegido,
+        estado: row.estado,
+        precio_total: row.precio_total,
+        precio_pagado: row.precio_pagado,
+        telefono_whatsapp: row.telefono_whatsapp,
+        notas: row.notas,
+        link_pago: row.link_pago,
+        activo_hasta: row.activo_hasta,
+        intake_actualizado_en: row.intake_actualizado_en,
+        bloqueada: row.bloqueada,
+        motivo_bloqueo: row.motivo_bloqueo,
+        checkin_pagado: row.checkin_pagado,
+        datos_completos: row.datos_completos
+      }));
+      const blob = new Blob([JSON.stringify(respaldo, null, 2)], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `respaldo-completo-invitaciones-${new Date().toISOString().substring(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      mostrarToast(`Respaldo de ${respaldo.length} invitación${respaldo.length === 1 ? "" : "es"} descargado`, "success");
+    } catch (err: any) {
+      mostrarToast("Error al generar el respaldo completo: " + err.message, "error");
+    } finally {
+      setGenerandoRespaldoCompleto(false);
+    }
   };
 
   // Archiva en un solo paso todas las invitaciones cuyo evento ya pasó (estado
@@ -4329,7 +4558,8 @@ export default function App() {
   const validarInvitacion = (): string[] => {
     const problemas: string[] = [];
     if (!datos.nombre?.trim()) {
-      problemas.push("Falta el nombre de la quinceañera");
+      const tipo = datos.tipoEvento || "xv";
+      problemas.push(tipo === "xv" ? "Falta el nombre de la quinceañera" : `Falta el nombre (${ETIQUETA_NOMBRE_POR_EVENTO[tipo]})`);
     }
     const soloDigitos = (datos.whatsappConfirmacion || "").replace(/[^0-9]/g, "");
     if (!soloDigitos) {
@@ -5329,8 +5559,8 @@ export default function App() {
     );
   }
 
-  // Saldo pendiente y "evento en los próximos 14 días" -- se usan tanto para los chips-resumen
-  // clicables como para el filtro rápido de la lista, así que van en un solo lugar.
+  // Saldo pendiente y "evento en los próximos 14 días" -- se usan para armar la pestaña
+  // "Requieren atención" de la lista (ver invitacionesFiltradas más abajo).
   const invitacionTienePendiente = (row: InvitacionGuardadaRow) =>
     row.estado !== "archivada" && ((row.precio_total || 0) - (row.precio_pagado || 0)) > 0;
   const invitacionEsProxima = (row: InvitacionGuardadaRow) => {
@@ -5338,10 +5568,10 @@ export default function App() {
     const dias = (new Date(row.fecha_fiesta + "T00:00:00").getTime() - Date.now()) / (1000 * 60 * 60 * 24);
     return dias >= 0 && dias <= 14;
   };
-  const invitacionesConSaldoPendiente = listaInvitaciones.filter(invitacionTienePendiente);
-  const totalSaldoPendiente = invitacionesConSaldoPendiente.reduce((acc, r) => acc + ((r.precio_total || 0) - (r.precio_pagado || 0)), 0);
-  const invitacionesProximas = listaInvitaciones.filter(invitacionEsProxima);
+  const invitacionEsPasada = (row: InvitacionGuardadaRow) => row.estado === "evento_pasado" || row.estado === "archivada";
   const invitacionesUrgentes = listaInvitaciones.filter(row => invitacionEsProxima(row) && invitacionTienePendiente(row));
+  const invitacionesActivasTab = listaInvitaciones.filter(row => !invitacionEsPasada(row));
+  const invitacionesPasadasTab = listaInvitaciones.filter(invitacionEsPasada);
   // Para el archivado en lote: invitaciones cuyo evento ya pasó y que todavía no se han
   // archivado a mano -- se auto-marcan "evento_pasado" al cargar la lista (ver
   // cargarListaInvitaciones), así que este botón solo necesita dar el siguiente paso.
@@ -5367,7 +5597,7 @@ export default function App() {
   const ingresosPorPaquete = (() => {
     const mapa: Record<"basico" | "premium" | "deluxe", number> = { basico: 0, premium: 0, deluxe: 0 };
     for (const r of listaInvitaciones) {
-      const paquete = (r.datos_completos?.paquete as "basico" | "premium" | "deluxe") || "basico";
+      const paquete = r.paquete || "basico";
       mapa[paquete] = (mapa[paquete] || 0) + (r.precio_pagado || 0);
     }
     return mapa;
@@ -5380,19 +5610,28 @@ export default function App() {
     ? listaInvitaciones.find(r => (r.telefono_whatsapp || "").replace(/[^0-9]/g, "") === nuevoClienteDigitos)
     : null;
 
-  // Filtro del panel "Mis Invitaciones" por nombre de la quinceañera/tema, estatus, y el chip
-  // rápido de "con saldo pendiente" / "evento próximo" que se activa desde el resumen de arriba.
+  // Quita acentos y normaliza mayúsculas para que buscar "maria" encuentre "María" -- se usa
+  // tanto para la búsqueda por nombre/tema como por teléfono.
+  const normalizarBusqueda = (texto: string) =>
+    texto.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+  // Filtro del panel "Mis Invitaciones": primero la pestaña activa (Requieren atención /
+  // Activas / Eventos pasados), luego "Mías/Todas" y el estatus puntual, y por último la
+  // búsqueda libre por nombre de la quinceañera, tema, o teléfono de WhatsApp.
   const invitacionesFiltradas = (() => {
-    const q = busquedaInvitaciones.trim().toLowerCase();
+    const q = normalizarBusqueda(busquedaInvitaciones.trim());
+    const qDigitos = busquedaInvitaciones.replace(/[^0-9]/g, "");
     return listaInvitaciones.filter(row => {
+      if (pestanaListaInvitaciones === "atencion" && !invitacionesUrgentes.includes(row)) return false;
+      if (pestanaListaInvitaciones === "activas" && invitacionEsPasada(row)) return false;
+      if (pestanaListaInvitaciones === "pasados" && !invitacionEsPasada(row)) return false;
       if (filtroCreadorInvitaciones === "mias" && row.creado_por !== usuarioActual) return false;
       if (filtroEstatusInvitaciones !== "todos" && (row.estado || "cotizacion") !== filtroEstatusInvitaciones) return false;
-      if (filtroRapidoInvitaciones === "pendientes" && !invitacionTienePendiente(row)) return false;
-      if (filtroRapidoInvitaciones === "proximos" && !invitacionEsProxima(row)) return false;
-      if (filtroRapidoInvitaciones === "urgentes" && !(invitacionEsProxima(row) && invitacionTienePendiente(row))) return false;
       if (!q) return true;
       const temaNombre = temas.find(t => t.id === row.tema_elegido)?.nombre || row.tema_elegido || "";
-      return (row.nombre_quinceanera || "").toLowerCase().includes(q) || temaNombre.toLowerCase().includes(q);
+      const coincideTexto = normalizarBusqueda(row.nombre_quinceanera || "").includes(q) || normalizarBusqueda(temaNombre).includes(q);
+      const coincideTelefono = qDigitos.length >= 3 && (row.telefono_whatsapp || "").replace(/[^0-9]/g, "").includes(qDigitos);
+      return coincideTexto || coincideTelefono;
     });
   })();
 
@@ -5547,6 +5786,7 @@ export default function App() {
           <button
             onClick={() => {
               setMostrarMisInvitaciones(true);
+              setPestanaListaInvitaciones("atencion");
               cargarListaInvitaciones();
             }}
             className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
@@ -6465,9 +6705,27 @@ export default function App() {
             {panelPestana === "quince" && (
               <div className="space-y-4 animate-fadeIn">
                 <h3 className="text-sm font-semibold text-indigo-600 mb-2">Información Esencial</h3>
-                
+
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Nombre de la Quinceañera *</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Tipo de Evento</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                    {TIPOS_EVENTO.map(t => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => handleSeleccionarTipoEvento(t.id)}
+                        className={`px-2 py-2 rounded-lg border text-[11px] font-bold transition flex flex-col items-center gap-0.5 cursor-pointer ${(datos.tipoEvento || "xv") === t.id ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"}`}
+                      >
+                        <span className="text-base">{t.emoji}</span>
+                        <span>{t.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-1">Solo cambia las palabras que ve el invitado (portada, apertura, etc.) -- el tema, el paquete y las secciones siguen siendo los mismos para cualquier tipo de evento.</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">{ETIQUETA_NOMBRE_POR_EVENTO[datos.tipoEvento || "xv"]} *</label>
                   <input
                     type="text"
                     value={datos.nombre}
@@ -6886,7 +7144,7 @@ export default function App() {
                 
                 {/* PADRES */}
                 <div>
-                  <h3 className="text-sm font-semibold text-indigo-600 mb-3">Padres de la Quinceañera</h3>
+                  <h3 className="text-sm font-semibold text-indigo-600 mb-3">{ETIQUETA_PADRES_POR_EVENTO[datos.tipoEvento || "xv"]}</h3>
                   
                   <div className="space-y-2 mb-4">
                     {datos.padres && datos.padres.length > 0 ? (
@@ -8037,6 +8295,14 @@ export default function App() {
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-lg font-extrabold text-slate-900">📋 Mis Invitaciones</h3>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={cargarListaInvitaciones}
+                  disabled={cargandoMisInvitaciones}
+                  title="Volver a traer la lista desde Supabase (por si otro colaborador guardó algo mientras tenías esto abierto)"
+                  className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg transition flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${cargandoMisInvitaciones ? "animate-spin" : ""}`} /> Actualizar
+                </button>
                 {listaInvitaciones.length > 0 && (
                   <button
                     onClick={handleExportarInvitacionesCSV}
@@ -8049,10 +8315,11 @@ export default function App() {
                 {listaInvitaciones.length > 0 && (
                   <button
                     onClick={handleRespaldoCompletoInvitaciones}
+                    disabled={generandoRespaldoCompleto}
                     title="Descargar un respaldo JSON completo (todos los campos, todas las invitaciones) para reconstruir cualquiera si hace falta"
-                    className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg transition flex items-center gap-1.5"
+                    className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg transition flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    🗄️ Respaldo completo
+                    🗄️ {generandoRespaldoCompleto ? "Generando..." : "Respaldo completo"}
                   </button>
                 )}
                 {invitacionesArchivablesPorEventoPasado.length > 0 && (
@@ -8083,38 +8350,30 @@ export default function App() {
             </p>
 
             {listaInvitaciones.length > 0 && (
-              <div className="flex gap-2 mb-4 flex-wrap">
-                <button
-                  onClick={() => setFiltroRapidoInvitaciones(prev => prev === "urgentes" ? "ninguno" : "urgentes")}
-                  disabled={invitacionesUrgentes.length === 0}
-                  className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition disabled:opacity-40 disabled:cursor-not-allowed ${filtroRapidoInvitaciones === "urgentes" ? "bg-rose-600 border-rose-600 text-white" : "bg-rose-50 border-rose-300 text-rose-800 hover:bg-rose-100"}`}
-                >
-                  🔥 {invitacionesUrgentes.length} urgentes (evento próximo + debe)
-                </button>
-                <button
-                  onClick={() => setFiltroRapidoInvitaciones(prev => prev === "pendientes" ? "ninguno" : "pendientes")}
-                  disabled={invitacionesConSaldoPendiente.length === 0}
-                  className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition disabled:opacity-40 disabled:cursor-not-allowed ${filtroRapidoInvitaciones === "pendientes" ? "bg-amber-600 border-amber-600 text-white" : "bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100"}`}
-                >
-                  💰 {invitacionesConSaldoPendiente.length} con saldo pendiente (${totalSaldoPendiente.toLocaleString("es-MX")} MXN)
-                </button>
-                <button
-                  onClick={() => setFiltroRapidoInvitaciones(prev => prev === "proximos" ? "ninguno" : "proximos")}
-                  disabled={invitacionesProximas.length === 0}
-                  className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition disabled:opacity-40 disabled:cursor-not-allowed ${filtroRapidoInvitaciones === "proximos" ? "bg-indigo-600 border-indigo-600 text-white" : "bg-indigo-50 border-indigo-300 text-indigo-800 hover:bg-indigo-100"}`}
-                >
-                  📅 {invitacionesProximas.length} con evento en los próximos 14 días
-                </button>
+              <div className="flex gap-1.5 mb-4 flex-wrap border-b border-slate-200 pb-0">
+                {([
+                  { id: "atencion" as const, label: "🔥 Requieren atención", n: invitacionesUrgentes.length },
+                  { id: "activas" as const, label: "Activas", n: invitacionesActivasTab.length },
+                  { id: "pasados" as const, label: "Eventos pasados", n: invitacionesPasadasTab.length },
+                ]).map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setPestanaListaInvitaciones(tab.id)}
+                    className={`px-3.5 py-2 text-xs font-bold rounded-t-lg border-b-2 transition -mb-px ${pestanaListaInvitaciones === tab.id ? "border-indigo-600 text-indigo-700 bg-indigo-50/60" : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50"}`}
+                  >
+                    {tab.label} ({tab.n})
+                  </button>
+                ))}
               </div>
             )}
 
             {listaInvitaciones.length > 0 && (
-              <div className="flex gap-2 mb-4">
+              <div className="flex gap-2 mb-4 mt-3">
                 <input
                   type="text"
                   value={busquedaInvitaciones}
                   onChange={(e) => setBusquedaInvitaciones(e.target.value)}
-                  placeholder="🔎 Buscar por nombre de la quinceañera o tema..."
+                  placeholder="🔎 Buscar por nombre de la quinceañera, tema o teléfono..."
                   className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 outline-none focus:border-indigo-500"
                 />
                 <select
@@ -8149,30 +8408,57 @@ export default function App() {
             ) : listaInvitaciones.length === 0 ? (
               <p className="text-sm text-slate-500 py-8 text-center">Aún no has guardado ninguna invitación. Usa "💾 Guardar en Supabase" para que aparezca aquí.</p>
             ) : invitacionesFiltradas.length === 0 ? (
-              <p className="text-sm text-slate-500 py-8 text-center">Ninguna invitación coincide con estos filtros{busquedaInvitaciones ? ` ("${busquedaInvitaciones}")` : ""}.</p>
+              <p className="text-sm text-slate-500 py-8 text-center">
+                {busquedaInvitaciones.trim() ? "Ninguna invitación coincide con tu búsqueda." : "Ninguna invitación coincide con estos filtros."}
+              </p>
             ) : (
               <div className="space-y-3">
                 {invitacionesFiltradas.map((row) => {
                   const tema = temas.find(t => t.id === row.tema_elegido);
                   const vigenciaVencida = !!row.activo_hasta && new Date(row.activo_hasta).getTime() < Date.now();
                   const esLaCargada = row.id === supabaseRowId;
+                  const expandida = invitacionFilaExpandidaId === row.id;
+                  const estatusLabelFila = ESTATUS_PEDIDO.find(e => e.id === (row.estado || "cotizacion"))?.label || row.estado || "";
+                  const faltaFila = (row.precio_total || 0) - (row.precio_pagado || 0);
+                  const linkFormularioFila = `${window.location.origin}/?intake=1&iid=${row.id}`;
+                  const linkCheckinFila = `${window.location.origin}/?checkin=1&iid=${row.id}`;
                   return (
-                    <div key={row.id} className={`border rounded-xl p-4 ${esLaCargada ? "border-indigo-400 bg-indigo-50/40" : "border-slate-200 bg-slate-50"}`}>
-                      <div className="flex items-start justify-between gap-3 flex-wrap">
-                        <div className="flex-1 min-w-[200px]">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="block text-sm font-bold text-slate-900">{row.nombre_quinceanera || "Sin nombre"}</span>
-                            {esLaCargada && (
-                              <span className="px-2 py-0.5 rounded-full bg-indigo-600 text-white text-[9px] font-bold uppercase">Abierta ahora</span>
-                            )}
-                            {row.bloqueada ? (
-                              <span className="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[9px] font-bold uppercase">🔒 Acceso apagado</span>
-                            ) : vigenciaVencida ? (
-                              <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[9px] font-bold uppercase">Vigencia vencida</span>
-                            ) : null}
-                          </div>
-                          <span className="block text-[11px] text-slate-500 mt-0.5">
-                            {tema?.nombre || row.tema_elegido || "Sin tema"} · {row.fecha_fiesta ? new Date(row.fecha_fiesta + "T00:00:00").toLocaleDateString("es-MX") : "Sin fecha"}
+                    <div key={row.id} className={`border rounded-xl ${esLaCargada ? "border-indigo-400 bg-indigo-50/40" : "border-slate-200 bg-slate-50"}`}>
+                      {/* Renglón compacto -- un solo clic expande/colapsa el detalle completo
+                          (pedido 2026-11-19: con 200+ invitaciones activas, mostrar cada una como
+                          tarjeta grande siempre abierta se vuelve lento e inmanejable). */}
+                      <button
+                        type="button"
+                        onClick={() => setInvitacionFilaExpandidaId(prev => prev === row.id ? null : row.id)}
+                        className="w-full flex items-center gap-2 flex-wrap text-left px-4 py-2.5 cursor-pointer"
+                      >
+                        {expandida ? <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
+                        <span className="text-sm font-bold text-slate-900 truncate">{row.nombre_quinceanera || "Sin nombre"}</span>
+                        <span className="text-slate-300">·</span>
+                        <span className="text-[11px] text-slate-500 whitespace-nowrap">{row.fecha_fiesta ? new Date(row.fecha_fiesta + "T00:00:00").toLocaleDateString("es-MX") : "Sin fecha"}</span>
+                        <span className="text-slate-300">·</span>
+                        <span className="text-[11px] text-slate-500 whitespace-nowrap">{paquetes[row.paquete || "basico"].nombre}</span>
+                        <span className="text-slate-300">·</span>
+                        <span className="text-[10px] font-semibold text-slate-600 whitespace-nowrap">{estatusLabelFila}</span>
+                        {faltaFila > 0 && (
+                          <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[9px] font-bold whitespace-nowrap">Debe ${faltaFila.toLocaleString("es-MX")}</span>
+                        )}
+                        {esLaCargada && (
+                          <span className="px-2 py-0.5 rounded-full bg-indigo-600 text-white text-[9px] font-bold uppercase whitespace-nowrap">Abierta ahora</span>
+                        )}
+                        {row.bloqueada ? (
+                          <span className="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[9px] font-bold uppercase whitespace-nowrap">🔒 Acceso apagado</span>
+                        ) : vigenciaVencida ? (
+                          <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[9px] font-bold uppercase whitespace-nowrap">Vigencia vencida</span>
+                        ) : null}
+                      </button>
+
+                      {expandida && (
+                      <div className="px-4 pb-4">
+                      <div className="flex items-start justify-between gap-3 flex-wrap pt-1 border-t border-slate-200/60">
+                        <div className="flex-1 min-w-[200px] pt-3">
+                          <span className="block text-[11px] text-slate-500">
+                            {tema?.nombre || row.tema_elegido || "Sin tema"}
                             {row.telefono_whatsapp?.trim() && <> · 📱 {row.telefono_whatsapp}</>}
                             {" · "}
                             {row.intake_actualizado_en ? (
@@ -8184,15 +8470,14 @@ export default function App() {
                             )}
                             {row.creado_por && <> · 👤 {row.creado_por}</>}
                           </span>
-                          {!row.datos_completos && (
+                          {row.datos_completos === null && (
                             <span className="block text-[10px] text-amber-600 font-semibold mt-1">⚠️ Guardada antes de esta función — solo se puede ver el resumen, no reabrir para editar.</span>
                           )}
                         </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="flex items-center gap-1.5 shrink-0 pt-3">
                           <button
                             onClick={() => handleAbrirInvitacionGuardada(row)}
-                            disabled={!row.datos_completos}
-                            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-[10px] font-bold rounded-lg transition"
+                            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold rounded-lg transition"
                           >
                             Abrir en editor
                           </button>
@@ -8217,15 +8502,13 @@ export default function App() {
                                 <div className="absolute right-0 top-full mt-1 z-20 w-52 bg-white border border-slate-200 rounded-lg shadow-xl py-1">
                                   <button
                                     onClick={() => { setInvitacionMenuAbiertoId(null); handleDuplicarInvitacionGuardada(row); }}
-                                    disabled={!row.datos_completos}
-                                    className="w-full text-left px-3 py-1.5 text-[11px] text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                                    className="w-full text-left px-3 py-1.5 text-[11px] text-slate-700 hover:bg-slate-50 flex items-center gap-2"
                                   >
                                     <Copy className="w-3.5 h-3.5 text-indigo-500" /> Duplicar como cliente nuevo
                                   </button>
                                   <button
                                     onClick={() => { setInvitacionMenuAbiertoId(null); handleDescargarRespaldoInvitacion(row); }}
-                                    disabled={!row.datos_completos}
-                                    className="w-full text-left px-3 py-1.5 text-[11px] text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                                    className="w-full text-left px-3 py-1.5 text-[11px] text-slate-700 hover:bg-slate-50 flex items-center gap-2"
                                   >
                                     <Download className="w-3.5 h-3.5 text-slate-500" /> Descargar respaldo (JSON)
                                   </button>
@@ -8240,6 +8523,37 @@ export default function App() {
                             )}
                           </div>
                         </div>
+                      </div>
+
+                      {/* Links de la clienta (pedido 2026-11-19): para reenviar en segundos el
+                          link que ya se le mandó antes, sin tener que reconstruirlo a mano ni
+                          abrir la invitación en el editor -- el caso de uso es "la clienta
+                          perdió su link", buscándola por nombre en el buscador de arriba. */}
+                      <div className="mt-3 pt-3 border-t border-slate-200/60 space-y-1.5">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">🔗 Links de la clienta</p>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-semibold text-slate-600 w-24 shrink-0">Invitación</span>
+                          {row.link_invitacion ? (
+                            <>
+                              <span className="flex-1 min-w-0 text-[10px] text-slate-500 truncate font-mono">{row.link_invitacion}</span>
+                              <button onClick={() => copiarLinkClienta(row.link_invitacion!)} className="shrink-0 px-2 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded text-[10px] font-bold transition">Copiar</button>
+                            </>
+                          ) : (
+                            <span className="text-[10px] text-slate-400">Todavía no se ha generado -- ábrela en el editor y comparte el link para que quede guardado aquí.</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-semibold text-slate-600 w-24 shrink-0">Formulario</span>
+                          <span className="flex-1 min-w-0 text-[10px] text-slate-500 truncate font-mono">{linkFormularioFila}</span>
+                          <button onClick={() => copiarLinkClienta(linkFormularioFila)} className="shrink-0 px-2 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded text-[10px] font-bold transition">Copiar</button>
+                        </div>
+                        {row.checkin_pagado && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-semibold text-slate-600 w-24 shrink-0">Control de acceso</span>
+                            <span className="flex-1 min-w-0 text-[10px] text-slate-500 truncate font-mono">{linkCheckinFila}</span>
+                            <button onClick={() => copiarLinkClienta(linkCheckinFila)} className="shrink-0 px-2 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded text-[10px] font-bold transition">Copiar</button>
+                          </div>
+                        )}
                       </div>
 
                       <div className="mt-3 pt-3 border-t border-slate-200/60 flex items-center gap-1.5 flex-wrap">
@@ -8307,7 +8621,7 @@ export default function App() {
                       )}
 
                       {invitacionPagosExpandidaId === row.id && (() => {
-                        const precioSugerido = paquetes[(row.datos_completos?.paquete || "basico")].precio.replace(/[^0-9.]/g, "");
+                        const precioSugerido = paquetes[(row.paquete || "basico")].precio.replace(/[^0-9.]/g, "");
                         const falta = (row.precio_total || 0) - (row.precio_pagado || 0);
                         const avisosPendientes = avisosPagoPorInvitacion[row.id] || [];
                         return (
@@ -8357,7 +8671,7 @@ export default function App() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <label className="text-[10px] font-bold text-slate-600 shrink-0">Paquete:</label>
                               <select
-                                value={row.datos_completos?.paquete || "basico"}
+                                value={row.paquete || "basico"}
                                 onChange={(e) => handleCambiarPaqueteInvitacion(row, e.target.value as "basico" | "premium" | "deluxe")}
                                 className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 outline-none focus:border-indigo-500"
                               >
@@ -8585,12 +8899,12 @@ export default function App() {
                               <p className="text-[11px] text-indigo-600 leading-relaxed mb-2">Manda el link de SU invitación tal cual está guardada ahora mismo, sin necesidad de abrirla en el editor primero.</p>
                               <button
                                 onClick={() => handleEnviarPreviewWhatsApp(row)}
-                                disabled={!row.datos_completos}
+                                disabled={row.datos_completos === null}
                                 className="px-2.5 py-1 bg-[#25D366] hover:bg-[#20ba56] disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg text-[10px] font-bold transition"
                               >
                                 Abrir en WhatsApp
                               </button>
-                              {!row.datos_completos && <p className="text-[10px] text-amber-600 mt-1">Guardada antes de esta función -- ábrela en el editor y guárdala de nuevo para poder compartirla desde aquí.</p>}
+                              {row.datos_completos === null && <p className="text-[10px] text-amber-600 mt-1">Guardada antes de esta función -- ábrela en el editor y guárdala de nuevo para poder compartirla desde aquí.</p>}
                             </div>
                             {disponibles.map(m => (
                               <div key={m.id} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
@@ -8626,8 +8940,10 @@ export default function App() {
                             }
                             const siCount = confs.filter(c => c.asistencia === "si");
                             const totalPersonas = siCount.reduce((acc, c) => acc + (c.num_personas || 1), 0);
+                            const tipoEventoFila = row.datos_completos?.tipoEvento;
+                            const fraseConfirmacionFila = TEXTOS_POR_EVENTO[(tipoEventoFila && TEXTOS_POR_EVENTO[tipoEventoFila]) ? tipoEventoFila : "xv"].fraseConfirmacion;
                             const copiarRecordatorio = (nombreInvitado: string) => {
-                              const msg = `¡Hola ${nombreInvitado}! 🌸 Nos encantaría contar con tu confirmación de asistencia a los XV años de ${row.nombre_quinceanera || "nuestra fiesta"}. ¿Nos confirmas cuando puedas? ¡Gracias!`;
+                              const msg = `¡Hola ${nombreInvitado}! 🌸 Nos encantaría contar con tu confirmación de asistencia ${fraseConfirmacionFila} ${row.nombre_quinceanera || "nuestra fiesta"}. ¿Nos confirmas cuando puedas? ¡Gracias!`;
                               navigator.clipboard.writeText(msg).then(() => mostrarToast("Mensaje copiado", "success")).catch(() => {});
                             };
                             return (
@@ -8690,6 +9006,8 @@ export default function App() {
                             );
                           })()}
                         </div>
+                      )}
+                      </div>
                       )}
                     </div>
                   );

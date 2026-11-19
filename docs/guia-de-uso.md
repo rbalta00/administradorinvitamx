@@ -25,7 +25,7 @@ Estas son las secciones donde capturas los datos de la invitación. Son 9 — si
 | # | Pestaña | Qué captura aquí |
 |---|---------|-------------------|
 | 1 | **Tema/Paquete** | El paquete contratado (define cuántas fotos caben y qué secciones están disponibles), el tema visual (de los 14 diseños o "Personalizado"), y qué secciones quieres prender/apagar en esta invitación específica. Empieza siempre aquí. |
-| 2 | **Quinceañera** | Nombre, fecha y hora del evento, mensaje de bienvenida, hashtag, WhatsApp para confirmaciones, enlace de música de fondo, foto de portada. |
+| 2 | **Quinceañera** | **Tipo de Evento** (XV Años / Boda / Cumpleaños / Bautizo / Primera Comunión / Graduación / Baby Shower / Aniversario — solo cambia las palabras que ve el invitado, nunca el tema, el paquete ni las secciones), nombre, fecha y hora del evento, mensaje de bienvenida, hashtag, WhatsApp para confirmaciones, enlace de música de fondo, foto de portada. |
 | 3 | **Direcciones** | Ubicación de la ceremonia y de la recepción, con su link a Google Maps. |
 | 4 | **Agenda y Vestido** | El itinerario/programa del evento (hora por hora) y el código de vestimenta. |
 | 5 | **Familia** | Padres y padrinos. |

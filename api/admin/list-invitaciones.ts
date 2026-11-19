@@ -11,10 +11,22 @@
 // aceptado, igual que un link "cualquiera con el link" de Google Docs). Este endpoint corre en
 // el servidor con la service_role key (nunca baja al navegador) y solo responde si la petición
 // ya pasó el Basic Auth del admin.
+//
+// Carga ligera para 200+ invitaciones (2026-11-19): por default esta respuesta YA NO incluye
+// `datos_completos` de cada fila (el jsonb completo con fotos/itinerario/etc. de la
+// invitación) -- antes se traía completo solo para poder mostrar el paquete en la lista, lo
+// cual se vuelve pesado/lento con cientos de filas activas. En su lugar se extrae solo
+// `paquete` directo en Postgres (`datos_completos->>paquete`, nunca baja el jsonb entero). Las
+// acciones que sí necesitan el contenido completo de UNA invitación (abrir en editor, exportar
+// JSON, duplicar) lo piden bajo demanda a `api/admin/get-invitacion.ts`. El único caso que
+// todavía necesita el jsonb de TODAS de un jalón es el respaldo completo -- para eso, y solo
+// para eso, se admite `?full=1`, que sí incluye `datos_completos` entero.
 import type { IncomingMessage, ServerResponse } from "http";
 import { createClient } from "@supabase/supabase-js";
 
 const FONDOS_ROW_ID = "00000000-0000-0000-0000-000000000001";
+
+const COLUMNAS_BASE = "id, nombre_quinceanera, fecha_fiesta, tema_elegido, estado, activo_hasta, updated_at, link_invitacion, telefono_whatsapp, precio_total, precio_pagado, pases_pagado, pdf_pagado, notas, link_pago, intake_actualizado_en, bloqueada, motivo_bloqueo, checkin_pagado, creado_por";
 
 export default async function handler(req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (req.method !== "GET") {
@@ -33,10 +45,14 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   }
 
   try {
+    const reqUrl = new URL(req.url || "", `http://${req.headers.host || "localhost"}`);
+    const full = reqUrl.searchParams.get("full") === "1";
+    const columnas = full ? `${COLUMNAS_BASE}, datos_completos` : `${COLUMNAS_BASE}, paquete:datos_completos->>paquete`;
+
     const supabase = createClient(url, serviceKey);
     const { data, error } = await supabase
       .from("invitaciones")
-      .select("id, nombre_quinceanera, fecha_fiesta, tema_elegido, estado, activo_hasta, updated_at, link_invitacion, datos_completos, telefono_whatsapp, precio_total, precio_pagado, pases_pagado, pdf_pagado, notas, link_pago, intake_actualizado_en, bloqueada, motivo_bloqueo, checkin_pagado, creado_por")
+      .select(columnas)
       .neq("id", FONDOS_ROW_ID)
       .order("updated_at", { ascending: false });
 

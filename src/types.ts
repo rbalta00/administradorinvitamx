@@ -1,6 +1,12 @@
 export interface InvitacionDatos {
   paquete: "basico" | "premium" | "deluxe";
   tema: string;
+  /** Tipo de evento (2026-11-19): solo cambia las PALABRAS que ve el invitado (ver
+   *  `textosEvento` en templates.ts) -- nunca los temas, paquetes, precios, secciones
+   *  disponibles ni el resto del comportamiento. Ausente o un valor desconocido = "xv"
+   *  (el comportamiento de siempre), para que cualquier invitación guardada antes de este
+   *  campo se siga generando idéntica. */
+  tipoEvento?: "xv" | "boda" | "cumpleanos" | "bautizo" | "primera-comunion" | "graduacion" | "baby-shower" | "aniversario";
   nombre: string;
   fecha: string;
   mensajeBienvenida: string;

@@ -1,6 +1,197 @@
 import { InvitacionDatos, TemaConfig } from "./types";
 import { paquetes, getFotosPorTema, getOrdenSeccionesEfectivo, getColoresEfectivos } from "./data";
 
+export type TipoEvento = NonNullable<InvitacionDatos["tipoEvento"]>;
+
+// Todos los textos visibles por el INVITADO que cambian según el tipo de evento (2026-11-19) --
+// centralizados aquí a propósito (en vez de ternarios sueltos por todo el archivo) para que
+// agregar un tipo de evento nuevo, o corregir una frase, sea tocar un solo lugar. Resuelto UNA
+// vez en generarHTMLFinal (ver `textosEvento` ahí) y usado en cada lugar listado en el reporte
+// del cambio. Ningún tema, paquete, precio, sección ni fondo cambia por tipo de evento -- SOLO
+// las palabras. La columna "xv" es el texto literal que ya existía antes de este campo.
+export interface TextosEvento {
+  /** Apertura "sobre": título chico arriba del nombre, dentro de la carta. */
+  tituloSobre: string;
+  /** Apertura "cortina": marca de agua grande en ambos paneles de tela. */
+  marcaAgua: string;
+  /** Apertura "cortina": texto del sello central (debajo del emoji del tema). */
+  selloCortina: string;
+  /** Apertura "cortina": encabezado bajo el sello, antes del nombre. */
+  encabezadoCortina: string;
+  /** Aperturas "tarjeta"/"destellos": primera línea ("Estás cordialmente invitado..."). */
+  tarjetaLinea1: string;
+  /** Aperturas "tarjeta"/"destellos": segunda línea, justo antes del nombre. */
+  tarjetaLinea2: string;
+  /** Portada: orla decorativa superior Y el badge de las 3 variantes "sin foto" (circular/
+   *  arco/marco) -- mismo texto en ambos casos para cada tipo de evento. */
+  orlaPortada: string;
+  /** Portada: línea de bienvenida, justo arriba del nombre. */
+  bienvenidaPortada: string;
+  /** Portada: "pastilla" decorativa debajo del nombre. */
+  pastillaPortada: string;
+  /** Sección "Mensaje": título chico arriba de mensajeBienvenida (dato del cliente, no se
+   *  reescribe -- solo este título fijo). */
+  tituloMensaje: string;
+  /** Sección "Familia": encabezado del bloque de padres. */
+  padresBendicion: string;
+  /** Sección "Familia": encabezado del bloque de padrinos (solo se usa si hay padrinos). */
+  padrinosTexto: string;
+  /** Prefijo usado en el <title> del HTML y en el nombre del evento de "Agregar a calendario"
+   *  -- ambos lugares son literalmente "{prefijoTitulo} {nombre}". */
+  prefijoTitulo: string;
+  /** Detalle de "Agregar a calendario" (el cuerpo del evento). */
+  detalleCalendario: string;
+  /** Conector usado en el aviso de confirmación de RSVP por Telegram al admin:
+   *  "... confirmó: SÍ asistirá (N pases) {fraseConfirmacion} {nombre}". También reutilizado
+   *  (ver App.tsx IntakeForm) para el mensaje que el cliente copia para recordarle a un
+   *  invitado que confirme. */
+  fraseConfirmacion: string;
+}
+
+export const TEXTOS_POR_EVENTO: Record<TipoEvento, TextosEvento> = {
+  xv: {
+    tituloSobre: "Mis Quince Años",
+    marcaAgua: "XV",
+    selloCortina: "Gala XV",
+    encabezadoCortina: "Pase de Gala Oficial",
+    tarjetaLinea1: "Estás cordialmente invitado a los",
+    tarjetaLinea2: "XV Años de",
+    orlaPortada: "Mis XV Años",
+    bienvenidaPortada: "¡Bienvenidos a mi celebración especial!",
+    pastillaPortada: "⚜️ 15 Primaveras ⚜️",
+    tituloMensaje: "Mi Agradecimiento",
+    padresBendicion: "Con la Bendición de Mis Padres",
+    padrinosTexto: "Y de mis amados Padrinos",
+    prefijoTitulo: "XV Años de",
+    detalleCalendario: "¡Te espero con gran alegría para celebrar juntos mis 15 años! Trae tu invitación digital.",
+    fraseConfirmacion: "a los XV de"
+  },
+  boda: {
+    tituloSobre: "¡Nos Casamos!",
+    marcaAgua: "💍",
+    selloCortina: "Nuestra Boda",
+    encabezadoCortina: "¡Nos Casamos!",
+    tarjetaLinea1: "Estás cordialmente invitado a la",
+    tarjetaLinea2: "Boda de",
+    orlaPortada: "Nuestra Boda",
+    bienvenidaPortada: "¡Bienvenidos a nuestra celebración!",
+    pastillaPortada: "💍 ¡Nos Casamos! 💍",
+    tituloMensaje: "Nuestro Agradecimiento",
+    padresBendicion: "Con la Bendición de Nuestros Padres",
+    padrinosTexto: "Y de nuestros amados Padrinos",
+    prefijoTitulo: "Boda de",
+    detalleCalendario: "¡Los esperamos con gran alegría para celebrar juntos nuestra boda! Trae tu invitación digital.",
+    fraseConfirmacion: "a la boda de"
+  },
+  cumpleanos: {
+    tituloSobre: "¡Mi Cumpleaños!",
+    marcaAgua: "🎂",
+    selloCortina: "Mi Cumpleaños",
+    encabezadoCortina: "¡Mi Cumpleaños!",
+    tarjetaLinea1: "Estás cordialmente invitado a",
+    tarjetaLinea2: "Mi Cumpleaños",
+    orlaPortada: "Mi Cumpleaños",
+    bienvenidaPortada: "¡Bienvenidos a mi celebración especial!",
+    pastillaPortada: "🎂 ¡A Celebrar! 🎂",
+    tituloMensaje: "Mi Agradecimiento",
+    padresBendicion: "Con la Bendición de Mis Padres",
+    padrinosTexto: "Y de mis amados Padrinos",
+    prefijoTitulo: "Cumpleaños de",
+    detalleCalendario: "¡Te espero con gran alegría para celebrar juntos mi cumpleaños! Trae tu invitación digital.",
+    fraseConfirmacion: "al cumpleaños de"
+  },
+  bautizo: {
+    tituloSobre: "¡Mi Bautizo!",
+    marcaAgua: "🕊️",
+    selloCortina: "Mi Bautizo",
+    encabezadoCortina: "¡Mi Bautizo!",
+    tarjetaLinea1: "Estás cordialmente invitado al",
+    tarjetaLinea2: "Bautizo de",
+    orlaPortada: "Mi Bautizo",
+    bienvenidaPortada: "¡Bienvenidos a esta celebración tan especial!",
+    pastillaPortada: "🕊️ ¡Mi Bautizo! 🕊️",
+    tituloMensaje: "Nuestro Agradecimiento",
+    padresBendicion: "Con la Bendición de Mis Padres",
+    padrinosTexto: "Y de mis amados Padrinos",
+    prefijoTitulo: "Bautizo de",
+    detalleCalendario: "¡Te esperamos con gran alegría para celebrar juntos el bautizo de nuestro bebé! Trae tu invitación digital.",
+    fraseConfirmacion: "al bautizo de"
+  },
+  "primera-comunion": {
+    tituloSobre: "¡Mi Primera Comunión!",
+    marcaAgua: "🕊️",
+    selloCortina: "Mi Primera Comunión",
+    encabezadoCortina: "¡Mi Primera Comunión!",
+    tarjetaLinea1: "Estás cordialmente invitado a mi",
+    tarjetaLinea2: "Primera Comunión",
+    orlaPortada: "Mi Primera Comunión",
+    bienvenidaPortada: "¡Bienvenidos a mi celebración especial!",
+    pastillaPortada: "🕊️ ¡Mi Primera Comunión! 🕊️",
+    tituloMensaje: "Mi Agradecimiento",
+    padresBendicion: "Con la Bendición de Mis Padres",
+    padrinosTexto: "Y de mis amados Padrinos",
+    prefijoTitulo: "Primera Comunión de",
+    detalleCalendario: "¡Te espero con gran alegría para celebrar juntos mi Primera Comunión! Trae tu invitación digital.",
+    fraseConfirmacion: "a la primera comunión de"
+  },
+  graduacion: {
+    tituloSobre: "¡Mi Graduación!",
+    marcaAgua: "🎓",
+    selloCortina: "Mi Graduación",
+    encabezadoCortina: "¡Mi Graduación!",
+    tarjetaLinea1: "Estás cordialmente invitado a mi",
+    tarjetaLinea2: "Graduación",
+    orlaPortada: "Mi Graduación",
+    bienvenidaPortada: "¡Bienvenidos a mi celebración especial!",
+    pastillaPortada: "🎓 ¡Lo Logré! 🎓",
+    tituloMensaje: "Mi Agradecimiento",
+    padresBendicion: "Con la Bendición de Mis Padres",
+    padrinosTexto: "Y de mis amados Padrinos",
+    prefijoTitulo: "Graduación de",
+    detalleCalendario: "¡Te espero con gran alegría para celebrar juntos mi graduación! Trae tu invitación digital.",
+    fraseConfirmacion: "a la graduación de"
+  },
+  "baby-shower": {
+    tituloSobre: "¡Mi Baby Shower!",
+    marcaAgua: "👶",
+    selloCortina: "Mi Baby Shower",
+    encabezadoCortina: "¡Mi Baby Shower!",
+    tarjetaLinea1: "Estás cordialmente invitado al",
+    tarjetaLinea2: "Baby Shower de",
+    orlaPortada: "Mi Baby Shower",
+    bienvenidaPortada: "¡Bienvenidos a esta celebración tan especial!",
+    pastillaPortada: "👶 ¡Ya Casi Llego! 👶",
+    tituloMensaje: "Nuestro Agradecimiento",
+    padresBendicion: "Los Futuros Papás",
+    padrinosTexto: "Y de nuestros amados Padrinos",
+    prefijoTitulo: "Baby Shower de",
+    detalleCalendario: "¡Te esperamos con gran alegría para celebrar juntos nuestro baby shower! Trae tu invitación digital.",
+    fraseConfirmacion: "al baby shower de"
+  },
+  aniversario: {
+    tituloSobre: "¡Nuestro Aniversario!",
+    marcaAgua: "💍",
+    selloCortina: "Nuestro Aniversario",
+    encabezadoCortina: "¡Nuestro Aniversario!",
+    tarjetaLinea1: "Estás cordialmente invitado a nuestro",
+    tarjetaLinea2: "Aniversario",
+    orlaPortada: "Nuestro Aniversario",
+    bienvenidaPortada: "¡Bienvenidos a nuestra celebración!",
+    pastillaPortada: "💍 ¡Nuestro Aniversario! 💍",
+    tituloMensaje: "Nuestro Agradecimiento",
+    padresBendicion: "Con la Bendición de Nuestros Padres",
+    padrinosTexto: "Y de nuestros amados Padrinos",
+    prefijoTitulo: "Aniversario de",
+    detalleCalendario: "¡Los esperamos con gran alegría para celebrar juntos nuestro aniversario! Trae tu invitación digital.",
+    fraseConfirmacion: "al aniversario de"
+  }
+};
+
+// Campo ausente o con un valor desconocido (invitación guardada antes de este campo) = "xv" --
+// el comportamiento de siempre, sin excepción.
+export const textosEventoDe = (tipo: InvitacionDatos["tipoEvento"] | undefined | null): TextosEvento =>
+  TEXTOS_POR_EVENTO[(tipo && TEXTOS_POR_EVENTO[tipo]) ? tipo : "xv"];
+
 // Parámetros exactos de Google Fonts (pesos/itálicas) para cada familia usada por algún tema.
 // Antes se pedían las ~17 familias de TODOS los temas en cada invitación; ahora solo se piden
 // las 2-3 que el tema actual realmente usa (fontHeading/fontBody/fontCursive), lo que reduce
@@ -49,6 +240,10 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
   // con esDemoDeCatalogo abajo (mismo candado, misma razón: sin esto, cada recarga del preview
   // se auto-scrolleaba a "pases" 1.2s después, arrastrando al admin lejos de donde editaba).
   const esVistaPreviaEditor = opciones?.esVistaPreviaEditor === true;
+  // Textos visibles por el invitado según el tipo de evento (2026-11-19) -- ver TEXTOS_POR_EVENTO
+  // arriba. Resuelto una sola vez aquí y usado en todos los lugares de este archivo que antes
+  // tenían el texto de XV años fijo.
+  const textosEvento = textosEventoDe(datos.tipoEvento);
   // Invitaciones 100% a la medida: el tema "personalizado" acepta overrides de tipografía,
   // paleta de color y tipo de apertura definidos por el admin para ESA invitación en particular.
   // El resto de temas del catálogo no se ven afectados por esto.
@@ -479,7 +674,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         <div class="envelope-flap"></div>
         <div class="envelope-letter font-sans">
           <span class="text-3xl mb-1">${tema.decorativeEmoji}</span>
-          <h4 class="font-serif text-[9px] uppercase tracking-wider text-gray-500">Mis Quince Años</h4>
+          <h4 class="font-serif text-[9px] uppercase tracking-wider text-gray-500">${textosEvento.tituloSobre}</h4>
           <h3 class="font-cursive text-3.5xl text-accent my-1 font-serif font-black" style="font-family: ${tema.fontHeading}">${datos.nombre}</h3>
           <p class="text-[9px] text-gray-400 font-sans italic">Es un honor invitarte</p>
         </div>
@@ -606,21 +801,21 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
     <div class="curtain-cenefa"></div>
 
     <div class="curtain-panel curtain-left">
-      <div class="pr-6 text-right w-full font-serif font-black" style="opacity: 0.12; font-size: 80px; color: ${ribbonColor}; line-height: 100px;">XV</div>
+      <div class="pr-6 text-right w-full font-serif font-black" style="opacity: 0.12; font-size: 80px; color: ${ribbonColor}; line-height: 100px;">${textosEvento.marcaAgua}</div>
     </div>
 
     <div class="curtain-panel curtain-right">
-      <div class="pl-6 text-left w-full font-serif font-black" style="opacity: 0.12; font-size: 80px; color: ${oppositeColor}; line-height: 100px;">XV</div>
+      <div class="pl-6 text-left w-full font-serif font-black" style="opacity: 0.12; font-size: 80px; color: ${oppositeColor}; line-height: 100px;">${textosEvento.marcaAgua}</div>
     </div>
 
     <div class="curtain-seal-container" id="contenedor-sello">
       <div class="curtain-seal-circle" onclick="comenzarExperienciaCortina()">
         <span class="text-3xl animate-bounce" style="margin-top: 4px;">${tema.decorativeEmoji}</span>
-        <span class="text-[9px] uppercase tracking-wider font-extrabold mt-1 font-sans">Gala XV</span>
+        <span class="text-[9px] uppercase tracking-wider font-extrabold mt-1 font-sans">${textosEvento.selloCortina}</span>
         <span class="text-[8px] opacity-75 font-sans font-medium">Entrar</span>
       </div>
       <div class="mt-8 px-6">
-        <h2 class="text-xs uppercase tracking-[0.3em] font-semibold font-sans mb-2 text-white/90 drop-shadow-md">Pase de Gala Oficial</h2>
+        <h2 class="text-xs uppercase tracking-[0.3em] font-semibold font-sans mb-2 text-white/90 drop-shadow-md">${textosEvento.encabezadoCortina}</h2>
         <h1 class="font-cursive text-5xl text-white drop-shadow-[0_2px_5px_rgba(0,0,0,0.8)] my-1">${datos.nombre}</h1>
         <p class="text-[9px] text-gray-300 tracking-widest font-sans uppercase">Toca el sello para descorrer el telón 🎭</p>
       </div>
@@ -763,8 +958,8 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
 
     <div class="destellos-contenido max-w-md w-full flex flex-col items-center animate-float" style="position: relative; z-index: 10;" onclick="event.stopPropagation()">
       <span class="text-4xl mb-3 animate-pulse" style="color: ${tema.colors.accent};">${tema.decorativeEmoji}</span>
-      <h2 class="font-serif text-xs uppercase tracking-[0.25em] mb-2" style="color: ${tema.colors.accent};">Estás cordialmente invitado a los</h2>
-      <h1 class="font-cursive text-5xl my-2" style="color: ${tema.colors.accent}; font-family: ${fuenteCursivaTema};">XV Años de</h1>
+      <h2 class="font-serif text-xs uppercase tracking-[0.25em] mb-2" style="color: ${tema.colors.accent};">${textosEvento.tarjetaLinea1}</h2>
+      <h1 class="font-cursive text-5xl my-2" style="color: ${tema.colors.accent}; font-family: ${fuenteCursivaTema};">${textosEvento.tarjetaLinea2}</h1>
       <h3 class="font-serif text-3xl font-bold tracking-tight mb-6" style="color: ${tema.textDark};">${datos.nombre}</h3>
       <button onclick="comenzarExperienciaDestellos()" class="relative px-8 py-4 text-white font-serif tracking-widest text-xs uppercase rounded-full shadow-lg cursor-pointer transform hover:scale-105 active:scale-95 transition-all" style="background: ${tema.colors.accent};">
         ✨ Tocar Para Abrir ✨
@@ -838,8 +1033,8 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         ${(datos.fotoPortada && datos.fotoPortada.trim() !== "") ? `<div class="tarjeta-foto-fondo"></div>` : ``}
         <div style="position: relative; z-index: 10;" class="flex flex-col items-center">
           <span class="text-4xl mb-4 text-accent animate-pulse">${tema.decorativeEmoji}</span>
-          <h2 class="font-serif text-xs uppercase tracking-[0.25em] text-gray-500 mb-2">Estás cordialmente invitado a los</h2>
-          <h1 class="font-cursive text-5xl text-accent my-3">XV Años de</h1>
+          <h2 class="font-serif text-xs uppercase tracking-[0.25em] text-gray-500 mb-2">${textosEvento.tarjetaLinea1}</h2>
+          <h1 class="font-cursive text-5xl text-accent my-3">${textosEvento.tarjetaLinea2}</h1>
           <h3 class="font-serif text-3xl font-bold tracking-tight text-dark mb-6">${datos.nombre}</h3>
           <p class="text-xs text-gray-600 mb-8 font-light italic">Por favor activa el sonido antes de entrar para disfrutar de una mejor experiencia.</p>
 
@@ -892,7 +1087,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
           <div class="w-56 h-56 mx-auto rounded-full bg-gradient-to-br from-[${tema.colors.light}] to-[${tema.colors.secondary}] border-4 border-white flex items-center justify-center mb-6 shadow-2xl animate-float ring-4 ring-primary/10">
             <div class="text-center p-4">
               <span class="text-7xl block mb-2 animate-bounce">${tema.decorativeEmoji}</span>
-              <span class="font-serif text-[10px] uppercase tracking-widest text-accent text-xs">Mis XV Años</span>
+              <span class="font-serif text-[10px] uppercase tracking-widest text-accent text-xs">${textosEvento.orlaPortada}</span>
             </div>
           </div>`;
     }
@@ -905,7 +1100,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
           <div class="mx-auto mb-6 flex items-center justify-center shadow-2xl animate-float" style="width:224px;height:252px;border-radius: 50% 50% 14px 14px / 55% 55% 14px 14px; background: linear-gradient(145deg, ${tema.colors.light}, ${tema.colors.secondary}); box-shadow: 0 0 0 4px white, 0 0 0 8px ${tema.colors.accent};">
             <div class="text-center p-4">
               <span class="text-7xl block mb-2 animate-bounce">${tema.decorativeEmoji}</span>
-              <span class="font-serif text-[10px] uppercase tracking-widest text-accent text-xs">Mis XV Años</span>
+              <span class="font-serif text-[10px] uppercase tracking-widest text-accent text-xs">${textosEvento.orlaPortada}</span>
             </div>
           </div>`;
     }
@@ -939,7 +1134,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
           <div class="w-56 h-56 mx-auto rounded-full bg-gradient-to-br from-[${tema.colors.light}] to-[${tema.colors.secondary}] border-4 border-white flex items-center justify-center mb-6 shadow-2xl animate-float ring-4 ring-primary/10">
             <div class="text-center p-4">
               <span class="text-7xl block mb-2 animate-bounce">${tema.decorativeEmoji}</span>
-              <span class="font-serif text-[10px] uppercase tracking-widest text-accent text-xs">Mis XV Años</span>
+              <span class="font-serif text-[10px] uppercase tracking-widest text-accent text-xs">${textosEvento.orlaPortada}</span>
             </div>
           </div>`;
   })();
@@ -959,7 +1154,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       <div class="absolute inset-0" style="background: ${colorVelo};"></div>
 
       <div class="mt-10 z-10 animate-fade-in">
-        <p class="text-xs uppercase tracking-[0.3em] font-serif mb-2" style="color:white; ${sombraTexto}">Mis XV Años</p>
+        <p class="text-xs uppercase tracking-[0.3em] font-serif mb-2" style="color:white; ${sombraTexto}">${textosEvento.orlaPortada}</p>
         <div class="flex justify-center items-center gap-3 mb-1">
           <div class="w-12 h-[1px] bg-gradient-to-r from-transparent to-white/60"></div>
           <span style="color:white; ${sombraTexto}">${tema.decorativeEmoji}</span>
@@ -968,11 +1163,11 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       </div>
 
       <div class="my-auto z-10 py-6 animate-fade-in" style="animation-delay: 0.2s;">
-        <p class="text-sm font-serif italic mb-3 tracking-wide" style="color:white; ${sombraTexto}">¡Bienvenidos a mi celebración especial!</p>
+        <p class="text-sm font-serif italic mb-3 tracking-wide" style="color:white; ${sombraTexto}">${textosEvento.bienvenidaPortada}</p>
         <h1 class="cursive-text text-6xl md:text-7xl mb-5" style="color:white; text-shadow: 0 4px 18px rgba(0,0,0,0.55);">${datos.nombre}</h1>
         <div class="flex items-center justify-center gap-3 mb-2">
           <span class="w-12 h-[1px] bg-gradient-to-r from-transparent to-white/60"></span>
-          <span class="text-[11px] tracking-widest uppercase font-semibold px-4 py-2 bg-white/20 backdrop-blur rounded-full border border-white/50" style="color:white; ${sombraTexto}">⚜️ 15 Primaveras ⚜️</span>
+          <span class="text-[11px] tracking-widest uppercase font-semibold px-4 py-2 bg-white/20 backdrop-blur rounded-full border border-white/50" style="color:white; ${sombraTexto}">${textosEvento.pastillaPortada}</span>
           <span class="w-12 h-[1px] bg-gradient-to-l from-transparent to-white/60"></span>
         </div>
       </div>
@@ -995,7 +1190,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
 
       <!-- Orla Decorativa Superior Premium -->
       <div class="mt-10 z-10 animate-fade-in">
-        <p class="text-xs uppercase tracking-[0.3em] font-serif text-gray-500 mb-2">Mis XV Años</p>
+        <p class="text-xs uppercase tracking-[0.3em] font-serif text-gray-500 mb-2">${textosEvento.orlaPortada}</p>
         <div class="flex justify-center items-center gap-3 mb-1">
           <div class="w-12 h-[1px] bg-gradient-to-r from-transparent to-primary/60"></div>
           <span class="text-accent/80">${tema.decorativeEmoji}</span>
@@ -1003,13 +1198,13 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         </div>
       </div>
 
-      <!-- Nombre central de la quinceañera con animación -->
+      <!-- Nombre central de la festejada/el evento, con animación -->
       <div class="my-auto z-10 py-6 animate-fade-in" style="animation-delay: 0.2s;">
-        <p class="text-sm font-serif text-gray-500 italic mb-3 tracking-wide">¡Bienvenidos a mi celebración especial!</p>
+        <p class="text-sm font-serif text-gray-500 italic mb-3 tracking-wide">${textosEvento.bienvenidaPortada}</p>
         <h1 class="cursive-text text-6xl md:text-7xl mb-5 drop-shadow-lg">${datos.nombre}</h1>
         <div class="flex items-center justify-center gap-3 mb-8">
           <span class="w-12 h-[1px] bg-gradient-to-r from-transparent to-borderTheme/60"></span>
-          <span class="text-accent text-[11px] tracking-widest uppercase font-semibold px-4 py-2 bg-white/30 backdrop-blur rounded-full border border-white/50">⚜️ 15 Primaveras ⚜️</span>
+          <span class="text-accent text-[11px] tracking-widest uppercase font-semibold px-4 py-2 bg-white/30 backdrop-blur rounded-full border border-white/50">${textosEvento.pastillaPortada}</span>
           <span class="w-12 h-[1px] bg-gradient-to-l from-transparent to-borderTheme/60"></span>
         </div>
 
@@ -1107,7 +1302,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         <span class="bg-white px-4 py-1.5 border border-borderTheme/40 rounded-full shadow-xs text-accent text-sm font-semibold">${tema.decorativeEmoji}</span>
       </div>
       <div class="max-w-xs mx-auto py-4">
-        <span class="font-cursive text-3xl text-primary/80 block mb-1">Mi Agradecimiento</span>
+        <span class="font-cursive text-3xl text-primary/80 block mb-1">${textosEvento.tituloMensaje}</span>
         <p class="text-sm italic leading-relaxed text-gray-600 font-light">
           "${datos.mensajeBienvenida}"
         </p>
@@ -1234,14 +1429,14 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
     <section data-section="familia" class="p-6 pb-2 text-center">
       <div class="gold-card rounded-3xl p-6">
         <span class="text-2xl text-accent mb-2 block">⚜️</span>
-        <h3 class="font-serif text-lg text-dark mb-1">Con la Bendición de Mis Padres</h3>
+        <h3 class="font-serif text-lg text-dark mb-1">${textosEvento.padresBendicion}</h3>
         <div class="py-2 mb-4">
           ${padresHTML}
         </div>
 
         ${padrinosHTML.length > 0 ? `
         <div class="border-t border-borderTheme/20 pt-4 mt-2">
-          <h4 class="font-serif text-md text-accent italic mb-2">Y de mis amados Padrinos</h4>
+          <h4 class="font-serif text-md text-accent italic mb-2">${textosEvento.padrinosTexto}</h4>
           ${padrinosHTML}
         </div>
         ` : ""}
@@ -1465,7 +1660,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>XV Años de ${datos.nombre}</title>
+  <title>${textosEvento.prefijoTitulo} ${datos.nombre}</title>
   
   <!-- Google Fonts importados para el tema -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2410,7 +2605,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
           fetch('/api/notify-telegram', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mensaje: '🎉 ' + nombre + ' confirmó: ' + txtEstadoAviso + ' (' + pases + ' pases) a los XV de ${escBacktick(datos.nombre)}' })
+            body: JSON.stringify({ mensaje: '🎉 ' + nombre + ' confirmó: ' + txtEstadoAviso + ' (' + pases + ' pases) ${textosEvento.fraseConfirmacion} ${escBacktick(datos.nombre)}' })
           }).catch(() => {});
         }
       } catch (e) { /* nunca debe impedir que el RSVP por WhatsApp funcione */ }
@@ -2468,7 +2663,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
 
     // 8. Crear Calendario de Eventos Google
     function agregarAlCalendario() {
-      const name = "XV Años de ${escDoubleQuote(datos.nombre)}";
+      const name = "${textosEvento.prefijoTitulo} ${escDoubleQuote(datos.nombre)}";
       const location = "${escDoubleQuote(datos.ceremonia.lugar)} & ${escDoubleQuote(datos.recepcion.lugar)}";
 
       // Fecha en formato Google Cal UTC
@@ -2479,7 +2674,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       const endDate = new Date(eventDate.getTime() + (5 * 60 * 60 * 1000));
       const endDateUTC = endDate.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
 
-      const details = "¡Te espero con gran alegría para celebrar juntos mis 15 años! Trae tu invitación digital.";
+      const details = "${textosEvento.detalleCalendario}";
       
       const link = \`https://calendar.google.com/calendar/render?action=TEMPLATE&text=\${encodeURIComponent(name)}&dates=\${startDateUTC}/\${endDateUTC}&details=\${encodeURIComponent(details)}&location=\${encodeURIComponent(location)}&sf=true&output=xml\`;
       
