@@ -2805,6 +2805,11 @@ export default function App() {
     titulo: string;
     mensaje: string;
     onAceptar: () => void;
+    // Opcional (2026-11-19) -- antes "Cancelar" solo cerraba el modal en silencio, lo cual
+    // bastaba porque nadie esperaba una respuesta. guardarConChequeoDeConflicto() sí necesita
+    // enterarse de que el admin canceló (para no mostrarlo como un error real ni quedarse
+    // esperando para siempre), así que puede registrar aquí un callback de cancelación.
+    onCancelar?: () => void;
   } | null>(null);
 
   const mostrarToast = (mensaje: string, tipo: "success" | "error" | "info" = "success") => {
@@ -3725,29 +3730,44 @@ export default function App() {
   // puede detectar si se conoce el baseline (ver intakeBaselineAlAbrir); si no se conoce (ej.
   // editor recargado desde el respaldo local sin pasar por "Abrir en editor"), se guarda
   // directo, igual que antes, en vez de bloquear con un chequeo que no se puede hacer bien.
-  const handleGuardarEnSupabase = async () => {
-    const procederAGuardar = async () => {
-      const finalLink = getShareUrl();
-      try {
-        const row = await guardarEnSupabase(datos, temaActual, finalLink, supabaseRowId, usuarioActual);
-        if (row?.id) {
-          setSupabaseRowId(row.id);
-          setIntakeBaselineAlAbrir(row.intake_actualizado_en ?? null);
-          try { localStorage.setItem('xv_supabase_row_id', row.id); } catch {}
-          // El código corto (link `/v/<codigoCorto>`) se genera DENTRO de guardarEnSupabase --
-          // hay que traerlo de vuelta al estado en memoria para que el siguiente "Compartir por
-          // WhatsApp"/getShareUrl() ya lo use, y para no generar uno nuevo si se vuelve a
-          // guardar (ver guardarEnSupabase: una fila existente conserva el que ya tenía).
-          if (row.datos_completos?.codigoCorto && row.datos_completos.codigoCorto !== datos.codigoCorto) {
-            setDatos(prev => ({ ...prev, codigoCorto: row.datos_completos.codigoCorto }));
+  // Guarda de verdad (mismo camino de siempre) y devuelve el codigoCorto resultante -- ya
+  // existente si la fila se conservaba, o recién generado si era nueva/no tenía -- o `null` si
+  // el guardado falló. Extraído de handleGuardarEnSupabase (2026-11-19) para poder reusarlo
+  // también desde "compartir guarda primero" (ver asegurarCodigoCortoParaEntregarLink) sin
+  // duplicar esta lógica en dos lados.
+  const ejecutarGuardadoYObtenerCodigo = async (): Promise<string | null> => {
+    const finalLink = getShareUrl();
+    try {
+      const row = await guardarEnSupabase(datos, temaActual, finalLink, supabaseRowId, usuarioActual);
+      let codigoResultante = datos.codigoCorto || null;
+      if (row?.id) {
+        setSupabaseRowId(row.id);
+        setIntakeBaselineAlAbrir(row.intake_actualizado_en ?? null);
+        try { localStorage.setItem('xv_supabase_row_id', row.id); } catch {}
+        // El código corto (link `/v/<codigoCorto>`) se genera DENTRO de guardarEnSupabase --
+        // hay que traerlo de vuelta al estado en memoria para que el siguiente "Compartir por
+        // WhatsApp"/getShareUrl() ya lo use, y para no generar uno nuevo si se vuelve a
+        // guardar (ver guardarEnSupabase: una fila existente conserva el que ya tenía).
+        if (row.datos_completos?.codigoCorto) {
+          codigoResultante = row.datos_completos.codigoCorto;
+          if (codigoResultante !== datos.codigoCorto) {
+            setDatos(prev => ({ ...prev, codigoCorto: codigoResultante as string }));
           }
         }
-        mostrarToast('✅ Guardado en Supabase correctamente', 'success');
-      } catch {
-        mostrarToast('❌ Error al guardar', 'error');
       }
-    };
+      return codigoResultante;
+    } catch {
+      return null;
+    }
+  };
 
+  // Guarda respetando el mismo aviso de "el cliente actualizó su formulario" que ya tenía
+  // "Guardar en Supabase" -- compartido entre ese botón y cualquier acción de "compartir guarda
+  // primero" que necesite guardar sin pasar por ahí (ver asegurarCodigoCortoParaEntregarLink).
+  // Devuelve el codigoCorto resultante, `null` si el guardado falló de verdad, o `undefined` si
+  // el admin canceló en el aviso de conflicto (distinto de un error real: no hay que avisarlo
+  // como tal, el admin ya decidió no guardar a propósito).
+  const guardarConChequeoDeConflicto = async (): Promise<string | null | undefined> => {
     if (supabaseRowId && intakeBaselineAlAbrir !== undefined && window.supabaseClient) {
       const { data } = await window.supabaseClient
         .from('invitaciones')
@@ -3756,19 +3776,50 @@ export default function App() {
         .maybeSingle();
       const intakeEnVivo = data?.intake_actualizado_en || null;
       if (intakeEnVivo !== intakeBaselineAlAbrir) {
-        setConfirmModal({
-          titulo: "El cliente actualizó su formulario",
-          mensaje: "El cliente llenó o actualizó su propio formulario (fecha, ceremonia, padrinos, fotos, etc.) " +
-            "después de que abriste esta invitación en el editor. Si guardas ahora, tus cambios de aquí van a " +
-            "sobrescribir lo que el cliente acaba de capturar. Para no perderlo: cierra esto, abre la invitación " +
-            "de nuevo desde \"Mis Invitaciones\" (así traes lo más reciente), y vuelve a hacer tus cambios. ¿Guardar " +
-            "de todos modos y perder lo que el cliente capturó?",
-          onAceptar: procederAGuardar
+        return new Promise((resolve) => {
+          setConfirmModal({
+            titulo: "El cliente actualizó su formulario",
+            mensaje: "El cliente llenó o actualizó su propio formulario (fecha, ceremonia, padrinos, fotos, etc.) " +
+              "después de que abriste esta invitación en el editor. Si guardas ahora, tus cambios de aquí van a " +
+              "sobrescribir lo que el cliente acaba de capturar. Para no perderlo: cierra esto, abre la invitación " +
+              "de nuevo desde \"Mis Invitaciones\" (así traes lo más reciente), y vuelve a hacer tus cambios. ¿Guardar " +
+              "de todos modos y perder lo que el cliente capturó?",
+            onAceptar: async () => { resolve(await ejecutarGuardadoYObtenerCodigo()); },
+            onCancelar: () => resolve(undefined)
+          });
         });
-        return;
       }
     }
-    await procederAGuardar();
+    return ejecutarGuardadoYObtenerCodigo();
+  };
+
+  const handleGuardarEnSupabase = async () => {
+    const resultado = await guardarConChequeoDeConflicto();
+    if (resultado === undefined) return; // cancelado en el aviso de conflicto, sin tronar como error
+    if (resultado !== null) {
+      mostrarToast('✅ Guardado en Supabase correctamente', 'success');
+    } else {
+      mostrarToast('❌ Error al guardar', 'error');
+    }
+  };
+
+  // "Compartir guarda primero" (2026-11-19): antes de cualquier botón que ENTREGUE el link de
+  // la invitación a la clienta o a un invitado (Compartir por WhatsApp, Copiar, Abrir link
+  // directo), si todavía no existe un código corto asignado lo genera guardando primero -- así
+  // ese link siempre sale corto, nunca el blob largo `?v=1&d=...`, aunque el admin nunca le haya
+  // dado clic a "Guardar" antes. En modo "muestra" (esEnlaceMuestra) se deja pasar tal cual: ese
+  // modo siempre usa el link largo de toda la vida, a propósito, no hace falta guardar para eso.
+  // Devuelve `{ ok: false }` si hay que abortar sin compartir nada (si fue un error real ya se
+  // avisó aquí mismo; si el admin canceló el aviso de conflicto, no hace falta avisar de nuevo).
+  const asegurarCodigoCortoParaEntregarLink = async (): Promise<{ ok: true; codigo?: string } | { ok: false }> => {
+    if (datos.codigoCorto || esEnlaceMuestra) return { ok: true, codigo: datos.codigoCorto };
+    const resultado = await guardarConChequeoDeConflicto();
+    if (resultado === undefined) return { ok: false };
+    if (resultado === null) {
+      mostrarToast("❌ No se pudo guardar la invitación -- intenta de nuevo antes de compartir", "error");
+      return { ok: false };
+    }
+    return { ok: true, codigo: resultado };
   };
 
   // Descarga un respaldo del CONTENIDO completo de una invitación (todo InvitacionDatos: fotos,
@@ -4212,8 +4263,17 @@ export default function App() {
   // sin que el admin tenga que acordarse de activar el toggle "Muestra" -- siempre protegido.
   const getShareUrlDesdeFila = (row: InvitacionGuardadaRow): string | null => {
     if (!row.datos_completos) return null;
-    const datosListos = { ...row.datos_completos, tema: row.tema_elegido || row.datos_completos.tema, invitados: [] };
     const exp = Date.now() + MUESTRA_DIAS_VIGENCIA * 24 * 60 * 60 * 1000;
+    // Link corto también para la muestra (2026-11-19, parte 2 de "que el link corto salga
+    // siempre"): si la fila ya tiene codigoCorto (se guardó al menos una vez con la lógica del
+    // link corto), la muestra sale corta igual que el link final -- `muestra`/`exp` viajan como
+    // parámetros sueltos sobre el link corto, la resolución de /v/<codigo> los preserva y aplica
+    // el mismo candado de siempre (ver resolución del link corto más abajo). Si la fila es muy
+    // vieja y no tiene código, se deja el link largo de siempre -- no se bloquea por esto.
+    if (row.datos_completos.codigoCorto) {
+      return `${URL_PUBLICA_INVITAMX}/v/${row.datos_completos.codigoCorto}?muestra=1&exp=${exp}`;
+    }
+    const datosListos = { ...row.datos_completos, tema: row.tema_elegido || row.datos_completos.tema, invitados: [] };
     return `${URL_PUBLICA_INVITAMX}/?v=1&d=${encodeState(datosListos)}&iid=${encodeURIComponent(row.id)}&muestra=1&exp=${exp}`;
   };
 
@@ -4748,7 +4808,13 @@ export default function App() {
     return problemas;
   };
 
-  const getShareUrl = (invitadoIndex = selectedInvitadoIndex) => {
+  // `codigoCortoOverride` (2026-11-19, parte 1 de "que el link corto salga siempre"): permite
+  // construir el link con un código que TODAVÍA no llegó a `datos.codigoCorto` en este render --
+  // necesario porque, tras guardar para generar uno nuevo (ver asegurarCodigoCortoParaEntregarLink),
+  // `setDatos` no actualiza el `datos` que esta función ya tiene cerrado en el closure hasta el
+  // siguiente render; sin este parámetro, el PRIMER link compartido justo después de guardar
+  // seguiría saliendo largo por un instante, aunque el código ya exista en Supabase.
+  const getShareUrl = (invitadoIndex = selectedInvitadoIndex, codigoCortoOverride?: string) => {
     const appUrl = URL_PUBLICA_INVITAMX + "/";
     const invitadoObjetivo =
       invitadoIndex !== -1 && datos.invitados && datos.invitados[invitadoIndex]
@@ -4762,8 +4828,9 @@ export default function App() {
     // "muestra" (preview temporal con marca de agua, ver esEnlaceMuestra/aplicarModoMuestra)
     // sigue siendo el link largo clásico de siempre -- es un mecanismo aparte, deliberadamente
     // no tocado por este cambio.
-    if (datos.codigoCorto && !esEnlaceMuestra) {
-      const baseCorta = `${URL_PUBLICA_INVITAMX}/v/${datos.codigoCorto}`;
+    const codigo = codigoCortoOverride || datos.codigoCorto;
+    if (codigo && !esEnlaceMuestra) {
+      const baseCorta = `${URL_PUBLICA_INVITAMX}/v/${codigo}`;
       return invitadoObjetivo ? `${baseCorta}?fam=${encodeURIComponent(invitadoObjetivo.nombre)}` : baseCorta;
     }
 
@@ -4802,7 +4869,7 @@ export default function App() {
   };
 
   // Compartir datos de la invitación final por WhatsApp
-  const handleEnviarWhatsApp = (overrideInvitadoIndex?: number) => {
+  const handleEnviarWhatsApp = async (overrideInvitadoIndex?: number) => {
     // validarInvitacion() ya detecta estos problemas (WhatsApp inválido, enlaces de Maps que
     // parecen direcciones en vez de links, etc.), pero solo se mostraba como un aviso pasivo
     // en la sección de compartir -- el admin puede no llegar a verlo y mandar el link igual.
@@ -4814,8 +4881,14 @@ export default function App() {
       mostrarToast(`⚠️ Revisa antes de compartir: ${problemasEnvio.join(" · ")}`, "error");
     }
 
+    // "Compartir guarda primero" (2026-11-19): si esta invitación nunca se ha guardado, guardar
+    // aquí mismo antes de armar el link -- sin esto, getShareUrl() caía al blob largo
+    // `?v=1&d=...` en vez del corto, porque ese código solo existe una vez que se guardó.
+    const listoParaCompartir = await asegurarCodigoCortoParaEntregarLink();
+    if (!listoParaCompartir.ok) return;
+
     const targetIndex = typeof overrideInvitadoIndex === "number" ? overrideInvitadoIndex : selectedInvitadoIndex;
-    const urlFinal = aplicarModoMuestra(getShareUrl(targetIndex));
+    const urlFinal = aplicarModoMuestra(getShareUrl(targetIndex, listoParaCompartir.codigo));
     const nombreQuince = datos.nombre || "Sophia Valeria";
     
     let fechaBonita = datos.fecha;
@@ -5227,7 +5300,15 @@ export default function App() {
         // ver templates.ts -- siga funcionando exactamente igual que con un link largo, sin
         // tener que tocar ese archivo. También deja que el chequeo de bloqueo de arriba
         // (iidVista) se vuelva a disparar con el id real en vez de "sin iid todavía".
-        const nuevaQuery = `?iid=${encodeURIComponent(data.id)}${invitadoFam ? `&fam=${encodeURIComponent(invitadoFam.nombre)}` : ""}`;
+        // Preservar `muestra`/`exp` si venían en el link corto original (2026-11-19, parte 2 de
+        // "que el link corto salga siempre") -- sin esto, este replaceState los descartaba en
+        // silencio (solo escribía iid/fam), así que esVistaDeMuestra/muestraExpirada (que leen
+        // window.location.search en vivo, ver más arriba) dejaban de ver el modo muestra justo
+        // después de resolver el código, aunque el link SÍ lo traía al abrirse.
+        const queryOriginal = new URLSearchParams(window.location.search);
+        const muestraOriginal = queryOriginal.get("muestra");
+        const expOriginal = queryOriginal.get("exp");
+        const nuevaQuery = `?iid=${encodeURIComponent(data.id)}${invitadoFam ? `&fam=${encodeURIComponent(invitadoFam.nombre)}` : ""}${muestraOriginal ? `&muestra=${encodeURIComponent(muestraOriginal)}` : ""}${expOriginal ? `&exp=${encodeURIComponent(expOriginal)}` : ""}`;
         window.history.replaceState(null, "", window.location.pathname + nuevaQuery);
         // Se fija aparte del bloqueoCheck genérico de arriba (que de cualquier forma se va a
         // volver a disparar solo en cuanto `iidVista` cambie con el replaceState de aquí arriba)
@@ -6955,8 +7036,11 @@ export default function App() {
                           />
                           <button
                             type="button"
-                            onClick={() => {
-                              navigator.clipboard.writeText(aplicarModoMuestra(getShareUrl()))
+                            onClick={async () => {
+                              // Compartir guarda primero (2026-11-19) -- ver nota en handleEnviarWhatsApp.
+                              const listo = await asegurarCodigoCortoParaEntregarLink();
+                              if (!listo.ok) return;
+                              navigator.clipboard.writeText(aplicarModoMuestra(getShareUrl(selectedInvitadoIndex, listo.codigo)))
                                 .then(() => mostrarToast("¡Enlace de invitación copiado con éxito! 🌸✨", "success"))
                                 .catch(err => mostrarToast("Error al copiar enlace: " + err, "error"));
                             }}
@@ -6983,7 +7067,12 @@ export default function App() {
 
                     <button
                       type="button"
-                      onClick={() => window.open(aplicarModoMuestra(getShareUrl()), "_blank")}
+                      onClick={async () => {
+                        // Compartir guarda primero (2026-11-19) -- ver nota en handleEnviarWhatsApp.
+                        const listo = await asegurarCodigoCortoParaEntregarLink();
+                        if (!listo.ok) return;
+                        window.open(aplicarModoMuestra(getShareUrl(selectedInvitadoIndex, listo.codigo)), "_blank");
+                      }}
                       className="w-full py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg flex items-center justify-center gap-2 transition cursor-pointer shadow-xs active:scale-95"
                       title="Abre el link de esta invitación tal como lo vería el invitado, en una pestaña nueva -- la invitación terminada, no la vista previa del editor"
                     >
@@ -7957,8 +8046,11 @@ export default function App() {
                             <div className="flex items-center gap-1.5">
                               {/* Botón copiar link del invitado */}
                               <button
-                                onClick={() => {
-                                  const customLink = getShareUrl(index);
+                                onClick={async () => {
+                                  // Compartir guarda primero (2026-11-19) -- ver nota en handleEnviarWhatsApp.
+                                  const listo = await asegurarCodigoCortoParaEntregarLink();
+                                  if (!listo.ok) return;
+                                  const customLink = getShareUrl(index, listo.codigo);
                                   navigator.clipboard.writeText(customLink)
                                     .then(() => mostrarToast(`¡Enlace de invitación personalizado para "${item.nombre}" copiado al portapapeles! 🌸`, "success"))
                                     .catch(err => mostrarToast("Error al copiar: " + err, "error"));
@@ -8431,7 +8523,10 @@ export default function App() {
             <div className="flex items-center justify-end gap-2.5">
               <button
                 type="button"
-                onClick={() => setConfirmModal(null)}
+                onClick={() => {
+                  confirmModal.onCancelar?.();
+                  setConfirmModal(null);
+                }}
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition cursor-pointer"
               >
                 Cancelar
