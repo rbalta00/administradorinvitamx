@@ -4951,38 +4951,12 @@ export default function App() {
   return (
     <div className="h-screen bg-slate-50 text-slate-800 flex flex-col font-sans overflow-hidden">
 
-      {/* HEADER PRINCIPAL DE LA HERRAMIENTA PRIVADA -- antes compartía esta franja con los 11
-          botones de acción (ver nota 2026-10-20 más abajo), ocupando una fila entera por
-          encima de los dos paneles. Movidos al panel izquierdo (ver "ACCIONES DEL FORMULARIO"
-          dentro del <aside>) para que el header quede angosto y el panel derecho (Monitor de
-          Invitación) tenga todo el alto disponible para mostrar la invitación completa. */}
-      <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center shrink-0 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-indigo-600 rounded-xl shadow-sm">
-            <Sparkles className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-lg font-extrabold tracking-tight text-slate-900">GENERADOR PRIVADO XV</h1>
-              <span className="bg-slate-100 text-slate-600 border border-slate-200 text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full">
-                ADMIN WORKSPACE
-              </span>
-              {datos?.nombre?.trim() ? (
-                <span className="bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                  Editando: {datos.nombre.trim()}
-                </span>
-              ) : (
-                <span className="bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                  Invitación sin guardar / sin nombre
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-slate-500">Diseña, compila y exporta invitaciones de 15 años profesionales en segundos.</p>
-          </div>
-        </div>
-      </header>
-
-      {/* DASHBOARD PRINCIPAL DE TRABAJO */}
+      {/* DASHBOARD PRINCIPAL DE TRABAJO -- ya no hay header de ancho completo arriba (quitado
+          2026-11-18, "que no esté dentro del monitor para que tenga más espacio": el título
+          ahora vive SOLO del lado del panel izquierdo, fijo mientras ese panel hace scroll, ver
+          <header> dentro del <aside> más abajo -- y el Monitor de Invitación (la <section>
+          hermana) arranca desde arriba del todo, ganando esa altura que antes ocupaba el
+          header compartido). */}
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
 
         {/* PANEL IZQUIERDO: SECCIONES DE CONFIGURACIÓN Y FORMULARIO -- overflow-y-auto propio
@@ -4991,6 +4965,35 @@ export default function App() {
             Monitor de Invitación (el <section> hermano de abajo), que ahora se queda fijo en
             su lugar mientras el admin trabaja aquí. */}
         <aside className="w-full lg:w-[48%] xl:w-[45%] border-r border-slate-200 flex flex-col bg-white shrink-0 overflow-y-auto">
+
+        {/* HEADER PRINCIPAL -- sticky dentro de este panel (no de toda la página) para que se
+            quede fijo mientras el resto del panel izquierdo hace scroll, sin ocupar ancho
+            completo sobre el Monitor de Invitación (ver nota arriba). */}
+        <header className="sticky top-0 z-20 bg-white border-b border-slate-200 px-4 py-3 flex items-center shrink-0 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-indigo-600 rounded-xl shadow-sm">
+              <Sparkles className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-lg font-extrabold tracking-tight text-slate-900">GENERADOR PRIVADO XV</h1>
+                <span className="bg-slate-100 text-slate-600 border border-slate-200 text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full">
+                  ADMIN WORKSPACE
+                </span>
+                {datos?.nombre?.trim() ? (
+                  <span className="bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                    Editando: {datos.nombre.trim()}
+                  </span>
+                ) : (
+                  <span className="bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                    Invitación sin guardar / sin nombre
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500">Diseña, compila y exporta invitaciones de 15 años profesionales en segundos.</p>
+            </div>
+          </div>
+        </header>
 
         {/* Guía rápida de 3 pasos, pedida 2026-11-02 ("que encuentre todos los botones para
             generar la invitación") para alguien nuevo capacitándose con el editor: antes de
@@ -5219,6 +5222,57 @@ export default function App() {
           >
             <span>👁️ Abrir catálogo de temas</span>
           </button>
+
+          {/* Antes vivía en una barra fija debajo del Monitor de Invitación (pedido
+              2026-11-18: "que no esté dentro del monitor para que tenga más espacio") --
+              movido aquí junto a los demás botones del catálogo. */}
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                try {
+                  localStorage.setItem(`xv_diseño_guardado_tema_${selectedTemaId}`, JSON.stringify(datos));
+                  setTieneDiseñoGuardado(true);
+                  mostrarToast(`¡Diseño guardado con éxito en el catálogo para el tema "${temaActual.nombre}"! 🌟💖`, "success");
+                } catch (err) {
+                  mostrarToast("Error al guardar el diseño en el catálogo.", "error");
+                }
+              }}
+              title="Guarda esta invitación como la versión activa de este tema en el catálogo"
+              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Guardar Diseño en Catálogo de este Tema 🌸</span>
+            </button>
+            {tieneDiseñoGuardado ? (
+              <span className="text-[10px] text-emerald-600 font-bold whitespace-nowrap">✓ Personalizado activo</span>
+            ) : (
+              <span className="text-[10px] text-slate-400 whitespace-nowrap">Usando diseño predeterminado</span>
+            )}
+            {tieneDiseñoGuardado && (
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmModal({
+                    titulo: "Restablecer diseño predeterminado",
+                    onAceptar: () => {
+                      try {
+                        localStorage.removeItem(`xv_diseño_guardado_tema_${selectedTemaId}`);
+                        setTieneDiseñoGuardado(false);
+                        mostrarToast(`Se ha restablecido el diseño de fábrica para "${temaActual.nombre}".`, "info");
+                      } catch (err) {
+                        mostrarToast("Error al restablecer el diseño.", "error");
+                      }
+                    },
+                    mensaje: `¿Deseas eliminar tu diseño personalizado para el tema "${temaActual.nombre}" en el catálogo y volver al de fábrica?`
+                  });
+                }}
+                className="text-[10px] text-rose-500 hover:text-rose-700 transition font-bold underline cursor-pointer select-none whitespace-nowrap"
+              >
+                Restablecer
+              </button>
+            )}
+          </div>
 
           <button
             onClick={() => {
@@ -7234,68 +7288,14 @@ export default function App() {
             </div>
           </div>
 
-          {/* BARRA INFERIOR DE ACCIONES DE VISTA PREVIA (FIRMADO Y CATÁLOGO DE ESTE TEMA) */}
-          <div className="bg-white border-t border-slate-200 p-4 shrink-0 flex flex-col items-center justify-center gap-2 z-10">
-            <div className="w-full max-w-md px-4 flex flex-col items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => {
-                  try {
-                    localStorage.setItem(`xv_diseño_guardado_tema_${selectedTemaId}`, JSON.stringify(datos));
-                    setTieneDiseñoGuardado(true);
-                    mostrarToast(`¡Diseño guardado con éxito en el catálogo para el tema "${temaActual.nombre}"! 🌟💖`, "success");
-                  } catch (err) {
-                    mostrarToast("Error al guardar el diseño en el catálogo.", "error");
-                  }
-                }}
-                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all duration-200 active:scale-95 shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
-                title="Guarda esta invitación como la versión activa de este tema en el catálogo"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                Guardar Diseño en Catálogo de este Tema 🌸
-              </button>
-
-              <div className="flex items-center justify-between w-full text-[11px] text-slate-500 font-medium px-1">
-                <div className="flex items-center gap-1.5">
-                  {tieneDiseñoGuardado ? (
-                    <span className="text-emerald-600 font-bold flex items-center gap-1">
-                      <span>✓</span> Diseño personalizado activo
-                    </span>
-                  ) : (
-                    <span className="text-slate-400">Usando diseño predeterminado</span>
-                  )}
-                </div>
-
-                {tieneDiseñoGuardado && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setConfirmModal({
-                        titulo: "Restablecer diseño predeterminado",
-                        onAceptar: () => {
-                          try {
-                            localStorage.removeItem(`xv_diseño_guardado_tema_${selectedTemaId}`);
-                            setTieneDiseñoGuardado(false);
-                            mostrarToast(`Se ha restablecido el diseño de fábrica para "${temaActual.nombre}".`, "info");
-                          } catch (err) {
-                            mostrarToast("Error al restablecer el diseño.", "error");
-                          }
-                        },
-                        mensaje: `¿Deseas eliminar tu diseño personalizado para el tema "${temaActual.nombre}" en el catálogo y volver al de fábrica?`
-                      });
-                    }}
-                    className="text-rose-500 hover:text-rose-700 transition font-bold underline cursor-pointer select-none"
-                  >
-                    Restablecer
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <p className="text-[10px] text-slate-400 font-medium text-center leading-normal max-w-xl">
-              La simulación representa cómo se verá el archivo final según la pantalla. La música, animaciones de caída {datos.mostrarAnimacionCaida !== false ? '("ON")' : '("OFF")'} y efectos táctiles están incluidos.
-            </p>
-          </div>
+          {/* Antes había una barra fija completa aquí (botón "Guardar Diseño en Catálogo de
+              este Tema" + estatus + "Restablecer") -- quitada 2026-11-18 ("que no esté dentro
+              del monitor para que tenga más espacio"): el botón y su estatus se movieron al
+              panel izquierdo, junto a "👁️ Abrir catálogo de temas". Solo queda este aviso
+              corto, de una línea, para no perder la aclaración sobre música/animaciones. */}
+          <p className="shrink-0 text-[10px] text-slate-400 font-medium text-center leading-normal px-4 py-1.5 bg-white border-t border-slate-200">
+            La simulación representa cómo se verá el archivo final según la pantalla. La música, animaciones de caída {datos.mostrarAnimacionCaida !== false ? '("ON")' : '("OFF")'} y efectos táctiles están incluidos.
+          </p>
 
         </section>
 
