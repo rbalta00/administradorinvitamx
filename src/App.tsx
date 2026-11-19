@@ -473,9 +473,45 @@ const decodeState = (str: string): any => {
     return null;
   }
 };
+// Genera un código corto único para el link `/v/<codigoCorto>` (2026-11-19): slug del nombre
+// (minúsculas, sin acentos, espacios/símbolos -> guiones) + 4 caracteres aleatorios
+// (letras/números). Verifica contra Supabase que ningún otro `datos_completos` tenga ya ese
+// código antes de devolverlo (columna jsonb, filtrada con la misma sintaxis `->>` que ya usa
+// list-invitaciones.ts) -- con colisión, reintenta con un sufijo nuevo hasta 8 veces (36^4 ≈
+// 1.68 millones de combinaciones por slug, nunca debería agotarse en la práctica).
+async function generarCodigoCortoUnico(supabase: any, nombre: string): Promise<string> {
+  const slugBase = (nombre || "invitacion")
+    .toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40) || "invitacion";
+  const alfabeto = "abcdefghijklmnopqrstuvwxyz0123456789";
+  const sufijoAleatorio = () => Array.from({ length: 4 }, () => alfabeto[Math.floor(Math.random() * alfabeto.length)]).join("");
+  for (let intento = 0; intento < 8; intento++) {
+    const candidato = `${slugBase}-${sufijoAleatorio()}`;
+    try {
+      const { data, error } = await supabase
+        .from("invitaciones")
+        .select("id")
+        .eq("datos_completos->>codigoCorto", candidato)
+        .maybeSingle();
+      if (!error && !data) return candidato;
+    } catch {
+      // Si la consulta de colisión falla (red, etc.), seguimos intentando con otro sufijo en
+      // vez de tronar -- más vale un código sin verificar que ningún código.
+    }
+  }
+  // Fallback extremo, no debería alcanzarse nunca en la práctica.
+  return `${slugBase}-${Date.now().toString(36).slice(-4)}`;
+}
+
 // Función para guardar en Supabase (agregar ANTES de export default function App)
 // Si se pasa `existingId`, actualiza esa fila en vez de crear una nueva — evita que guardar
 // varias veces mientras se edita la MISMA invitación acumule filas duplicadas en la tabla.
+// `shareUrl` ya NO se usa (2026-11-19): `link_invitacion` ahora siempre se calcula aquí mismo
+// como el link corto `/v/<codigoCorto>` -- se deja el parámetro en la firma para no tener que
+// tocar los 3 call-sites que todavía lo mandan.
 async function guardarEnSupabase(datosInvitacion: InvitacionDatos, temaActual: TemaConfig, shareUrl?: string, existingId?: string | null, creadoPor?: string | null) {
   // Verificar que Supabase esté cargado
   if (!window.supabaseClient) {
@@ -483,6 +519,20 @@ async function guardarEnSupabase(datosInvitacion: InvitacionDatos, temaActual: T
   }
 
   const supabase = window.supabaseClient;
+
+  // Código corto / link `/v/<codigoCorto>` (2026-11-19): reemplaza al link largo como el link
+  // PRINCIPAL que queda guardado en `link_invitacion` -- ver src/App.tsx (resolución del link
+  // corto) y el prompt de este cambio. Una fila YA EXISTENTE (existingId) conserva para
+  // siempre el código que ya tenía; una fila NUEVA (alta o "Duplicar como cliente nuevo")
+  // siempre recibe uno propio, NUNCA el heredado de los datos que se le pasaron -- por eso se
+  // ignora `datosInvitacion.codigoCorto` a propósito cuando no hay `existingId`, aunque venga
+  // poblado (pasaría al duplicar una invitación que ya tenía código).
+  let codigoCorto = existingId ? datosInvitacion.codigoCorto : undefined;
+  if (!codigoCorto) {
+    codigoCorto = await generarCodigoCortoUnico(supabase, datosInvitacion.nombre);
+  }
+  const datosConCodigo: InvitacionDatos = { ...datosInvitacion, codigoCorto };
+  const linkCorto = `${window.location.origin}/v/${codigoCorto}`;
 
   const datosParaGuardar = {
     nombre_quinceanera: datosInvitacion.nombre || 'Sin nombre',
@@ -499,12 +549,12 @@ async function guardarEnSupabase(datosInvitacion: InvitacionDatos, temaActual: T
     nombre_mama: (datosInvitacion.padres && datosInvitacion.padres[1]) || '',
     telefono_whatsapp: datosInvitacion.whatsappConfirmacion || '',
     email_cliente: '',
-    link_invitacion: shareUrl || window.location.href,
+    link_invitacion: linkCorto,
     fondos_personalizados: datosInvitacion.bgImages || {},
     // Estado completo (todos los campos de InvitacionDatos), aparte de las columnas de
     // resumen de arriba — es lo que permite reabrir esta invitación exacta en el editor
     // desde el panel "Mis Invitaciones" en vez de solo poder leer un resumen.
-    datos_completos: datosInvitacion,
+    datos_completos: datosConCodigo,
     estado: 'completada'
   };
 
@@ -2534,7 +2584,14 @@ export default function App() {
   const getInitialState = (): { initialDatos: InvitacionDatos; initialTemaId: string; isView: boolean; isCatalog: boolean; initialCatalogTemaId: string | null; isEmbed: boolean } => {
     try {
       const params = new URLSearchParams(window.location.search);
-      const isView = params.get("v") === "1" || params.get("view") === "true";
+      // Link corto /v/<codigoCorto> (2026-11-19): se trata como un modo vista más -- reusa
+      // toda la infraestructura ya existente de isViewMode (spinner mientras carga, chequeo de
+      // bloqueo, document.write, guardia de modos combinados). El contenido real (datos/tema)
+      // llega async más abajo (ver linkCortoEstado), así que `initialDatos` aquí es solo un
+      // relleno que NUNCA se llega a mostrar (el document.write queda bloqueado hasta que ese
+      // fetch resuelve, ver el efecto correspondiente).
+      const esLinkCorto = /^\/v\/[a-z0-9-]+\/?$/i.test(window.location.pathname);
+      const isView = params.get("v") === "1" || params.get("view") === "true" || esLinkCorto;
       const isCatalog = params.get("catalog") === "true" || params.get("catalogo") === "true";
       const isEmbed = params.get("embed") === "true";
       const initialCatalogTemaId = params.get("tema") || null;
@@ -3666,6 +3723,13 @@ export default function App() {
           setSupabaseRowId(row.id);
           setIntakeBaselineAlAbrir(row.intake_actualizado_en ?? null);
           try { localStorage.setItem('xv_supabase_row_id', row.id); } catch {}
+          // El código corto (link `/v/<codigoCorto>`) se genera DENTRO de guardarEnSupabase --
+          // hay que traerlo de vuelta al estado en memoria para que el siguiente "Compartir por
+          // WhatsApp"/getShareUrl() ya lo use, y para no generar uno nuevo si se vuelve a
+          // guardar (ver guardarEnSupabase: una fila existente conserva el que ya tenía).
+          if (row.datos_completos?.codigoCorto && row.datos_completos.codigoCorto !== datos.codigoCorto) {
+            setDatos(prev => ({ ...prev, codigoCorto: row.datos_completos.codigoCorto }));
+          }
         }
         mostrarToast('✅ Guardado en Supabase correctamente', 'success');
       } catch {
@@ -3734,9 +3798,13 @@ export default function App() {
         return;
       }
       // Mismo merge que handleAbrirInvitacionGuardada -- no pisar los fondos personalizados
-      // compartidos con la foto vieja congelada en esta invitación duplicada.
+      // compartidos con la foto vieja congelada en esta invitación duplicada. `codigoCorto` se
+      // sobreescribe a propósito con el de `nuevaFila` (el recién generado por
+      // guardarEnSupabase para ESTA fila nueva) -- nunca el de `fila`, que es el de la
+      // invitación ORIGINAL de la que se copió.
       setDatos({
         ...fila.datos_completos,
+        codigoCorto: nuevaFila.datos_completos?.codigoCorto,
         bgImages: {
           ...(fila.datos_completos.bgImages || {}),
           ...(datos.bgImages || {}),
@@ -4068,7 +4136,10 @@ export default function App() {
       if (window.supabaseClient) {
         await window.supabaseClient.from("invitaciones").update({ estado: "cotizacion" }).eq("id", nuevaFila.id);
       }
-      setDatos(nuevosDatos);
+      // El código corto se genera dentro de guardarEnSupabase -- se trae de vuelta aquí para
+      // que el editor ya lo tenga disponible desde el primer momento (mismo porqué que en
+      // handleGuardarEnSupabase).
+      setDatos({ ...nuevosDatos, codigoCorto: nuevaFila.datos_completos?.codigoCorto });
       setSelectedTemaId("dorado-clasico");
       setSupabaseRowId(nuevaFila.id);
       setIntakeBaselineAlAbrir(null); // fila nueva -- sin intake propio todavia
@@ -4236,6 +4307,59 @@ export default function App() {
   // helper genérico compartido por ese bloque del detalle de cada fila en "Mis Invitaciones".
   const copiarLinkClienta = (url: string) => {
     navigator.clipboard.writeText(url).then(() => mostrarToast("Link copiado", "success")).catch(() => {});
+  };
+
+  // Copia el link CORTO (/v/<codigoCorto>) de esta fila -- es el que "Invitación" muestra en
+  // "Links de la clienta". Si todavía no tiene código (fila guardada antes de este cambio, o
+  // nunca guardada desde que se agregó), lo genera y lo persiste en el momento (mismo
+  // generarCodigoCortoUnico que usa guardarEnSupabase al guardar desde el editor) -- siempre
+  // reconstruido con el origen ACTUAL, nunca con lo que haya quedado guardado en
+  // `link_invitacion`, para que si algún día cambia el dominio los links ya existentes lo
+  // reflejen solos.
+  const handleCopiarLinkInvitacionFila = async (row: InvitacionGuardadaRow) => {
+    const fila = await asegurarDatosCompletos(row);
+    if (!fila.datos_completos) {
+      mostrarToast("Esta invitación se guardó antes de esta función y no tiene el estado completo disponible para generar su link.", "error");
+      return;
+    }
+    let codigoCorto = fila.datos_completos.codigoCorto;
+    if (!codigoCorto) {
+      if (!window.supabaseClient) {
+        mostrarToast("Supabase no está disponible", "error");
+        return;
+      }
+      try {
+        const temaDeEsaFila = temas.find(t => t.id === fila.datos_completos!.tema) || temas.find(t => t.id === fila.tema_elegido) || temas[0];
+        const filaActualizada = await guardarEnSupabase(fila.datos_completos, temaDeEsaFila, undefined, row.id, undefined);
+        codigoCorto = filaActualizada?.datos_completos?.codigoCorto;
+        if (filaActualizada) {
+          setListaInvitaciones(prev => prev.map(r => r.id === row.id ? { ...r, link_invitacion: filaActualizada.link_invitacion, datos_completos: filaActualizada.datos_completos } : r));
+        }
+      } catch (err: any) {
+        mostrarToast("No se pudo generar el link corto: " + err.message, "error");
+        return;
+      }
+    }
+    if (!codigoCorto) {
+      mostrarToast("No se pudo generar el link corto", "error");
+      return;
+    }
+    copiarLinkClienta(`${window.location.origin}/v/${codigoCorto}`);
+  };
+
+  // Copia el link LARGO clásico (?v=1&d=...&iid=...) de esta fila -- opción secundaria "por si
+  // se necesita el de siempre" (pedido explícito), nunca el principal. A diferencia de
+  // getShareUrlDesdeFila (que SIEMPRE agrega &muestra=1&exp=... para la vista previa temporal),
+  // este es el link PERMANENTE de toda la vida, sin marca de agua ni expiración.
+  const handleCopiarLinkClasicoFila = async (row: InvitacionGuardadaRow) => {
+    const fila = await asegurarDatosCompletos(row);
+    if (!fila.datos_completos) {
+      mostrarToast("Esta invitación se guardó antes de esta función y no tiene el estado completo disponible para generar su link clásico.", "error");
+      return;
+    }
+    const datosListos = { ...fila.datos_completos, tema: fila.tema_elegido || fila.datos_completos.tema, invitados: [] };
+    const linkClasico = `${window.location.origin}/?v=1&d=${encodeState(datosListos)}&iid=${encodeURIComponent(fila.id)}`;
+    copiarLinkClienta(linkClasico);
   };
 
   // Exporta la lista de "Mis Invitaciones" (respetando los filtros/búsqueda activos) a un CSV
@@ -4619,6 +4743,18 @@ export default function App() {
       invitadoIndex !== -1 && datos.invitados && datos.invitados[invitadoIndex]
         ? datos.invitados[invitadoIndex]
         : null;
+
+    // Link corto (2026-11-19): una vez que la invitación tiene código asignado (se guardó al
+    // menos una vez en Supabase, ver guardarEnSupabase), el link PRINCIPAL pasa a ser el corto
+    // `/v/<codigoCorto>` en vez del blob largo -- `?fam=` reemplaza al viejo `&g=` para un
+    // invitado específico (ver resolución del link corto más abajo). Excepción: un enlace de
+    // "muestra" (preview temporal con marca de agua, ver esEnlaceMuestra/aplicarModoMuestra)
+    // sigue siendo el link largo clásico de siempre -- es un mecanismo aparte, deliberadamente
+    // no tocado por este cambio.
+    if (datos.codigoCorto && !esEnlaceMuestra) {
+      const baseCorta = `${window.location.origin}/v/${datos.codigoCorto}`;
+      return invitadoObjetivo ? `${baseCorta}?fam=${encodeURIComponent(invitadoObjetivo.nombre)}` : baseCorta;
+    }
 
     // Sincronizar el tema activo de forma explícita en los datos decodificables antes de codificar la URL
     const datosListos = {
@@ -5027,11 +5163,82 @@ export default function App() {
     return () => { cancelado = true; };
   }, [isViewMode, iidVista]);
 
+  // Link corto /v/<codigoCorto> (2026-11-19): resuelve el código contra Supabase (anon key,
+  // mismo modelo de lectura ya aceptado en check-in/intake -- lee datos_completos por id/código
+  // conocido, nunca un SELECT sin filtro) y carga esa fila en `datos`/`selectedTemaId` -- de ahí
+  // en adelante reusa EXACTAMENTE el mismo camino de siempre (document.write con
+  // generarHTMLFinal). "cargando" bloquea ese document.write más abajo para que nunca se llegue
+  // a pintar el relleno de initialDatos mientras este fetch sigue en vuelo.
+  const [linkCortoEstado, setLinkCortoEstado] = useState<"ninguno" | "cargando" | "listo" | "no-encontrado">(() => {
+    if (typeof window === "undefined") return "ninguno";
+    return /^\/v\/[a-z0-9-]+\/?$/i.test(window.location.pathname) ? "cargando" : "ninguno";
+  });
+  useEffect(() => {
+    if (linkCortoEstado !== "cargando") return;
+    let cancelado = false;
+    const resolver = async () => {
+      const match = window.location.pathname.match(/^\/v\/([a-z0-9-]+)\/?$/i);
+      const codigo = match?.[1];
+      if (!codigo || !window.supabaseClient) {
+        if (!cancelado) setLinkCortoEstado("no-encontrado");
+        return;
+      }
+      try {
+        const { data, error } = await window.supabaseClient
+          .from("invitaciones")
+          .select("id, datos_completos, bloqueada, motivo_bloqueo")
+          .eq("datos_completos->>codigoCorto", codigo)
+          .maybeSingle();
+        if (cancelado) return;
+        if (error || !data || !data.datos_completos) {
+          setLinkCortoEstado("no-encontrado");
+          return;
+        }
+        const dc = data.datos_completos as InvitacionDatos;
+        // Pases por familia (?fam=<nombre>, equivalente al &g= de los links largos): si no
+        // coincide con ninguna familia, se muestra la vista general -- igual que un link largo
+        // "general" (sin invitado), `invitados` SIEMPRE queda vacío en ese caso, nunca la lista
+        // completa (sería exponer a todos los invitados a cualquiera que abra el link base, el
+        // mismo riesgo de privacidad que ya se cerró para los links largos -- ver nota en
+        // getShareUrl).
+        const famParam = new URLSearchParams(window.location.search).get("fam");
+        const invitadoFam = famParam
+          ? (dc.invitados || []).find(inv => inv.nombre.trim().toLowerCase() === famParam.trim().toLowerCase())
+          : null;
+        setDatos({
+          ...dc,
+          invitados: invitadoFam ? [invitadoFam] : [],
+          bgImages: { ...(dc.bgImages || {}), ...(datos.bgImages || {}) }
+        });
+        setSelectedTemaId(dc.tema || "dorado-clasico");
+        // Inyecta `?iid=`/`&fam=` en la URL real (sin recargar) para que el HTML generado más
+        // abajo -- que lee aperturas/RSVP/el QR de check-in directo de window.location.search,
+        // ver templates.ts -- siga funcionando exactamente igual que con un link largo, sin
+        // tener que tocar ese archivo. También deja que el chequeo de bloqueo de arriba
+        // (iidVista) se vuelva a disparar con el id real en vez de "sin iid todavía".
+        const nuevaQuery = `?iid=${encodeURIComponent(data.id)}${invitadoFam ? `&fam=${encodeURIComponent(invitadoFam.nombre)}` : ""}`;
+        window.history.replaceState(null, "", window.location.pathname + nuevaQuery);
+        // Se fija aparte del bloqueoCheck genérico de arriba (que de cualquier forma se va a
+        // volver a disparar solo en cuanto `iidVista` cambie con el replaceState de aquí arriba)
+        // para que la primera pintura ya sea la correcta -- sin esto, bloqueoCheck seguiría
+        // en su resolución preliminar de "sin iid todavía = no bloqueada" durante la breve
+        // ventana entre este fetch y el re-chequeo automático, y un link corto de una
+        // invitación SÍ bloqueada podría llegar a pintarse antes de que se corrija.
+        setBloqueoCheck({ listo: true, bloqueada: !!data.bloqueada, motivo: data.motivo_bloqueo || null });
+        setLinkCortoEstado("listo");
+      } catch {
+        if (!cancelado) setLinkCortoEstado("no-encontrado");
+      }
+    };
+    resolver();
+    return () => { cancelado = true; };
+  }, [linkCortoEstado]);
+
   // Reemplazar el DOM de la página para la vista de los invitados (isViewMode = true)
   // Esto elimina las restricciones severas de iframe y sandbox del navegador,
   // permitiendo que el copiado de cuentas de banco, itinerarios, música y mapas funcionen de manera nativa y confiable.
   useEffect(() => {
-    if (isViewMode && !muestraExpirada && bloqueoCheck.listo && !bloqueoCheck.bloqueada) {
+    if (isViewMode && !muestraExpirada && bloqueoCheck.listo && !bloqueoCheck.bloqueada && linkCortoEstado !== "cargando" && linkCortoEstado !== "no-encontrado") {
       let htmlContent = generarHTMLFinal(datos, temaActual);
 
       if (esVistaDeMuestra) {
@@ -5059,7 +5266,7 @@ export default function App() {
       document.write(htmlContent);
       document.close();
     }
-  }, [isViewMode, datos, temaActual, esVistaDeMuestra, muestraExpirada, bloqueoCheck.listo, bloqueoCheck.bloqueada]);
+  }, [isViewMode, datos, temaActual, esVistaDeMuestra, muestraExpirada, bloqueoCheck.listo, bloqueoCheck.bloqueada, linkCortoEstado]);
 
   // Los modos de ruta (vista pública, embed, checkin, recuperación, intake, catálogo) son
   // banderas independientes leídas cada una de su propio query param -- nunca se valida que
@@ -5090,6 +5297,24 @@ export default function App() {
         <p className="text-xs text-slate-500 max-w-xs">
           {esEventoPasado ? "Este evento ya tuvo lugar." : "Contacta a quien te compartió este link para más información."}
         </p>
+      </div>
+    );
+  }
+
+  if (isViewMode && linkCortoEstado === "no-encontrado") {
+    return (
+      <div className="w-screen h-screen fixed inset-0 flex flex-col items-center justify-center bg-slate-50 z-50 px-6 text-center">
+        <span className="text-4xl mb-3">🌸</span>
+        <p className="text-sm font-semibold text-slate-700 mb-1">Esta invitación no está disponible</p>
+        <p className="text-xs text-slate-500 mb-5 max-w-xs">El link puede estar incompleto o la invitación ya no existe. Contacta a quien te lo compartió.</p>
+        <a
+          href={`https://api.whatsapp.com/send?phone=${encodeURIComponent(whatsappDestino)}&text=${encodeURIComponent("¡Hola! Intenté abrir mi invitación digital pero el link no funcionó 🌸")}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-full transition"
+        >
+          Contactar por WhatsApp
+        </a>
       </div>
     );
   }
@@ -5852,8 +6077,8 @@ export default function App() {
               compartir landing/catálogo. "Abrir landing" es nuevo (antes solo existía mandarla
               por WhatsApp); "Abrir catálogo de temas" ya existía, solo se movió aquí. */}
           <button
-            onClick={() => window.open("https://www.invitamx.online", "_blank")}
-            title="Abre la página de ventas (invitamx.online) aquí mismo, en una pestaña nueva"
+            onClick={() => window.open("https://invitamx.app", "_blank")}
+            title="Abre la página de ventas (invitamx.app) aquí mismo, en una pestaña nueva"
             className="px-3.5 py-2 bg-white hover:bg-rose-50 text-rose-700 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
           >
             <span>🌐 Abrir landing</span>
@@ -5874,11 +6099,11 @@ export default function App() {
 
           <button
             onClick={() => {
-              const url = "https://www.invitamx.online";
+              const url = "https://invitamx.app";
               const msg = `Hola! 🌸 Aquí tienes nuestra página de Invitaciones Digitales de XV Años, con precios, paquetes y todo lo que incluye:\n\n${url}`;
               window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, "_blank");
             }}
-            title="Abre WhatsApp con el link de la página de ventas (invitamx.online) ya listo para compartir -- tú eliges el contacto o grupo"
+            title="Abre WhatsApp con el link de la página de ventas (invitamx.app) ya listo para compartir -- tú eliges el contacto o grupo"
             className="px-3.5 py-2 bg-white hover:bg-rose-50 text-rose-700 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
           >
             <span>💬 Enviar landing</span>
@@ -6736,7 +6961,16 @@ export default function App() {
                       </svg>
                       Enviar por WhatsApp
                     </button>
-                    
+
+                    <button
+                      type="button"
+                      onClick={() => window.open(aplicarModoMuestra(getShareUrl()), "_blank")}
+                      className="w-full py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg flex items-center justify-center gap-2 transition cursor-pointer shadow-xs active:scale-95"
+                      title="Abre el link de esta invitación tal como lo vería el invitado, en una pestaña nueva -- la invitación terminada, no la vista previa del editor"
+                    >
+                      🔗 Abrir link directo
+                    </button>
+
                     <div className="border-t border-emerald-100/50 pt-2.5">
                       <p className="text-[10px] text-slate-500 font-medium">
                         El link de edición se actualizará automáticamente con tus cambios actuales para que el destinatario los visualice en su simulación.
@@ -8603,7 +8837,10 @@ export default function App() {
                       {/* Links de la clienta (pedido 2026-11-19): para reenviar en segundos el
                           link que ya se le mandó antes, sin tener que reconstruirlo a mano ni
                           abrir la invitación en el editor -- el caso de uso es "la clienta
-                          perdió su link", buscándola por nombre en el buscador de arriba. */}
+                          perdió su link", buscándola por nombre en el buscador de arriba.
+                          "Invitación" ya es el link CORTO (/v/<codigoCorto>, ver guardarEnSupabase)
+                          -- si esta fila todavía no tiene código (vieja, de antes de ese cambio),
+                          "Generar y copiar" lo crea y lo guarda en el momento. */}
                       <div className="mt-3 pt-3 border-t border-slate-200/60 space-y-1.5">
                         <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">🔗 Links de la clienta</p>
                         <div className="flex items-center gap-2">
@@ -8611,11 +8848,17 @@ export default function App() {
                           {row.link_invitacion ? (
                             <>
                               <span className="flex-1 min-w-0 text-[10px] text-slate-500 truncate font-mono">{row.link_invitacion}</span>
-                              <button onClick={() => copiarLinkClienta(row.link_invitacion!)} className="shrink-0 px-2 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded text-[10px] font-bold transition">Copiar</button>
+                              <button onClick={() => handleCopiarLinkInvitacionFila(row)} className="shrink-0 px-2 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded text-[10px] font-bold transition">Copiar</button>
                             </>
                           ) : (
-                            <span className="text-[10px] text-slate-400">Todavía no se ha generado -- ábrela en el editor y comparte el link para que quede guardado aquí.</span>
+                            <>
+                              <span className="flex-1 min-w-0 text-[10px] text-slate-400">Todavía no tiene link corto.</span>
+                              <button onClick={() => handleCopiarLinkInvitacionFila(row)} className="shrink-0 px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[10px] font-bold transition">Generar y copiar</button>
+                            </>
                           )}
+                        </div>
+                        <div className="flex items-center gap-2 pl-[6.5rem]">
+                          <button onClick={() => handleCopiarLinkClasicoFila(row)} className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 underline">Copiar link clásico (el de siempre)</button>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] font-semibold text-slate-600 w-24 shrink-0">Formulario</span>

@@ -7,6 +7,13 @@ export interface InvitacionDatos {
    *  (el comportamiento de siempre), para que cualquier invitación guardada antes de este
    *  campo se siga generando idéntica. */
   tipoEvento?: "xv" | "boda" | "cumpleanos" | "bautizo" | "primera-comunion" | "graduacion" | "baby-shower" | "aniversario";
+  /** Código del link corto (`/v/<codigoCorto>`, 2026-11-19) -- slug del nombre + 4 caracteres
+   *  aleatorios (ver generarCodigoCortoUnico en App.tsx), asignado la primera vez que la
+   *  invitación se guarda en Supabase. Nunca cambia una vez asignado -- una fila NUEVA (alta o
+   *  "Duplicar como cliente nuevo") siempre recibe el suyo propio, nunca hereda el de otra. No
+   *  viaja en el blob `d` de los links largos (no está en KEY_MAP a propósito): solo vive en la
+   *  fila de Supabase, resuelta por src/App.tsx al abrir `/v/<codigoCorto>`. */
+  codigoCorto?: string;
   nombre: string;
   fecha: string;
   mensajeBienvenida: string;
