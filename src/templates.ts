@@ -100,26 +100,42 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
   // Generamos el listado de secciones del paquete, excluyendo las que el usuario haya desactivado manualmente
   const seccionesActivas = configPaquete.secciones.filter(sec => !datos.seccionesExcluidas?.includes(sec));
 
-  // Generamos los items del itinerario con Timeline elegante
-  const itinerarioHTML = (datos.itinerario || [])
-    .map((item, index) => {
-      // Iconos representativos basados en palabras clave comunes
-      let iconSvg = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
-      const evLower = item.evento.toLowerCase();
-      if (evLower.includes("misa") || evLower.includes("iglesia") || evLower.includes("ceremonia") || evLower.includes("templo")) {
-        iconSvg = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>`;
-      } else if (evLower.includes("brindis") || evLower.includes("cena") || evLower.includes("banquete") || evLower.includes("comida")) {
-        iconSvg = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-11.314l.707.707m11.314 11.314l.707-.707M12 5a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>`;
-      } else if (evLower.includes("recepcion") || evLower.includes("coctel") || evLower.includes("salón") || evLower.includes("salon")) {
-        iconSvg = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>`;
-      } else if (evLower.includes("baile") || evLower.includes("vals") || evLower.includes("baile") || evLower.includes("show")) {
-        iconSvg = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path></svg>`;
-      }
+  // Icono representativo por palabra clave del evento -- compartido por los 3 estilos de
+  // itinerario (clásica/editorial/minimalista, ver estiloItinerarioEfectivo más abajo). Antes
+  // vivía embebido dentro del .map() de la clásica; se extrajo tal cual (mismas palabras clave,
+  // mismos SVG) para no duplicarlo 3 veces. `claseTamano` deja que cada estilo pida su propio
+  // tamaño de ícono (ej. minimalista lo quiere más chico) sin tocar los paths.
+  const iconoItinerarioPorEvento = (evento: string, claseTamano: string = "w-5 h-5"): string => {
+    const evLower = evento.toLowerCase();
+    if (evLower.includes("misa") || evLower.includes("iglesia") || evLower.includes("ceremonia") || evLower.includes("templo")) {
+      return `<svg class="${claseTamano}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>`;
+    }
+    if (evLower.includes("brindis") || evLower.includes("cena") || evLower.includes("banquete") || evLower.includes("comida")) {
+      return `<svg class="${claseTamano}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-11.314l.707.707m11.314 11.314l.707-.707M12 5a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>`;
+    }
+    if (evLower.includes("recepcion") || evLower.includes("coctel") || evLower.includes("salón") || evLower.includes("salon")) {
+      return `<svg class="${claseTamano}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>`;
+    }
+    if (evLower.includes("baile") || evLower.includes("vals") || evLower.includes("show")) {
+      return `<svg class="${claseTamano}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path></svg>`;
+    }
+    return `<svg class="${claseTamano}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+  };
 
-      return `
+  // Estilo visual del itinerario (2026-11-19): si no está definido o trae un valor desconocido
+  // (invitación guardada antes de esta función), cae a "clasica" -- el diseño de siempre, sin
+  // cambiar ni una clase. Mismo patrón que tipoAperturaEfectivo.
+  const estiloItinerarioEfectivo: "clasica" | "editorial" | "minimalista" =
+    datos.personalizacion?.estiloItinerario === "editorial" || datos.personalizacion?.estiloItinerario === "minimalista"
+      ? datos.personalizacion.estiloItinerario
+      : "clasica";
+
+  // Timeline elegante (diseño original, intacto -- es el default "clasica").
+  const itinerarioClasicaHTML = (datos.itinerario || [])
+    .map((item, index) => `
       <div class="relative pl-10 pb-10 last:pb-0 itinerario-item">
         <div class="absolute left-0 top-2 bg-white border-[3px] border-[${tema.colors.primary}] rounded-full p-1.5 z-10 text-[${tema.colors.accent}] shadow-md">
-          ${iconSvg}
+          ${iconoItinerarioPorEvento(item.evento)}
         </div>
         ${index < datos.itinerario.length - 1 ? `<div class="absolute left-4 top-10 bottom-0 w-1 bg-gradient-to-b from-[${tema.colors.primary}] to-[${tema.colors.primary}]/30"></div>` : ""}
         <div class="bg-white p-5 rounded-2xl shadow-md border-l-4 border-[${tema.colors.primary}] transform hover:scale-[1.03] hover:shadow-lg transition duration-300 backdrop-blur">
@@ -130,9 +146,48 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
             <h4 class="font-semibold text-gray-800 text-[16px] flex-1">${item.evento}</h4>
           </div>
         </div>
-      </div>`;
-    })
+      </div>`)
     .join("");
+
+  // Editorial: sin línea vertical, tarjetas amplias con fondo del tema (nunca blanco fijo),
+  // hora grande en la fuente de encabezado, medallón con el ícono -- "programa impreso de gala".
+  // La clase itinerario-editorial-card queda en la lista de estiloCajasEfectivo (más abajo) para
+  // que "Sin cajón"/"Solo borde" también la transparenten, igual que el resto de las secciones.
+  const itinerarioEditorialHTML = (datos.itinerario || [])
+    .map(item => `
+      <div class="itinerario-editorial-card" style="display:flex; align-items:center; gap:16px; background:${tema.colors.light}; border:1px solid ${tema.colors.border}55; border-radius:1.25rem; padding:18px 20px; margin-bottom:16px; box-shadow:0 3px 14px rgba(0,0,0,0.05);">
+        <div style="width:50px; height:50px; border-radius:50%; border:2px solid ${tema.colors.accent}; display:flex; align-items:center; justify-content:center; color:${tema.colors.accent}; flex-shrink:0;">
+          ${iconoItinerarioPorEvento(item.evento)}
+        </div>
+        <div style="min-width:0; flex:1;">
+          <span class="heading-text" style="display:block; font-size:1.6rem; line-height:1.15;">${item.hora}</span>
+          <span style="display:block; font-family:${tema.fontBody}; color:${tema.textDark}; font-size:0.92rem; margin-top:3px; line-height:1.35;">${item.evento}</span>
+        </div>
+      </div>`)
+    .join("");
+
+  // Minimalista: sin tarjetas ni línea gruesa, filas limpias con línea de puntos guía (texto,
+  // no border-trick, para que nunca se desborde sin importar qué tan largo sea el evento --
+  // simplemente hace salto de línea como cualquier párrafo). Solo colores del tema, pensado
+  // para leerse bien sobre fondos oscuros (Neón/Celestial).
+  const itinerarioMinimalistaHTML = (datos.itinerario || [])
+    .map((item, index) => `
+      <div style="display:flex; align-items:flex-start; gap:10px; padding:11px 2px; ${index < datos.itinerario.length - 1 ? `border-bottom:1px dashed ${tema.colors.border}55;` : ""}">
+        <span style="color:${tema.colors.accent}; flex-shrink:0; margin-top:2px;">
+          ${iconoItinerarioPorEvento(item.evento, "w-3.5 h-3.5")}
+        </span>
+        <p style="margin:0; flex:1; min-width:0; line-height:1.4;">
+          <span style="font-weight:700; color:${tema.colors.accent}; font-size:0.85rem;">${item.hora} hrs</span>
+          <span style="color:${tema.colors.border}; letter-spacing:2px; font-size:0.8rem;"> ···········</span>
+          <span style="color:${tema.textDark}; font-size:0.9rem; font-family:${tema.fontBody};"> ${item.evento}</span>
+        </p>
+      </div>`)
+    .join("");
+
+  const itinerarioHTML =
+    estiloItinerarioEfectivo === "editorial" ? itinerarioEditorialHTML :
+    estiloItinerarioEfectivo === "minimalista" ? itinerarioMinimalistaHTML :
+    itinerarioClasicaHTML;
 
   // Colores sugeridos
   const colorBubblesHTML = (datos.colorSugerido || [])
@@ -1354,6 +1409,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
     /* Transparentar contenedores y tarjetas internas p/integrar con el fondo original */
     .theme-container .bg-white.rounded-3xl,
     .theme-container .gold-card,
+    .theme-container .itinerario-editorial-card,
     .theme-container [data-section] > .bg-white,
     .theme-container [data-section] > .rounded-3xl,
     .theme-container .bg-white\\/45,

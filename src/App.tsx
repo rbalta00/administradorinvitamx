@@ -774,6 +774,99 @@ const SelectorTipoApertura = memo(({ tema, valorActual, onSelect, colorAcento }:
   );
 });
 
+type EstiloItinerario = "clasica" | "editorial" | "minimalista";
+
+const ESTILOS_ITINERARIO: { id: EstiloItinerario; nombre: string; desc: string }[] = [
+  { id: "clasica", nombre: "Clásica 🕰️", desc: "Línea vertical con nodos e íconos (el diseño original)" },
+  { id: "editorial", nombre: "Editorial 📜", desc: "Tarjetas amplias, hora grande -- como un programa de gala impreso" },
+  { id: "minimalista", nombre: "Minimalista ⋯", desc: "Filas limpias con línea de puntos, ideal para temas oscuros" }
+];
+
+// Mini-vista previa del estilo de itinerario (mismo patrón que MiniPreviewApertura): recreación
+// a pequeña escala en CSS puro, con los colores del tema activo, sin tarjeta/imagen externa.
+const MiniPreviewItinerario = memo(({ estilo, tema }: { estilo: EstiloItinerario; tema: TemaConfig }) => {
+  const c = tema.colors;
+  const marco = { width: 56, height: 56 };
+  if (estilo === "editorial") {
+    return (
+      <div className="relative shrink-0 overflow-hidden rounded-lg flex flex-col items-center justify-center gap-1 p-1.5" style={{ ...marco, background: tema.bgGradient }}>
+        <div className="w-full rounded-sm flex items-center gap-1 px-1 py-1" style={{ background: c.light, border: `1px solid ${c.border}` }}>
+          <span className="rounded-full shrink-0" style={{ width: 10, height: 10, border: `1.5px solid ${c.accent}` }} />
+          <span className="block h-1.5 flex-1 rounded-full" style={{ background: c.accent }} />
+        </div>
+        <div className="w-full rounded-sm flex items-center gap-1 px-1 py-1" style={{ background: c.light, border: `1px solid ${c.border}` }}>
+          <span className="rounded-full shrink-0" style={{ width: 10, height: 10, border: `1.5px solid ${c.accent}` }} />
+          <span className="block h-1.5 flex-1 rounded-full" style={{ background: `${c.accent}80` }} />
+        </div>
+      </div>
+    );
+  }
+  if (estilo === "minimalista") {
+    return (
+      <div className="relative shrink-0 overflow-hidden rounded-lg flex flex-col justify-center gap-1.5 p-2" style={{ ...marco, background: tema.colors.dark }}>
+        {[1, 0.6, 0.85].map((op, i) => (
+          <div key={i} className="flex items-center gap-1">
+            <span className="block rounded-full shrink-0" style={{ width: 4, height: 4, background: c.accent }} />
+            <span className="block h-[2px] rounded-full" style={{ width: 8, background: c.accent, opacity: op }} />
+            <span className="block flex-1 h-[1px]" style={{ borderTop: `1px dotted ${c.light}99` }} />
+            <span className="block h-[2px] rounded-full flex-1" style={{ background: `${c.light}cc`, maxWidth: 16 + i * 4 }} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+  // clásica
+  return (
+    <div className="relative shrink-0 overflow-hidden rounded-lg flex items-center justify-center" style={{ ...marco, background: tema.bgGradient }}>
+      <div className="relative flex flex-col items-start gap-2.5 py-1">
+        <div className="absolute left-[5px] top-1 bottom-1 w-[2px]" style={{ background: `linear-gradient(to bottom, ${c.primary}, ${c.primary}40)` }} />
+        {[0, 1, 2].map(i => (
+          <div key={i} className="flex items-center gap-1.5 relative z-10">
+            <span className="rounded-full shrink-0" style={{ width: 11, height: 11, background: "white", border: `2px solid ${c.primary}` }} />
+            <span className="block h-2.5 rounded" style={{ width: 16 + i * 4, background: "white", border: `1px solid ${c.primary}`, borderLeftWidth: 2 }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+});
+
+// Panel visual "Diseño del Itinerario" -- mismo patrón que SelectorTipoApertura: tarjetas con
+// mini-vista previa animable (aquí estática, ya que cada estilo se distingue por composición más
+// que por movimiento) en los colores del tema activo. Compartido entre los 2 lugares donde vive
+// "Tipo de Apertura" para no duplicar el JSX.
+const SelectorEstiloItinerario = memo(({ tema, valorActual, onSelect, colorAcento }: {
+  tema: TemaConfig;
+  valorActual: EstiloItinerario;
+  onSelect: (id: EstiloItinerario) => void;
+  colorAcento: "purple" | "indigo";
+}) => {
+  const borde = colorAcento === "purple" ? "border-purple-500 bg-purple-50/40" : "border-indigo-500 bg-indigo-50/40";
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" id={`selector-itinerario-${colorAcento}`}>
+      {ESTILOS_ITINERARIO.map(e => {
+        const isSelected = valorActual === e.id;
+        return (
+          <button
+            key={e.id}
+            onClick={() => onSelect(e.id)}
+            className={`flex items-center gap-2.5 text-left p-2 rounded-xl border-2 transition cursor-pointer ${isSelected ? borde : "border-slate-200 bg-white hover:border-slate-300"}`}
+          >
+            <MiniPreviewItinerario estilo={e.id} tema={tema} />
+            <div className="min-w-0 flex-1">
+              <span className="flex items-center gap-1 text-xs font-bold text-slate-700">
+                {e.nombre}
+                {isSelected && <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${colorAcento === "purple" ? "bg-purple-600" : "bg-indigo-600"} text-white`}>✓ Elegido</span>}
+              </span>
+              <span className="block text-[10px] text-slate-500 mt-0.5 leading-snug">{e.desc}</span>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+});
+
 // Paletas de la lluvia decorativa ("Efecto de Animación de Caída"): conjuntos de emojis
 // coordinados por estética, en vez de dejar elegir emoji por emoji.
 const ESTILOS_CAJAS_SECCIONES: { id: "normal" | "sin_cajon" | "solo_borde"; nombre: string; desc: string }[] = [
@@ -5880,6 +5973,17 @@ export default function App() {
                     </div>
 
                     <div className="border-t border-purple-100/60 pt-3">
+                      <h4 className="text-xs font-bold text-slate-700 mb-2">Diseño del Itinerario</h4>
+                      <p className="text-[10px] text-slate-400 mb-2">💡 Aplica al tema activo, sea cual sea. Si no eliges ninguno, se usa "Clásica" (el diseño de siempre).</p>
+                      <SelectorEstiloItinerario
+                        tema={temaActual}
+                        valorActual={datos.personalizacion?.estiloItinerario || "clasica"}
+                        onSelect={(id) => setDatos(prev => ({ ...prev, personalizacion: { ...(prev.personalizacion || {}), estiloItinerario: id } }))}
+                        colorAcento="purple"
+                      />
+                    </div>
+
+                    <div className="border-t border-purple-100/60 pt-3">
                       <h4 className="text-xs font-bold text-slate-700 mb-2">Símbolos de Lluvia Decorativa</h4>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {PALETAS_ANIMACION.map(a => {
@@ -7190,6 +7294,16 @@ export default function App() {
                         tema={temaActual}
                         valorActual={datos.personalizacion?.tipoApertura || tipoAperturaPorDefectoDelTema(temaActual.id)}
                         onSelect={(id) => setDatos(prev => ({ ...prev, personalizacion: { ...(prev.personalizacion || {}), tipoApertura: id } }))}
+                        colorAcento="indigo"
+                      />
+                    </div>
+
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-700 mb-2">Diseño del Itinerario</h4>
+                      <SelectorEstiloItinerario
+                        tema={temaActual}
+                        valorActual={datos.personalizacion?.estiloItinerario || "clasica"}
+                        onSelect={(id) => setDatos(prev => ({ ...prev, personalizacion: { ...(prev.personalizacion || {}), estiloItinerario: id } }))}
                         colorAcento="indigo"
                       />
                     </div>

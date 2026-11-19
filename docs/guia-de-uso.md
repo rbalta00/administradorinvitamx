@@ -45,6 +45,13 @@ Estas son las secciones donde capturas los datos de la invitación. Son 9 — si
 
 Si no eliges ninguna, cada tema trae su propia apertura por default (ver `tipoAperturaPorDefectoDelTema` en el código si necesitas la lista exacta). Las 5 respetan "Reducir movimiento" del sistema del invitado — si lo tiene activo, la animación se salta y entra directo.
 
+**Diseño del Itinerario (pestañas 1 y 9, junto a Tipo de Apertura)**: cómo se ve la sección "Nuestro Itinerario" — también aplica a cualquier tema. 3 opciones, con mini-vista previa en los colores del tema:
+- **Clásica 🕰️** (default si no eliges nada): línea vertical con nodos e íconos — el diseño de siempre.
+- **Editorial 📜**: sin línea, tarjetas amplias con fondo del tema (nunca blanco fijo), hora grande en la fuente de encabezado — como un programa de gala impreso.
+- **Minimalista ⋯**: sin tarjetas, filas limpias con línea de puntos guía entre la hora y el evento — pensada para leerse bien en temas oscuros (Místico Celestial, Ciber Cyber Neon).
+
+Los íconos (misa/iglesia → libro, brindis/cena → campana, recepción/coctel → edificio, baile/vals/show → música, cualquier otro → reloj) se detectan solos por palabras clave del texto del evento, igual en los 3 estilos — no hace falta elegirlos a mano. Una invitación guardada antes de que existiera este selector se ve exactamente igual que siempre (Clásica).
+
 ### 3.1 Qué secciones vienen en cada paquete
 
 Precios y estructura vigentes desde el rediseño de 2026-11-18. Esto está prendido/apagado por default según el paquete que compró el cliente — no hay que preguntar caso por caso, el editor ya lo filtra solo (pestaña "Tema/Paquete" → "Personalizar Secciones Habilitadas"):

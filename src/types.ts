@@ -77,6 +77,10 @@ export interface InvitacionDatos {
     /** Set de emojis para la lluvia decorativa (ver "Efecto de Animación de Caída").
      *  Solo aplica cuando esa animación está encendida (mostrarAnimacionCaida !== false). */
     simbolosCaida?: string[];
+    /** Diseño visual de la sección "Nuestro Itinerario" -- aplica al tema activo sea cual sea,
+     *  igual que tipoApertura. Si no está definido o trae un valor desconocido, cae a "clasica"
+     *  (el diseño original) -- ver estiloItinerarioEfectivo en templates.ts. */
+    estiloItinerario?: "clasica" | "editorial" | "minimalista";
   };
 }
 
