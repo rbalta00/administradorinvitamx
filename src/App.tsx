@@ -1388,6 +1388,11 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
   // no este formulario) -- se usa para saber quién de la lista de pases todavía no ha
   // confirmado por RSVP, y poder copiarle un recordatorio.
   const [invitadosAsignados, setInvitadosAsignados] = useState<{ nombre: string; pases: number }[]>([]);
+  // Conteo de aperturas, visible para la clienta SOLO en el paquete Premium (llave interna
+  // "deluxe") -- pedido 2026-11-19. null = no se muestra nada (paquete sin este beneficio, o la
+  // consulta falló/la tabla "aperturas" no existe todavía) -- a diferencia del panel admin, aquí
+  // NUNCA se le muestra un "—" ni ningún error a la clienta, se oculta la línea en silencio.
+  const [aperturasCliente, setAperturasCliente] = useState<number | null>(null);
 
   const [form, setForm] = useState({
     fecha: "",
@@ -1436,6 +1441,18 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
         const paqueteDelCliente = (dc.paquete as "basico" | "premium" | "deluxe") || "basico";
         setMaxFotos(paquetes[paqueteDelCliente]?.maxFotos || 4);
         setSeccionesDisponibles(paquetes[paqueteDelCliente]?.secciones || []);
+        if (paqueteDelCliente === "deluxe") {
+          // Try/catch propio, aparte del de todo `cargar()`: si esto falla (tabla "aperturas"
+          // sin crear todavía, sin red, etc.) nunca debe tumbar la carga del resto del
+          // formulario ni mostrarle nada a la clienta -- se queda simplemente sin esa línea.
+          try {
+            const { count, error: errAperturas } = await window.supabaseClient
+              .from("aperturas")
+              .select("id", { count: "exact", head: true })
+              .eq("invitacion_id", invitacionId);
+            if (!errAperturas) setAperturasCliente(count ?? 0);
+          } catch { /* se queda en null, la línea simplemente no aparece */ }
+        }
         // Lo que ya venía excluido (ej. "pases" si no lo compró a la carte) no se toca aquí --
         // handleEnviar lo preserva aparte. Esto solo rescata, de las secciones que SÍ puede
         // tocar este formulario, cuáles había apagado él mismo en una visita anterior.
@@ -1752,6 +1769,14 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
             </div>
           );
         })()}
+
+        {aperturasCliente !== null && (
+          <div className="mb-6 p-4 bg-emerald-50/60 border border-emerald-200 rounded-2xl">
+            <p className="text-[13px] font-bold text-emerald-800">
+              📊 Tu invitación se ha abierto <span className="text-emerald-900">{aperturasCliente}</span> {aperturasCliente === 1 ? "vez" : "veces"}
+            </p>
+          </div>
+        )}
 
         {confirmaciones !== null && (confirmaciones.length > 0 || invitadosAsignados.length > 0) && (() => {
           const siConfirman = confirmaciones.filter(c => c.asistencia === "si");
