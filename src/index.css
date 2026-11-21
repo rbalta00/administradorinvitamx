@@ -74,6 +74,17 @@
   100% { transform: translate(-50%, -50%) scale(7); opacity: 0; }
 }
 
+.mini-apertura-caligrafia-trazo {
+  stroke-dasharray: 90;
+  stroke-dashoffset: 90;
+  animation: miniAperturaCaligrafia 3.2s ease-in-out infinite;
+}
+@keyframes miniAperturaCaligrafia {
+  0% { stroke-dashoffset: 90; }
+  55%, 80% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mini-apertura-brillo-tarjeta,
   .mini-apertura-solapa,
@@ -81,7 +92,8 @@
   .mini-apertura-cortina-der,
   .mini-apertura-puerta-izq,
   .mini-apertura-puerta-der,
-  .mini-apertura-destello {
+  .mini-apertura-destello,
+  .mini-apertura-caligrafia-trazo {
     animation: none;
   }
 }

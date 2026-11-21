@@ -838,14 +838,15 @@ const FUENTES_ENCABEZADO = ["Playfair Display", "Cormorant Garamond", "Lora", "C
 const FUENTES_TEXTO = ["Inter", "Garamond", "Poppins", "Montserrat", "Jost"];
 const FUENTES_CURSIVA = ["Great Vibes", "Alex Brush", "Pinyon Script", "Monsieur La Doulaise", "Petit Formal Script", "WindSong", "Sacramento", "Parisienne", "Dancing Script"];
 
-type TipoApertura = "sobre" | "cortina" | "tarjeta" | "puertas" | "destellos";
+type TipoApertura = "sobre" | "cortina" | "tarjeta" | "puertas" | "destellos" | "caligrafia";
 
 const TIPOS_APERTURA: { id: TipoApertura; nombre: string; desc: string }[] = [
   { id: "tarjeta", nombre: "Tarjeta 🎴", desc: "Tarjeta elegante con brillo metálico y botón para abrir" },
-  { id: "sobre", nombre: "Sobre 💌", desc: "Sobre con sello de cera que se abre" },
+  { id: "sobre", nombre: "Sobre 💌", desc: "Sobre con sello de cera que se parte en dos al abrir" },
   { id: "cortina", nombre: "Cortina 🎭", desc: "Telón que se recoge hacia los lados" },
   { id: "puertas", nombre: "Puertas 🚪 (Puertas de gala)", desc: "Dos hojas que se abren hacia afuera, con luz desde el centro" },
-  { id: "destellos", nombre: "Destellos ✨ (Lluvia de luz)", desc: "Explosión de luz y destellos que disuelve la pantalla" }
+  { id: "destellos", nombre: "Destellos ✨ (Lluvia de luz)", desc: "Explosión de luz y destellos que disuelve la pantalla" },
+  { id: "caligrafia", nombre: "Caligrafía ✍️", desc: "El nombre se escribe solo en la pantalla antes de abrir" }
 ];
 
 // Apertura por defecto de cada tema cuando el usuario no la sobreescribe manualmente.
@@ -945,12 +946,29 @@ const MiniPreviewApertura = memo(({ tipo, tema }: { tipo: TipoApertura; tema: Te
       </div>
     );
   }
-  // destellos
+  if (tipo === "destellos") {
+    return (
+      <div className="relative shrink-0 overflow-hidden rounded-lg" style={marco}>
+        {base}
+        <div className="mini-apertura-destello" style={{ background: `radial-gradient(circle, white 0%, ${c.accent} 55%, transparent 100%)` }} />
+        <span className="absolute inset-0 flex items-center justify-center text-[18px] z-10" style={{ color: c.accent }}>{tema.decorativeEmoji}</span>
+      </div>
+    );
+  }
+  // caligrafia
   return (
     <div className="relative shrink-0 overflow-hidden rounded-lg" style={marco}>
       {base}
-      <div className="mini-apertura-destello" style={{ background: `radial-gradient(circle, white 0%, ${c.accent} 55%, transparent 100%)` }} />
-      <span className="absolute inset-0 flex items-center justify-center text-[18px] z-10" style={{ color: c.accent }}>{tema.decorativeEmoji}</span>
+      <svg viewBox="0 0 56 20" className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" style={{ width: 38, height: 14 }}>
+        <path
+          className="mini-apertura-caligrafia-trazo"
+          d="M2 14 C 8 2, 14 2, 16 10 C 18 16, 24 4, 28 10 C 32 16, 38 2, 42 8 C 45 12, 50 6, 54 10"
+          fill="none"
+          stroke={c.accent}
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+      </svg>
     </div>
   );
 });
@@ -3204,9 +3222,12 @@ export default function App() {
   const [busquedaInvitaciones, setBusquedaInvitaciones] = useState("");
   const [filtroEstatusInvitaciones, setFiltroEstatusInvitaciones] = useState("todos");
   // Pestañas de la lista (reemplazan los chips sueltos de "urgentes/pendientes/próximos" de
-  // antes, 2026-11-19): "atencion" (evento próximo + saldo pendiente) es la vista inicial al
-  // abrir el panel -- ver el onClick que abre "Mis Invitaciones", que la resetea cada vez.
-  const [pestanaListaInvitaciones, setPestanaListaInvitaciones] = useState<"atencion" | "activas" | "pasados">("atencion");
+  // antes, 2026-11-19): "activas" es la vista inicial al abrir el panel (bug real reportado
+  // 2026-11-20: con "atencion" como default, si no hay ninguna invitación urgente en ese momento
+  // -- el caso normal -- la lista se veía vacía pese a que sí había datos cargados; "🔥 Requieren
+  // atención" sigue existiendo, solo deja de ser la vista inicial) -- ver el onClick que abre
+  // "Mis Invitaciones", que la resetea a "activas" cada vez que se abre el panel.
+  const [pestanaListaInvitaciones, setPestanaListaInvitaciones] = useState<"atencion" | "activas" | "pasados">("activas");
   // Filtro por tipo de evento (2026-11-19) -- se combina con la pestaña de estado y el
   // buscador de arriba, todo sobre la lista ya cargada (sin pedir nada nuevo a Supabase).
   const [filtroEventoInvitaciones, setFiltroEventoInvitaciones] = useState<"todos" | GrupoFiltroEvento>("todos");
@@ -3853,8 +3874,24 @@ export default function App() {
       return;
     }
     const temaDuplicado = temas.find(t => t.id === fila.datos_completos!.tema) || temas[0];
+    // Una copia es para un cliente NUEVO, que todavía no ha pagado ningún extra à la carte --
+    // los extras que la invitación ORIGINAL ya tenía desbloqueados (QR de puerta, secciones
+    // sueltas como "pases" en un Básico) no deben viajar activados solo porque el cliente
+    // anterior sí los pagó. `recalcularSeccionesPorPaquete` es la MISMA función que ya usa el
+    // selector de paquete (ver más abajo, ~línea 3445) para decidir qué secciones condicionadas
+    // (pases/familia/regalos) quedan prendidas/apagadas según el plan -- se reutiliza aquí tal
+    // cual, sin duplicar esa lógica. Solo se tocan estos 2 campos; tema/textos/fotos/invitados/
+    // datos del evento y del cliente viajan igual que siempre (la copia es plantilla de
+    // partida). El resto de seccionesExcluidas (secciones que el admin apagó a mano sin que
+    // dependan del paquete, ej. "Galería") se conserva intacto -- lo que hace
+    // recalcularSeccionesPorPaquete.
+    const datosParaClon: InvitacionDatos = {
+      ...fila.datos_completos,
+      controlAccesoQR: false,
+      seccionesExcluidas: recalcularSeccionesPorPaquete(fila.datos_completos.seccionesExcluidas, fila.datos_completos.paquete),
+    };
     try {
-      const nuevaFila = await guardarEnSupabase(fila.datos_completos, temaDuplicado, fila.link_invitacion || undefined, null, usuarioActual);
+      const nuevaFila = await guardarEnSupabase(datosParaClon, temaDuplicado, fila.link_invitacion || undefined, null, usuarioActual);
       if (!nuevaFila?.id) {
         mostrarToast("No se pudo duplicar la invitación", "error");
         return;
@@ -3865,7 +3902,7 @@ export default function App() {
       // guardarEnSupabase para ESTA fila nueva) -- nunca el de `fila`, que es el de la
       // invitación ORIGINAL de la que se copió.
       setDatos({
-        ...fila.datos_completos,
+        ...datosParaClon,
         codigoCorto: nuevaFila.datos_completos?.codigoCorto,
         bgImages: {
           ...(fila.datos_completos.bgImages || {}),
@@ -3878,7 +3915,7 @@ export default function App() {
       try { localStorage.setItem("xv_supabase_row_id", nuevaFila.id); } catch {}
       setMostrarMisInvitaciones(false);
       setPanelPestana("ajustes");
-      mostrarToast(`Copia de "${row.nombre_quinceanera || "la invitación"}" creada y cargada en el editor — cambia el nombre antes de compartirla ✏️`, "success");
+      mostrarToast(`Copia de "${row.nombre_quinceanera || "la invitación"}" creada y cargada en el editor — cambia el nombre antes de compartirla. Los extras à la carte (QR de puerta y secciones sueltas) inician apagados en la copia y se activan cuando se registre su pago ✏️`, "success");
     } catch (err: any) {
       mostrarToast("Error al duplicar: " + err.message, "error");
     }
@@ -5455,7 +5492,7 @@ export default function App() {
       const datosEmbed = getDatosVisualizacionCatalog(embedTema, datos);
       const aperturaParam = new URLSearchParams(window.location.search).get("apertura");
       const aperturaValida: TipoApertura | null =
-        aperturaParam === "sobre" || aperturaParam === "cortina" || aperturaParam === "tarjeta" || aperturaParam === "puertas" || aperturaParam === "destellos"
+        aperturaParam === "sobre" || aperturaParam === "cortina" || aperturaParam === "tarjeta" || aperturaParam === "puertas" || aperturaParam === "destellos" || aperturaParam === "caligrafia"
           ? aperturaParam
           : null;
       const datosParaRender = aperturaValida
@@ -6145,7 +6182,7 @@ export default function App() {
           <button
             onClick={() => {
               setMostrarMisInvitaciones(true);
-              setPestanaListaInvitaciones("atencion");
+              setPestanaListaInvitaciones("activas");
               cargarListaInvitaciones();
             }}
             className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"

@@ -232,6 +232,44 @@ const construirUrlGoogleFonts = (tema: TemaConfig): string => {
   return `https://fonts.googleapis.com/css2?family=${segmentos}&display=swap`;
 };
 
+// Textura de papel sutil ("grano"/perlado), 2026-11-20, pedido explícito del usuario: que la
+// invitación se sienta como una tarjeta de papel real. Generada 100% por código (ruido SVG vía
+// feTurbulence, data-URI) -- sin imágenes externas, sin librerías, sin peticiones de red, sin
+// JS, menos de 1 KB. La opacidad (0.05, dentro del rango 0.04-0.08 pedido) va horneada en el
+// propio SVG -- así cualquier superficie que la use solo necesita agregar este data-URI como
+// una capa más de su `background` (fondo compuesto) + `background-blend-mode: multiply` para
+// oscurecerla sutilmente (multiply nunca aclara, a diferencia de una superposición normal),
+// sin necesitar un elemento/pseudo-elemento nuevo. `tile` 180px, se repite (`repeat`).
+const TEXTURA_PAPEL_SVG = "<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'>" +
+  "<filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter>" +
+  "<rect width='100%' height='100%' filter='url(#n)' opacity='0.05'/></svg>";
+const TEXTURA_PAPEL_DATAURI = `url("data:image/svg+xml,${encodeURIComponent(TEXTURA_PAPEL_SVG)}")`;
+// CSS que compone la textura con el fondo YA existente de una superficie -- `fondoBase` es el
+// valor que esa superficie ya traía en su propiedad `background` (color sólido o gradiente), tal
+// cual, para no perderlo. `background-image` solo acepta <image> (gradiente/url), NUNCA un color
+// plano -- un color ahí (ej. "white", "${tema.colors.light}") invalida la declaración ENTERA y el
+// navegador la descarta por completo (bug real encontrado verificando en vivo: envelope-container/
+// envelope-letter, que pasan un color plano, se quedaban sin ningún fondo). Por eso un color
+// plano se deja en `background-color` aparte (el noise se compone contra él igual, vía
+// `background-blend-mode`, que blendea también contra background-color, no solo entre capas de
+// background-image) y un gradiente real se compone como segunda capa de background-image.
+const texturaPapelSobre = (fondoBase: string): string => {
+  const esGradienteOImagen = /^(linear-gradient|radial-gradient|conic-gradient|url)\(/i.test(fondoBase.trim());
+  return esGradienteOImagen
+    ? `background-image: ${TEXTURA_PAPEL_DATAURI}, ${fondoBase}; background-repeat: repeat, no-repeat; background-blend-mode: multiply, normal;`
+    : `background-color: ${fondoBase}; background-image: ${TEXTURA_PAPEL_DATAURI}; background-repeat: repeat; background-blend-mode: multiply;`;
+};
+
+// Temas "de papel" (elegantes, fondo claro) donde SÍ aplica la textura -- en los de brillo/
+// oscuro (celestial, neon, aurora-boreal, glam-rose) y en "personalizado" (sin identidad visual
+// fija) la textura les mata el efecto luminoso, así que se excluyen a propósito. Decidido por el
+// tema EFECTIVO de la invitación (mismo criterio que tipoAperturaEfectivo más abajo), nunca por
+// una personalización del cliente -- no hay control nuevo en el editor, es automático por tema.
+const TEMAS_CON_TEXTURA_PAPEL = [
+  "dorado-clasico", "mariposas", "floral-acuarela", "botanico", "boho-chic",
+  "princesa-elegante", "marmol-oro", "coquette-pink", "coquette-luxe", "vino-elegante",
+];
+
 export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opciones?: { esDemoDeCatalogo?: boolean; esVistaPreviaEditor?: boolean; paraExportarPDF?: boolean }): string {
   const esDemoDeCatalogo = opciones?.esDemoDeCatalogo === true;
   const paraExportarPDF = opciones?.paraExportarPDF === true;
@@ -501,12 +539,17 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
   // Definimos de forma segura la visibilidad inicial de las secciones en base al paquete
   const isSectionActive = (secName: string) => seccionesActivas.includes(secName);
 
+  // Textura de papel sutil (2026-11-20, ver TEMAS_CON_TEXTURA_PAPEL/texturaPapelSobre arriba):
+  // decidida por el tema EFECTIVO (ya resuelto el override de "personalizado" más arriba),
+  // nunca por datos.personalizacion -- no existe ningún control de esto en el editor.
+  const temaTieneTexturaPapel = TEMAS_CON_TEXTURA_PAPEL.includes(tema.id);
+
   // Tipo de pantalla de apertura ("carta"): cada tema trae un tipo por defecto, pero el
   // control "Tipo de Apertura" del editor lo puede sobreescribir para cualquier tema, ya
   // que sobre/cortina/tarjeta se pintan con los colores del tema activo, no con CSS fijo.
   // "puertas"/"destellos" agregados 2026-11-19 -- debe coincidir exactamente con
   // tipoAperturaPorDefectoDelTema en App.tsx (misma lista de temas, mismo orden de prioridad).
-  const tipoAperturaEfectivo: "sobre" | "cortina" | "tarjeta" | "puertas" | "destellos" =
+  const tipoAperturaEfectivo: "sobre" | "cortina" | "tarjeta" | "puertas" | "destellos" | "caligrafia" =
     datos.personalizacion?.tipoApertura
       ? datos.personalizacion.tipoApertura
       : ["mariposas", "floral-acuarela", "boho-chic", "coquette-pink", "coquette-luxe"].includes(tema.id)
@@ -530,6 +573,41 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
   const inicialNombre = (datos.nombre || "").trim().charAt(0).toUpperCase() || "♥";
   const fuenteCursivaTema = tema.fontCursive || tema.fontHeading;
 
+  // Pantalla "PARA / Familia" + botón "TOCA PARA ABRIR" (2026-11-20, delta sobre las aperturas
+  // Verbena-style ya existentes) -- compartidos por las 6 pantallas de apertura, solo cambia en
+  // qué punto de cada una se insertan y qué color de texto usan (depende del fondo de cada
+  // apertura). El nombre de la familia NO se conoce en tiempo de generación: depende del
+  // parámetro ?fam= del link, que solo existe en el navegador del invitado -- se resuelve en
+  // runtime vía mostrarParaFamiliaEnApertura() más abajo, leyendo datosInvitacion.invitados[0]
+  // (el mismo dato que ya usa mostrarPaseFijo() para esa misma familia -- no se inventa un
+  // mecanismo nuevo de resolución). Si el link no trae ?fam= o no resuelve a un invitado real,
+  // el bloque se queda oculto y la apertura se ve exactamente como antes de este cambio.
+  const aperturaParaFamiliaHTML = (colorTexto: string) => `
+    <div id="apertura-para-familia" class="apertura-para-familia hidden" style="color: ${colorTexto};" onclick="event.stopPropagation()">
+      <p class="apertura-para-etiqueta">PARA</p>
+      <p class="apertura-para-nombre" id="apertura-para-familia-nombre" style="font-family: ${fuenteCursivaTema};"></p>
+    </div>`;
+  const botonTocaParaAbrirHTML = (onclickFn: string) => `
+    <button onclick="${onclickFn}" class="apertura-boton-brillo relative mt-5 px-8 py-3.5 text-white font-serif tracking-[0.2em] text-[11px] uppercase rounded-full shadow-lg cursor-pointer transform hover:scale-105 active:scale-95 transition-all" style="background: ${tema.colors.accent};">
+      TOCA PARA ABRIR
+    </button>`;
+  // Agregado dentro del <style> propio de cada una de las 6 pantallas (cada branch del if/else
+  // de abajo tiene el suyo) -- no se crea un <style> global aparte para no reestructurar el resto.
+  const aperturaEstiloCompartidoCSS = `
+      .apertura-para-familia { margin-bottom: 14px; text-align: center; }
+      .apertura-para-etiqueta { font-size: 9px; letter-spacing: 0.35em; text-transform: uppercase; font-family: sans-serif; opacity: 0.8; margin: 0; color: inherit; }
+      .apertura-para-nombre { font-size: 1.7rem; line-height: 1.2; margin: 2px 0 0; color: inherit; }
+      .apertura-boton-brillo { position: relative; overflow: hidden; }
+      .apertura-boton-brillo::after {
+        content: '';
+        position: absolute;
+        top: 0; left: -75%;
+        width: 50%; height: 100%;
+        background: linear-gradient(100deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%);
+        animation: aperturaBotonBrillo 3.2s ease-in-out infinite;
+      }
+      @keyframes aperturaBotonBrillo { 0% { left: -75%; } 55%, 100% { left: 140%; } }`;
+
   let aperturaHTML = "";
   if (isSectionActive("apertura")) {
     if (tipoAperturaEfectivo === "sobre") {
@@ -540,7 +618,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         position: relative;
         width: 310px;
         height: 210px;
-        background: ${tema.colors.light};
+        ${temaTieneTexturaPapel ? texturaPapelSobre(tema.colors.light) : `background: ${tema.colors.light};`}
         border-radius: 0 0 16px 16px;
         box-shadow: 0 15px 40px rgba(0,0,0,0.18);
         margin-top: 20px;
@@ -556,7 +634,12 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         border-left: 155px solid transparent;
         border-right: 155px solid transparent;
         border-top: 105px solid ${tema.colors.border};
-        background: linear-gradient(135deg, ${tema.colors.border} 0%, ${tema.colors.accent} 55%, ${tema.colors.border} 100%);
+        /* La textura (si aplica) solo se ve en las 2 esquinas donde el borde transparente deja
+           pasar el fondo -- el grueso del triángulo es border-top SOLIDO (sin textura posible
+           ahí, es borde, no fondo), limitación del propio truco CSS, no algo pendiente. */
+        ${temaTieneTexturaPapel
+          ? texturaPapelSobre(`linear-gradient(135deg, ${tema.colors.border} 0%, ${tema.colors.accent} 55%, ${tema.colors.border} 100%)`)
+          : `background: linear-gradient(135deg, ${tema.colors.border} 0%, ${tema.colors.accent} 55%, ${tema.colors.border} 100%);`}
         box-shadow: inset 0 -6px 10px rgba(0,0,0,0.12);
         transform-origin: top;
         transition: transform 1.1s cubic-bezier(0.65, 0, 0.35, 1);
@@ -583,7 +666,9 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         left: 0;
         width: 100%;
         height: 100%;
-        background: linear-gradient(180deg, ${tema.colors.bg} 0%, ${tema.colors.light} 100%);
+        ${temaTieneTexturaPapel
+          ? texturaPapelSobre(`linear-gradient(180deg, ${tema.colors.bg} 0%, ${tema.colors.light} 100%)`)
+          : `background: linear-gradient(180deg, ${tema.colors.bg} 0%, ${tema.colors.light} 100%);`}
         box-shadow: inset 0 10px 18px rgba(0,0,0,0.07), inset 0 -4px 8px rgba(0,0,0,0.05);
         border-radius: 0 0 16px 16px;
         border: 2px solid ${tema.colors.border};
@@ -603,7 +688,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         left: 15px;
         right: 15px;
         height: 170px;
-        background: white;
+        ${temaTieneTexturaPapel ? texturaPapelSobre("white") : "background: white;"}
         border-radius: 12px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.06);
         border: 1.5px solid ${tema.colors.accent}55;
@@ -623,31 +708,46 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         transform: translate(-50%, -50%);
         width: 60px;
         height: 60px;
-        background: radial-gradient(circle at 35% 30%, ${tema.colors.accent}, ${tema.colors.dark} 115%);
-        color: ${tema.textLight};
-        border-radius: 48% 52% 50% 50% / 54% 48% 52% 46%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.4), inset 0 -4px 6px rgba(0,0,0,0.3);
         z-index: 40;
-        font-size: 26px;
-        font-family: ${fuenteCursivaTema};
-        transition: all 0.4s ease;
-        border: 2px solid white;
         cursor: pointer;
+        transition: transform 0.4s ease;
       }
       .envelope-wax-seal:hover {
         transform: translate(-50%, -50%) scale(1.08);
       }
-      .envelope-wax-seal.sello-rompiendo {
-        animation: selloRomperApertura 0.5s ease-in forwards;
+      /* Lacre que se parte en dos (2026-11-20): el disco se arma con 2 mitades superpuestas,
+         cada una recortada con un borde irregular (grieta) via clip-path -- al tocar, cada
+         mitad se traslada/rota hacia su lado y se desvanece. El laurel decorativo (SVG, detrás
+         de las mitades) se desvanece junto con ellas. Solo transform/opacity, como pide el
+         encargo. */
+      .sello-laurel {
+        position: absolute;
+        inset: -14px;
+        z-index: 39;
+        pointer-events: none;
+        opacity: 0.85;
+        transition: opacity 0.5s ease 0.1s;
       }
-      @keyframes selloRomperApertura {
-        0% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0deg); }
-        60% { opacity: 0.55; transform: translate(-50%, -50%) scale(1.18) rotate(-7deg); }
-        100% { opacity: 0; transform: translate(-50%, -50%) scale(0.55) rotate(10deg); }
+      .sello-mitad {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(circle at 35% 30%, ${tema.colors.accent}, ${tema.colors.dark} 115%);
+        color: ${tema.textLight};
+        border-radius: 48% 52% 50% 50% / 54% 48% 52% 46%;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.4), inset 0 -4px 6px rgba(0,0,0,0.3);
+        border: 2px solid white;
+        font-size: 26px;
+        font-family: ${fuenteCursivaTema};
+        transition: transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.45s ease 0.08s;
       }
+      .sello-mitad-izq { clip-path: polygon(0 0, 46% 0, 52% 12%, 44% 26%, 55% 40%, 42% 54%, 56% 68%, 45% 82%, 50% 100%, 0 100%); }
+      .sello-mitad-der { clip-path: polygon(100% 0, 54% 0, 48% 12%, 56% 26%, 45% 40%, 58% 54%, 44% 68%, 55% 82%, 50% 100%, 100% 100%); }
+      .envelope-wax-seal.sello-rompiendo .sello-laurel { opacity: 0; }
+      .envelope-wax-seal.sello-rompiendo .sello-mitad-izq { transform: translate(-11px, 8px) rotate(-16deg); opacity: 0; }
+      .envelope-wax-seal.sello-rompiendo .sello-mitad-der { transform: translate(11px, 10px) rotate(18deg); opacity: 0; }
       .envelope-container.open {
         box-shadow: 0 30px 60px rgba(0,0,0,0.28);
       }
@@ -662,12 +762,13 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       }
       .envelope-container.open .envelope-wax-seal {
         opacity: 0;
-        transform: translate(-50%, -50%) scale(0);
         pointer-events: none;
       }
+      ${aperturaEstiloCompartidoCSS}
     </style>
 
     <div class="max-w-md w-full flex flex-col items-center animate-float" onclick="event.stopPropagation()">
+      ${aperturaParaFamiliaHTML(tema.colors.accent)}
       <p class="text-xs uppercase tracking-[0.25em] font-serif mb-2" style="color: ${tema.colors.accent}; font-weight: 600;">💌 Tienes una invitación exclusiva</p>
 
       <div class="envelope-container" id="sobre-interactivo" onclick="comenzarExperienciaEnvoltura()">
@@ -680,11 +781,27 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         </div>
         <div class="envelope-pocket"></div>
         <div class="envelope-wax-seal" id="sobre-sello">
-          <span>${inicialNombre}</span>
+          <svg class="sello-laurel" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+            <g fill="none" stroke="${tema.colors.accent}" stroke-width="2.4" stroke-linecap="round">
+              <path d="M14 50 Q10 36 18 24" />
+              <path d="M86 50 Q90 36 82 24" />
+            </g>
+            <g fill="${tema.colors.accent}">
+              <ellipse cx="13" cy="46" rx="5" ry="2.6" transform="rotate(-35 13 46)" />
+              <ellipse cx="11" cy="37" rx="5" ry="2.6" transform="rotate(-55 11 37)" />
+              <ellipse cx="14" cy="28" rx="5" ry="2.6" transform="rotate(-75 14 28)" />
+              <ellipse cx="87" cy="46" rx="5" ry="2.6" transform="rotate(35 87 46)" />
+              <ellipse cx="89" cy="37" rx="5" ry="2.6" transform="rotate(55 89 37)" />
+              <ellipse cx="86" cy="28" rx="5" ry="2.6" transform="rotate(75 86 28)" />
+            </g>
+          </svg>
+          <div class="sello-mitad sello-mitad-izq"><span>${inicialNombre}</span></div>
+          <div class="sello-mitad sello-mitad-der"><span>${inicialNombre}</span></div>
         </div>
       </div>
 
       <p class="text-[10px] text-gray-500 mt-6 font-light font-sans">Haz clic en el sobre o el sello para abrir la invitación 🌸</p>
+      ${botonTocaParaAbrirHTML("comenzarExperienciaEnvoltura()")}
     </div>
   </div>`;
     } else if (tipoAperturaEfectivo === "cortina") {
@@ -795,6 +912,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         opacity: 0;
         transform: translate(-50%, -50%) scale(0);
       }
+      ${aperturaEstiloCompartidoCSS}
     </style>
 
     <div class="curtain-glow"></div>
@@ -809,6 +927,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
     </div>
 
     <div class="curtain-seal-container" id="contenedor-sello">
+      ${aperturaParaFamiliaHTML("white")}
       <div class="curtain-seal-circle" onclick="comenzarExperienciaCortina()">
         <span class="text-3xl animate-bounce" style="margin-top: 4px;">${tema.decorativeEmoji}</span>
         <span class="text-[9px] uppercase tracking-wider font-extrabold mt-1 font-sans">${textosEvento.selloCortina}</span>
@@ -818,6 +937,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         <h2 class="text-xs uppercase tracking-[0.3em] font-semibold font-sans mb-2 text-white/90 drop-shadow-md">${textosEvento.encabezadoCortina}</h2>
         <h1 class="font-cursive text-5xl text-white drop-shadow-[0_2px_5px_rgba(0,0,0,0.8)] my-1">${datos.nombre}</h1>
         <p class="text-[9px] text-gray-300 tracking-widest font-sans uppercase">Toca el sello para descorrer el telón 🎭</p>
+        ${botonTocaParaAbrirHTML("comenzarExperienciaCortina()")}
       </div>
     </div>
   </div>`;
@@ -911,8 +1031,10 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       .puertas-escenario.abiertas + .puertas-texto {
         opacity: 0;
       }
+      ${aperturaEstiloCompartidoCSS}
     </style>
 
+    ${aperturaParaFamiliaHTML("white")}
     <div class="puertas-glow" id="puertas-glow"></div>
 
     <div class="puertas-escenario" id="puertas-escenario" onclick="event.stopPropagation(); comenzarExperienciaPuertas()">
@@ -925,6 +1047,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       <h2 class="text-xs uppercase tracking-[0.3em] font-semibold font-sans mb-2" style="color: ${tema.colors.accent};">Puertas de Gala</h2>
       <h1 class="font-cursive text-4xl my-1" style="color: white; font-family: ${fuenteCursivaTema};">${datos.nombre}</h1>
       <p class="text-[10px] text-gray-300 tracking-widest font-sans uppercase mt-2">Toca las puertas para entrar 🚪</p>
+      ${botonTocaParaAbrirHTML("comenzarExperienciaPuertas()")}
     </div>
   </div>`;
     } else if (tipoAperturaEfectivo === "destellos") {
@@ -952,21 +1075,21 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         opacity: 0;
         transform: scale(1.08);
       }
+      ${aperturaEstiloCompartidoCSS}
     </style>
 
     <div class="destellos-expansor"></div>
 
     <div class="destellos-contenido max-w-md w-full flex flex-col items-center animate-float" style="position: relative; z-index: 10;" onclick="event.stopPropagation()">
+      ${aperturaParaFamiliaHTML(tema.textDark)}
       <span class="text-4xl mb-3 animate-pulse" style="color: ${tema.colors.accent};">${tema.decorativeEmoji}</span>
       <h2 class="font-serif text-xs uppercase tracking-[0.25em] mb-2" style="color: ${tema.colors.accent};">${textosEvento.tarjetaLinea1}</h2>
       <h1 class="font-cursive text-5xl my-2" style="color: ${tema.colors.accent}; font-family: ${fuenteCursivaTema};">${textosEvento.tarjetaLinea2}</h1>
       <h3 class="font-serif text-3xl font-bold tracking-tight mb-6" style="color: ${tema.textDark};">${datos.nombre}</h3>
-      <button onclick="comenzarExperienciaDestellos()" class="relative px-8 py-4 text-white font-serif tracking-widest text-xs uppercase rounded-full shadow-lg cursor-pointer transform hover:scale-105 active:scale-95 transition-all" style="background: ${tema.colors.accent};">
-        ✨ Tocar Para Abrir ✨
-      </button>
+      ${botonTocaParaAbrirHTML("comenzarExperienciaDestellos()")}
     </div>
   </div>`;
-    } else {
+    } else if (tipoAperturaEfectivo === "tarjeta") {
       aperturaHTML = `
   <div id="pantalla-apertura" class="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 text-center transition-all duration-1000" style="background: ${tema.bgGradient};" onclick="comenzarExperienciaTarjeta()">
     <style>
@@ -1014,35 +1137,63 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         transform: translateY(-26px) scale(1.07);
         opacity: 0;
       }
-      .tarjeta-boton-brillo {
-        position: relative;
-        overflow: hidden;
-      }
-      .tarjeta-boton-brillo::after {
-        content: '';
-        position: absolute;
-        top: 0; left: -75%;
-        width: 50%; height: 100%;
-        background: linear-gradient(100deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%);
-        animation: tarjetaBrillo 3.2s ease-in-out infinite;
-      }
+      ${aperturaEstiloCompartidoCSS}
     </style>
 
     <div class="max-w-md w-full tarjeta-interactiva shadow-2xl" id="tarjeta-interactiva">
       <div class="tarjeta-interactiva-fondo bg-white/75 backdrop-blur-md p-8 border border-borderTheme/40 flex flex-col items-center animate-float">
         ${(datos.fotoPortada && datos.fotoPortada.trim() !== "") ? `<div class="tarjeta-foto-fondo"></div>` : ``}
         <div style="position: relative; z-index: 10;" class="flex flex-col items-center">
+          ${aperturaParaFamiliaHTML(tema.textDark)}
           <span class="text-4xl mb-4 text-accent animate-pulse">${tema.decorativeEmoji}</span>
           <h2 class="font-serif text-xs uppercase tracking-[0.25em] text-gray-500 mb-2">${textosEvento.tarjetaLinea1}</h2>
           <h1 class="font-cursive text-5xl text-accent my-3">${textosEvento.tarjetaLinea2}</h1>
           <h3 class="font-serif text-3xl font-bold tracking-tight text-dark mb-6">${datos.nombre}</h3>
           <p class="text-xs text-gray-600 mb-8 font-light italic">Por favor activa el sonido antes de entrar para disfrutar de una mejor experiencia.</p>
-
-          <button onclick="comenzarExperienciaTarjeta()" class="tarjeta-boton-brillo relative px-8 py-4 bg-accent text-white font-serif tracking-widest text-xs uppercase rounded-full shadow-lg hover:shadow-xl hover:bg-accent/95 cursor-pointer transform hover:scale-105 active:scale-95 transition-all">
-            ✨ Tocar Para Abrir ✨
-          </button>
+          ${botonTocaParaAbrirHTML("comenzarExperienciaTarjeta()")}
         </div>
       </div>
+    </div>
+  </div>`;
+    } else if (tipoAperturaEfectivo === "caligrafia") {
+      aperturaHTML = `
+  <div id="pantalla-apertura" class="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 text-center overflow-hidden select-none" style="background: ${tema.bgGradient};" onclick="comenzarExperienciaCaligrafia()">
+    <style>
+      .caligrafia-nombre {
+        display: block;
+        font-family: ${fuenteCursivaTema};
+        color: ${tema.colors.accent};
+        font-size: clamp(2.4rem, 11vw, 4rem);
+        line-height: 1.1;
+        opacity: 1;
+        clip-path: inset(0 0 0 0);
+      }
+      .caligrafia-nombre.caligrafia-animando {
+        opacity: 0;
+        clip-path: inset(0 100% 0 0);
+        animation: caligrafiaEscritura 1.7s cubic-bezier(0.65, 0, 0.35, 1) 0.25s forwards;
+      }
+      @keyframes caligrafiaEscritura {
+        0% { opacity: 1; clip-path: inset(0 100% 0 0); }
+        6% { opacity: 1; }
+        100% { opacity: 1; clip-path: inset(0 0% 0 0); }
+      }
+      .caligrafia-contenido {
+        transition: opacity 0.45s ease, transform 0.45s ease;
+      }
+      #pantalla-apertura.caligrafia-cerrando .caligrafia-contenido {
+        opacity: 0;
+        transform: scale(1.06);
+      }
+      ${aperturaEstiloCompartidoCSS}
+    </style>
+
+    <div class="caligrafia-contenido max-w-md w-full flex flex-col items-center" style="position: relative; z-index: 10;" onclick="event.stopPropagation()">
+      ${aperturaParaFamiliaHTML(tema.textDark)}
+      <span class="text-3xl mb-3" style="color: ${tema.colors.accent};">${tema.decorativeEmoji}</span>
+      <h1 class="caligrafia-nombre" id="caligrafia-nombre">${datos.nombre}</h1>
+      <p class="font-serif text-xs uppercase tracking-[0.25em] mt-3" style="color: ${tema.textDark};">${textosEvento.tituloSobre}</p>
+      ${botonTocaParaAbrirHTML("comenzarExperienciaCaligrafia()")}
     </div>
   </div>`;
     }
@@ -1736,6 +1887,22 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       z-index: 50;
     }
 
+    /* Textura de papel sutil del FONDO GENERAL (2026-11-20, ver TEMAS_CON_TEXTURA_PAPEL arriba)
+       -- caso SIN foto de fondo personalizada (el default): se agrega solo background-image +
+       background-blend-mode, SIN tocar background-color -- el color de fondo de cada tema ya lo
+       pone tema.customStyle (".theme-container { background-color: ... }", arriba) y se compone
+       con esta capa automáticamente. No hace falta ningún guard para que no aparezca antes de
+       abrir el sobre/apertura: la regla "body:not(.experiencia-iniciada) { background-image:
+       none !important; }" de arriba ya la apaga por su cuenta (gana por !important). El caso
+       CON foto de fondo personalizada se resuelve aparte, dentro del bloque de bgImages de abajo
+       (ahí la textura se agrega como una capa más del "background-image" que ya existe). */
+    ${temaTieneTexturaPapel ? `
+    .theme-container {
+      background-image: ${TEXTURA_PAPEL_DATAURI};
+      background-repeat: repeat;
+      background-blend-mode: multiply;
+    }` : ""}
+
     ${datos.bgImages && datos.bgImages[tema.id] ? `
     /* Imagen de fondo cargada para este tema por separado (solo se muestra al abrir el sobre).
        El fondo de respaldo usa el degradado real del tema (no transparent) -- si esta imagen
@@ -1748,11 +1915,25 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       background: ${tema.bgGradient} !important;
     }
     body.experiencia-iniciada, body.experiencia-iniciada.theme-container {
+      ${temaTieneTexturaPapel ? `
+      /* Textura de papel (2026-11-20) como una capa MÁS del fondo -- misma textura que el
+         fondo general sin foto, agregada aquí como un segundo layer (en vez de un ::after
+         aparte) porque body ya usa su ::before/::after para el velo/respaldo de abajo. Cada
+         propiedad lleva un valor por capa (textura primero, foto después) para que
+         background-size:cover no le aplique también al tile de 180px de la textura. */
+      background-image: ${TEXTURA_PAPEL_DATAURI}, url('${datos.bgImages[tema.id]}') !important;
+      background-size: 180px 180px, cover !important;
+      background-position: 0 0, center !important;
+      background-repeat: repeat, no-repeat !important;
+      background-attachment: fixed, fixed !important;
+      background-blend-mode: multiply, normal !important;
+      ` : `
       background-image: url('${datos.bgImages[tema.id]}') !important;
       background-size: cover !important;
       background-position: center !important;
       background-repeat: no-repeat !important;
       background-attachment: fixed !important;
+      `}
     }
     /* Capa de fondo fija de respaldo para cobertura total garantizada en smartphones */
     body.experiencia-iniciada::after, body.experiencia-iniciada.theme-container::after {
@@ -2079,6 +2260,38 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         console.warn("Error mostrando pase:", err);
       }
 
+      // 3.5. Pantalla "PARA / Familia" (2026-11-20): si el link trae ?fam= Y resuelve a un
+      // invitado real (mismo dato que acaba de usar mostrarPaseFijo() arriba), se muestra arriba
+      // del elemento principal de CUALQUIER tipo de apertura. Si no hay parámetro o no resuelve,
+      // el bloque se queda oculto -- la apertura se ve exactamente igual que antes de este cambio.
+      try {
+        const famParam = new URLSearchParams(window.location.search).get('fam');
+        const invitadoPara = (datosInvitacion.invitados || [])[0];
+        if (famParam && invitadoPara && invitadoPara.nombre) {
+          const bloquePara = document.getElementById('apertura-para-familia');
+          const nombrePara = document.getElementById('apertura-para-familia-nombre');
+          if (bloquePara && nombrePara) {
+            nombrePara.innerText = invitadoPara.nombre;
+            bloquePara.classList.remove('hidden');
+          }
+        }
+      } catch (err) {
+        console.warn("Error mostrando PARA/familia en apertura:", err);
+      }
+
+      // 3.6. Apertura "Caligrafía": el nombre se escribe solo al cargar, sin esperar ningún
+      // toque (a diferencia de las otras 5 aperturas, que esperan el toque antes de animar nada).
+      // Con "Reducir movimiento" activo se deja el nombre ya escrito (estado por default de
+      // .caligrafia-nombre sin la clase .caligrafia-animando) y solo se espera el toque.
+      try {
+        const nombreCaligrafia = document.getElementById('caligrafia-nombre');
+        if (nombreCaligrafia && !prefiereMenosMovimiento()) {
+          nombreCaligrafia.classList.add('caligrafia-animando');
+        }
+      } catch (err) {
+        console.warn("Error iniciando animación de Caligrafía:", err);
+      }
+
       // Si no hay pantalla de apertura, activar la experiencia de inmediato
       if (!document.getElementById('pantalla-apertura')) {
         document.body.classList.add('experiencia-iniciada');
@@ -2216,15 +2429,17 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       const sello = document.getElementById('sobre-sello');
       if (container) {
         if (container.classList.contains('open')) return;
+        // Lacre partiéndose en dos mitades (2026-11-20) -- se deja correr ~600ms antes de abrir
+        // la solapa, para que el corte/caída/desvanecido del lacre se vea completo primero.
         if (sello) sello.classList.add('sello-rompiendo');
         setTimeout(() => {
           container.classList.add('open');
           crearRafagaDestellos();
-        }, 450);
+        }, 600);
       }
       setTimeout(() => {
         comenzarExperiencia();
-      }, 1900);
+      }, 2200);
     }
 
     function comenzarExperienciaCortina() {
@@ -2279,6 +2494,21 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       setTimeout(() => {
         comenzarExperiencia();
       }, 950);
+    }
+
+    // Apertura "Caligrafía" (2026-11-20): la escritura del nombre corre sola al cargar (ver
+    // paso 3.6 del DOMContentLoaded) -- tocar la pantalla o el botón "TOCA PARA ABRIR" solo
+    // acelera/salta a la portada, sin esperar a que termine el trazo.
+    function comenzarExperienciaCaligrafia() {
+      const overlay = document.getElementById('pantalla-apertura');
+      if (overlay) {
+        if (overlay.classList.contains('caligrafia-cerrando')) return;
+        overlay.classList.add('caligrafia-cerrando');
+        crearRafagaDestellos();
+      }
+      setTimeout(() => {
+        comenzarExperiencia();
+      }, prefiereMenosMovimiento() ? 0 : 400);
     }
 
     function comenzarExperiencia() {

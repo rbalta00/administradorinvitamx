@@ -2,6 +2,178 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Textura de papel sutil en el sobre y el fondo (temas elegantes) (2026-11-20)
+
+Pedido explícito: que la invitación se sienta como una tarjeta de papel real -- grano sutil en el
+sobre (apertura tipo "sobre") y en el fondo general del contenido, solo en los 10 temas elegantes/
+de papel (`dorado-clasico`, `mariposas`, `floral-acuarela`, `botanico`, `boho-chic`,
+`princesa-elegante`, `marmol-oro`, `coquette-pink`, `coquette-luxe`, `vino-elegante`), nunca en los
+de brillo/oscuro (`celestial`, `neon`, `aurora-boreal`, `glam-rose`, `personalizado`).
+
+- **Textura generada 100% por código** (`templates.ts`, constantes module-level cerca de
+  `construirUrlGoogleFonts`): `TEXTURA_PAPEL_SVG` (ruido `feTurbulence`, 254 bytes) horneado con
+  `opacity='0.05'` directo en el SVG (dentro del rango 0.04-0.08 pedido), codificado a
+  `TEXTURA_PAPEL_DATAURI` (376 caracteres, sin imágenes externas, sin librerías, sin peticiones de
+  red, sin JS). `TEMAS_CON_TEXTURA_PAPEL` (los 10 ids de arriba) + `temaTieneTexturaPapel` (nuevo,
+  calculado en `generarHTMLFinal` por el tema EFECTIVO, mismo criterio que `tipoAperturaEfectivo`
+  -- nunca por `datos.personalizacion`, no hay control nuevo en el editor).
+- **"Fondo compuesto" en vez de un `::after` nuevo** (`texturaPapelSobre(fondoBase)`, helper
+  nuevo): compone la textura con el fondo YA existente de cada superficie vía `background-image`/
+  `background-blend-mode: multiply` (oscurece, nunca aclara) -- sin tocar ninguna clase ni la
+  estructura del HTML existente, solo agregando una capa más a la propiedad `background` que esa
+  superficie ya traía. Aplicado en `.envelope-container`/`.envelope-flap`/`.envelope-pocket`/
+  `.envelope-letter` (el sobre, incluyendo la solapa y la carta) y en `.theme-container`/`body`
+  (el fondo general, tanto con foto de fondo personalizada subida como sin ella).
+- **Bug real encontrado y corregido durante la propia verificación en vivo**: `background-image`
+  solo acepta valores `<image>` (gradiente/url), NUNCA un color plano -- `.envelope-container`
+  (fondo `tema.colors.light`) y `.envelope-letter` (fondo `white`) pasan justo eso, un color
+  plano, y la primera versión de `texturaPapelSobre` los metía tal cual como segunda capa de
+  `background-image`, lo que invalida la declaración ENTERA (el navegador la descarta por
+  completo) -- confirmado con `getComputedStyle` real en el editor: esas 2 superficies se
+  quedaban sin ningún fondo (`background-image: none`), mientras que `.envelope-pocket`/
+  `.envelope-flap` (cuyo fondo YA es un `linear-gradient(...)`, un `<image>` válido) sí
+  funcionaban desde el primer intento. Corregido: `texturaPapelSobre` detecta si `fondoBase` es
+  un gradiente/url real (`background-image` de 2 capas, como antes) o un color plano (ahí el
+  color se deja en `background-color` aparte, y la textura es la ÚNICA capa de
+  `background-image`, compuesta contra ese color vía `background-blend-mode: multiply` -- que
+  también blendea contra `background-color`, no solo entre capas de `background-image`).
+- **Límite conocido, no un bug**: la solapa del sobre (`.envelope-flap`) es un triángulo armado
+  con el truco de `border-left/right: transparent` + `border-top: solid` sobre una caja de
+  `width:0;height:0` -- el `background`/textura ahí solo se ve en las 2 esquinas donde el borde
+  transparente deja pasar el fondo (el grueso del triángulo es el borde SÓLIDO, que no acepta
+  textura, es borde, no fondo). Aceptado a propósito: agregar la textura vía una técnica distinta
+  (ej. `border-image`, o un nuevo elemento recortado con `clip-path`) hubiera requerido tocar
+  estructura/clases existentes, explícitamente prohibido en el encargo.
+- **Verificado en vivo** (servidor local de desarrollo, "Monitor de Invitación" del editor +
+  catálogo con `?catalog=true&tema=X`): con `getComputedStyle` real (no solo visual, la opacidad
+  es demasiado sutil para verse en una captura comprimida) se confirmó la textura presente y con
+  el blend correcto en las 4 superficies del sobre Y en el fondo general, en AMBOS casos (con foto
+  de fondo personalizada -- blend `"multiply, normal"`, 2 capas -- y sin ella -- blend
+  `"multiply"`, 1 capa contra `background-color`); confirmado que `celestial` no tiene ningún
+  rastro de `feTurbulence` en su HTML generado (cero textura); contenido/texto siguen legibles y
+  sin regresión visual en los 2 temas de papel probados (`mariposas` con sobre real abierto,
+  `vino-elegante` sin foto de fondo). `npm run lint` con los mismos 6 errores preexistentes de
+  `ImportMeta.env`, cero nuevos; `npm run build` limpio.
+- Commit en `master`, pusheado.
+
+## "Mis Invitaciones" abre en "Activas", no en "Requieren atención" (2026-11-20)
+
+Bug real reportado con repro en vivo: el panel "Mis Invitaciones" nacía con `pestanaListaInvitaciones`
+en `"atencion"` -- si no había ninguna invitación en `invitacionesUrgentes` en ese momento (el caso
+normal), la lista se veía vacía con "Ninguna invitación coincide con estos filtros." pese a que SÍ
+había cargado todo de Supabase (los contadores de arriba, "Activas (9)"/"Todos (12)", lo probaban).
+El filtro "Todos" de la segunda fila es de TIPO DE EVENTO, no de estado, así que no rescataba la vista.
+
+- **Fix real, 2 lugares, no uno solo**: el `useState` inicial de `pestanaListaInvitaciones`
+  (`App.tsx`, ~línea 3227) cambió de `"atencion"` a `"activas"` -- pero eso solo cubre el primer
+  render antes de abrir el panel por primera vez. **Hallazgo encontrado revisando el propio
+  comentario junto a ese `useState`** (decía explícitamente "ver el onClick que abre Mis
+  Invitaciones, que la resetea cada vez" -- una pista de que el primer fix, por sí solo, era un
+  no-op): el botón "Mis Invitaciones" (el único lugar que hace `setMostrarMisInvitaciones(true)`)
+  tenía su propio `setPestanaListaInvitaciones("atencion")` en el `onClick`, que pisaba el default
+  de arriba CADA VEZ que se abre el panel -- confirmado que es el único call site además del
+  `useState`. Corregido también a `"activas"`. No se tocó el orden de las pestañas, los
+  contadores, la lógica de `invitacionesFiltradas`, ni qué cuenta como `invitacionesUrgentes` --
+  "🔥 Requieren atención" sigue existiendo con su contador, solo deja de ser la vista con la que
+  abre el panel.
+- `npm run build`/`npm run lint` limpios (mismos 6 errores preexistentes de `ImportMeta.env`).
+- Commit `<ver git log>` en `master`, pusheado.
+
+## Clonar invitación ya no hereda extras à la carte activados (2026-11-20)
+
+Encargo explícito: `handleDuplicarInvitacionGuardada` (`App.tsx`) guardaba la fila nueva con el
+`datos_completos` íntegro de la original -- las columnas de pago (`pases_pagado`/`pdf_pagado`/
+`checkin_pagado`) correctamente NO se copian (ya era así), pero las funciones ya DESBLOQUEADAS
+dentro de `datos_completos` sí viajaban activadas: `controlAccesoQR: true` (el QR de puerta,
++$150 MXN, no lo incluye ningún plan) y cualquier sección condicionada por paquete que el admin
+hubiera prendido a mano a la carta (ej. "pases" en un Básico) quedaba fuera de
+`seccionesExcluidas` en la copia -- un cliente nuevo nacía con extras activos que no ha pagado.
+
+- **Fix, solo en el flujo de duplicar**: antes de llamar a `guardarEnSupabase`, se arma
+  `datosParaClon` con `controlAccesoQR: false` siempre, y `seccionesExcluidas` recalculado con
+  `recalcularSeccionesPorPaquete(fila.datos_completos.seccionesExcluidas, fila.datos_completos.paquete)`
+  -- la MISMA función que ya usa el selector de paquete (línea ~1331) para decidir qué secciones
+  condicionadas por plan (`pases`/`familia`/`regalos`, ver `SECCIONES_CONDICIONADAS_POR_PAQUETE`)
+  quedan prendidas/apagadas, sin duplicar esa lógica. El resto de `seccionesExcluidas` (secciones
+  que el admin apagó a mano sin depender del paquete, ej. "Galería") se conserva intacto, porque
+  es justo lo que ya hace esa función -- no se tocó nada más de `datos_completos` (tema,
+  personalización, textos, fotos, invitados, datos del evento/cliente viajan igual).
+- El estado del editor (`setDatos`) se carga desde `datosParaClon`, no desde `fila.datos_completos`
+  tal cual, para que lo que se ve en pantalla tras duplicar coincida con lo que de verdad se
+  guardó (antes de este fix hubiera mostrado los extras todavía activos hasta la próxima recarga).
+- Columnas/payload de `guardarEnSupabase` sin tocar -- la copia sigue naciendo con id/código corto
+  nuevos, 0 aperturas, sin pagos ni flags de pago, desbloqueada.
+- Toast de éxito ampliado: ahora avisa explícitamente que los extras à la carte (QR de puerta y
+  secciones sueltas) inician apagados en la copia y se activan cuando se registre su pago.
+- **Verificado por lógica** (simulación en Node de `recalcularSeccionesPorPaquete`, misma función
+  copiada tal cual del archivo, sin mocks de Supabase): un Básico con "pases" desbloqueado a la
+  carta (`seccionesExcluidas: ["familia","regalos"]`) vuelve a excluir "pases" al duplicar
+  (`["familia","regalos","pases"]`); un Premium/Deluxe (`seccionesExcluidas: []`) se mantiene sin
+  nada excluido; una sección no condicionada apagada a mano (ej. "galeria") sobrevive intacta en
+  la copia junto con el recálculo de las condicionadas. `npm run lint` (`tsc --noEmit`) con los
+  mismos 6 errores preexistentes de `ImportMeta.env`, cero nuevos; `npm run build` limpio.
+- Commit en `master`, pusheado.
+
+## Aperturas estilo Verbena (delta): lacre que se parte, pantalla "PARA / Familia", apertura Caligrafía (2026-11-20)
+
+Encargo explícito (análisis de competencia Verbena citado en el propio prompt del usuario, no vive
+en este repo -- mecanismos genéricos adaptados con el arte propio de InvitaMX, nada de su material
+copiado). Delta
+sobre el prompt de aperturas ya aplicado el 2026-11-19 (las 5 aperturas sobre/cortina/tarjeta/
+puertas/destellos, el sello de cera con inicial, y el panel visual con mini-previews) -- nada de
+eso se rehizo.
+
+- **Parte 1 -- lacre que se parte en dos** (`templates.ts`, bloque "sobre"): el disco del sello
+  ahora son 2 mitades (`.sello-mitad-izq`/`-der`) recortadas con `clip-path` en un borde irregular
+  (grieta), más un laurel decorativo simple en SVG (`.sello-laurel`) detrás. Al tocar, cada mitad
+  se traslada/rota hacia su lado y se desvanece (solo `transform`/`opacity`, con transición, sin
+  `@keyframes` nuevo); la solapa se abre 600ms después (antes 450ms) y `comenzarExperiencia()` se
+  dispara a los 2200ms totales (antes 1900ms) -- dentro del rango de 2-3s pedido. Verificado con
+  `getComputedStyle` tras forzar la clase `sello-rompiendo`: mitades en `opacity:0` con transform
+  de traslación/rotación distinto cada una, laurel en `opacity:0`.
+- **Parte 2 -- pantalla "PARA / Familia" + botón "TOCA PARA ABRIR"**: nuevo bloque compartido
+  (`aperturaParaFamiliaHTML`/`botonTocaParaAbrirHTML`/`aperturaEstiloCompartidoCSS` en
+  `generarHTMLFinal`) insertado en las 6 aperturas (arriba del elemento principal, con el color de
+  texto correcto para el fondo de cada una). El nombre de la familia se resuelve en runtime
+  (`?fam=` del link + `datosInvitacion.invitados[0]`, el mismo dato que ya usa `mostrarPaseFijo()`
+  -- no se inventó un mecanismo nuevo) dentro de un paso nuevo del `DOMContentLoaded` existente, con
+  try/catch silencioso igual que el resto de esa función. Sin `?fam=` o sin invitado resuelto, el
+  bloque se queda oculto -- la apertura se ve exactamente igual que antes. El botón "TOCA PARA
+  ABRIR" (texto unificado, antes variaba entre "✨ Tocar Para Abrir ✨" y solo un párrafo de ayuda
+  en sobre/cortina/puertas) se agregó a las 6 aperturas. Verificado end-to-end con
+  `generarHTMLFinal` ejecutado directo (esbuild + Node, fuera del repo, con los datos de ejemplo
+  del catálogo que ya traen 3 invitados de muestra) y abierto en navegador real: con `?fam=` la
+  pantalla muestra "PARA / Familia Pérez González" antes de "Tienes una invitación exclusiva" (y
+  equivalente en las otras 5); sin `?fam=` o con `?fam=` vacío, no aparece nada y no hay errores de
+  consola.
+- **Parte 3 -- sexto tipo de apertura "Caligrafía"**: agregado a `types.ts` (`tipoApertura`),
+  `App.tsx` (`TipoApertura`, `TIPOS_APERTURA`, `MiniPreviewApertura` con un trazo SVG real
+  animado en bucle para la mini-vista, `index.css` con su keyframe), y `templates.ts`
+  (`tipoAperturaEfectivo`, bloque nuevo + `comenzarExperienciaCaligrafia()`). El nombre se
+  "escribe solo" al cargar (sin esperar toque) con un revelado progresivo por `clip-path` +
+  fade -- el trazo SVG letra-por-letra que pedía el encargo como ideal no es viable para un
+  nombre arbitrario en una fuente de Google Fonts cualquiera sin una librería de trazado de
+  glifos que este proyecto no tiene vendorizada, así que se usó el fallback que el propio
+  encargo ya contemplaba explícitamente para ese caso ("revelado progresivo... + fade", aclarado
+  para que no se confunda con un fade plano). Debajo, el tipo de evento (`textosEvento.tituloSobre`,
+  reusado tal cual) y el botón "TOCA PARA ABRIR" (tocar acelera/salta a la portada, sin esperar a
+  que termine el trazo). Con `prefers-reduced-motion`, el nombre se muestra ya escrito (sin la
+  clase que dispara la animación) y solo se espera el toque -- verificado simulando el media query
+  vía `matchMedia` monkeypatcheado en consola real. No se cambió ningún default de tema -- queda
+  como opción elegible para cualquiera de los 14.
+- **No se tocó**: las reglas de las 5 aperturas existentes fuera del lacre de "sobre", el flujo de
+  `comenzarExperiencia()` (música/widget/caída), RSVP/pases/secciones/precios, ni ningún default de
+  tema -- confirmado con `npm run lint` (mismos 6 errores preexistentes de `ImportMeta.env`, cero
+  nuevos) y `npm run build` limpio.
+- Verificación hecha renderizando `generarHTMLFinal` directo (sin pasar por el editor) porque la
+  ruta de depuración `?embed=true` tiene un bug preexistente, no causado por este cambio (confirmado
+  reproduciéndolo también en código sin tocar): un `document.write` duplicado sobre el mismo
+  documento ("Identifier 'datosInvitacion' has already been declared"), que aborta el script
+  completo de esa página de depuración en particular. El **preview real del editor** (el iframe
+  "Monitor de invitación") no tiene este problema -- se confirmó ahí también con el botón nuevo
+  visible. No investigado a fondo por estar fuera de alcance de este encargo; queda anotado por si
+  alguien lo encuentra buscando "PARA/familia no aparece" en el modo embed específicamente.
+
 ## Tipo de Evento: XV ya no es el único evento soportado (2026-11-19)
 
 Pedido explícito del usuario: generalizar el generador (hasta ahora 100% de quinceañeras) para
