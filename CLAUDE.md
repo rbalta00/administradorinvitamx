@@ -54,7 +54,7 @@ de brillo/oscuro (`celestial`, `neon`, `aurora-boreal`, `glam-rose`, `personaliz
   sin regresión visual en los 2 temas de papel probados (`mariposas` con sobre real abierto,
   `vino-elegante` sin foto de fondo). `npm run lint` con los mismos 6 errores preexistentes de
   `ImportMeta.env`, cero nuevos; `npm run build` limpio.
-- Commit en `master`, pusheado.
+- Commit `6095fb9` en `main`, pusheado.
 
 ## "Mis Invitaciones" abre en "Activas", no en "Requieren atención" (2026-11-20)
 
@@ -77,7 +77,7 @@ El filtro "Todos" de la segunda fila es de TIPO DE EVENTO, no de estado, así qu
   "🔥 Requieren atención" sigue existiendo con su contador, solo deja de ser la vista con la que
   abre el panel.
 - `npm run build`/`npm run lint` limpios (mismos 6 errores preexistentes de `ImportMeta.env`).
-- Commit `<ver git log>` en `master`, pusheado.
+- Commit `6095fb9` en `main`, pusheado.
 
 ## Clonar invitación ya no hereda extras à la carte activados (2026-11-20)
 
@@ -112,7 +112,7 @@ hubiera prendido a mano a la carta (ej. "pases" en un Básico) quedaba fuera de
   nada excluido; una sección no condicionada apagada a mano (ej. "galeria") sobrevive intacta en
   la copia junto con el recálculo de las condicionadas. `npm run lint` (`tsc --noEmit`) con los
   mismos 6 errores preexistentes de `ImportMeta.env`, cero nuevos; `npm run build` limpio.
-- Commit en `master`, pusheado.
+- Commit `6095fb9` en `main`, pusheado.
 
 ## Aperturas estilo Verbena (delta): lacre que se parte, pantalla "PARA / Familia", apertura Caligrafía (2026-11-20)
 
