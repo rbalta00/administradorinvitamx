@@ -29,6 +29,9 @@
 //   - /v/<codigoCorto>       -> link corto de una invitación (2026-11-19, ver App.tsx). A
 //     diferencia de los demás modos de arriba, este se detecta por RUTA, no por query param --
 //     App.tsx resuelve el código contra Supabase con la anon key, igual que intake/checkin.
+//   - /puerta/<codigoCorto>  -> link corto del control de acceso (equivalente a ?checkin=1,
+//     2026-11-21) y /datos/<codigoCorto> -> link corto del formulario (equivalente a ?intake=1)
+//     -- mismo criterio que /v/ arriba: se detectan por ruta, App.tsx resuelve el código.
 // Los archivos estáticos del build (/assets/*) también se dejan pasar siempre, si no el propio
 // navegador no podría ni cargar el JS/CSS para pintar la pantalla de login.
 //
@@ -71,7 +74,9 @@ export default function middleware(request: Request) {
     params.get("intake") === "1" ||
     params.get("checkin") === "1" ||
     params.get("recuperar") === "1" ||
-    /^\/v\//.test(url.pathname);
+    /^\/v\//.test(url.pathname) ||
+    /^\/puerta\//.test(url.pathname) ||
+    /^\/datos\//.test(url.pathname);
 
   if (esVistaPublica) {
     return;

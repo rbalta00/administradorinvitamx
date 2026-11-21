@@ -2,6 +2,101 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Links cortos para puerta, pases por familia y formulario (2026-11-21)
+
+Pedido explícito: todos los links del sistema (no solo la invitación) deben colgar del mismo
+`codigoCorto` corto y fácil de dictar/compartir, sin romper ni un solo link largo ya entregado.
+
+- **Rutas nuevas**: `/puerta/<codigoCorto>[/<slug-familia>]` (equivalente corto de
+  `?checkin=1&iid=...[&fam=...]`), `/datos/<codigoCorto>` (equivalente de `?intake=1&iid=...`),
+  y `/v/<codigoCorto>/<slug-familia>` (equivalente de `/v/<codigoCorto>?fam=...`, el pase por
+  familia). Las tres se resuelven en `src/App.tsx` exactamente igual que `/v/<codigoCorto>`
+  (agregado el 2026-11-19): un `useEffect` hace un SELECT a Supabase por `codigoCorto`, y al
+  resolver hace `replaceState` al equivalente LARGO (`?checkin=1&iid=...`, etc.) -- de ahí en
+  adelante `isCheckinMode`/`isIntakeMode` (que leen `queryParams`, recalculado cada render desde
+  `window.location.search`) lo toman exactamente igual que si hubiera llegado por el link largo
+  de siempre, sin tocar `CheckinPage`/`IntakeForm`. `vercel.json` ya reescribe cualquier ruta no
+  -`/api/*` a `index.html` (sin cambios ahí); `middleware.ts` sí necesitó la misma excepción de
+  Basic Auth que ya tenía `/v/` (agregado `/^\/puerta\//`/`/^\/datos\//`).
+- **Slug de familia** (`slugFamilia`/`slugsDeInvitados`/`resolverFamiliaPorSlug`, nuevas,
+  módulo-nivel en `App.tsx`, cerca de `generarCodigoCortoUnico`): minúsculas, sin acentos, todo
+  lo que no sea letra/número colapsa a un guión. `slugsDeInvitados` calcula el slug de CADA
+  invitado en el mismo orden del arreglo -- si dos producen el mismo slug base, el segundo (y
+  siguientes) ganan un sufijo numérico estable ("-2", "-3"...) según su POSICIÓN, nunca por azar.
+  Se recalcula en vivo en los dos sentidos (construir el link y resolver el slug de vuelta), sin
+  persistir el slug en ningún lado -- si la lista de invitados cambia entre que se comparte un
+  link y se abre, el slug se recalcula igual de consistente.
+- **El QR del pase** (`mostrarPaseFijo()` en `templates.ts`) ahora codifica
+  `/puerta/<codigo>/<slug>` en vez de `?checkin=1&iid=...&fam=...`, cuando la invitación tiene
+  `codigoCorto` Y la página trae `?famSlug=` en la URL (puesto por `App.tsx` al resolver el
+  link de la invitación, sea por `/v/<codigo>/<slug>` o por el `?fam=` de siempre) -- si falta
+  cualquiera de los dos, cae al link largo de check-in de toda la vida. `famSlug` se decidió
+  pasar por querystring en vez de recalcularlo ahí mismo porque `datosInvitacion.invitados` en
+  ese contexto solo trae a ESTE invitado (ya recortado por privacidad), así que no podría
+  desambiguar una colisión de slugs por su cuenta -- el slug ya resuelto viaja completo.
+- **`getShareUrl()`** (el link de pase que genera/copia el editor): cuando hay `codigoCorto`,
+  ahora arma `/v/<codigo>/<slug>` en vez de `/v/<codigo>?fam=...`; el fallback de blob largo
+  (`?v=1&d=...&g=...`, invitaciones sin código) sigue igual pero ahora también agrega
+  `&famSlug=` cuando la invitación ya tiene `codigoCorto` (puede pasar con una "muestra", que
+  siempre usa el blob largo aunque la invitación real ya tenga código) -- así el QR del pase
+  sale corto incluso cuando el link principal de esa vista salió largo por otra razón.
+- **Botones del panel que ahora usan los links cortos** (`urlFormularioDatos`/`urlControlAcceso`,
+  nuevos, con fallback automático al link largo si la fila no tiene `codigoCorto` todavía):
+  "📋 Enviar formulario de datos y fotos al cliente" + su botón "👁️ Abrir" de previsualizar, los
+  dos links de "Enviar control por WhatsApp"/"Copiar" del control de acceso, y los renglones
+  "Formulario"/"Control de acceso" de "Links de la clienta" en "Mis Invitaciones". El QR de
+  "Control de Acceso QR" del propio editor (junto a cada invitado en "Lista Pases") también usa
+  el link corto cuando `datos.codigoCorto` existe.
+- **`CheckinPage` (la pantalla pública de control de acceso) también se actualizó**: ahora
+  guarda el `codigoCorto` de la fila que ya lee (`dc.codigoCorto`, gratis, viene en el mismo
+  SELECT de siempre) y usa ese código para sus propios links internos ("← Ver lista completa",
+  cada familia de la lista) -- **bug real encontrado y corregido antes de terminar**: sin esto,
+  alguien que entra por `/puerta/<codigo>/<slug>` y da clic en "Ver lista completa" (un `<a
+  href="?checkin=1&iid=...">` normal, recarga completa de página) hubiera vuelto a caer en la
+  MISMA ruta `/puerta/<codigo>/<slug>` (el `href` relativo no toca el pathname) -- el resolver
+  habría vuelto a resolver ESE MISMO slug de familia en vez de mostrar la lista general, dejando
+  ese botón roto para cualquiera que hubiera entrado por la ruta corta. Verificado en vivo que
+  ahora sí limpia la familia correctamente (ver abajo).
+- **Bug real encontrado y corregido durante la implementación, no en la verificación**: la
+  primera versión puso las guardias de "cargando"/"no encontrado" de `/puerta/`+`/datos/`
+  inmediatamente después de la guardia de "modos combinados" ya existente -- eso causó
+  `Error: Rendered more hooks than during the previous render` en cuanto `rutaCortaEstado` pasaba
+  de "cargando" a "listo"/"no-encontrado" DENTRO del mismo montaje (hay más `useEffect`/`useState`
+  declarados más abajo en el componente, como el de `isEmbedMode`, que solo se alcanzaban en
+  UNO de los dos renders). Las guardias de `isViewMode`/`bloqueoCheck`/`linkCortoEstado` ya
+  existentes son seguras porque `isViewMode` es constante durante toda la vida del montaje
+  (siempre termina retornando en el mismo punto, sin importar el resto); la mía dependía de un
+  estado que SÍ cambia durante la vida del montaje, así que se movió a después de TODOS los
+  hooks del componente (justo antes de `isCheckinMode`/`isIntakeMode`, donde no hay ningún hook
+  más abajo) -- mismo criterio que ya aplican esos dos bloques.
+- **Compatibilidad hacia atrás, confirmada en vivo, no solo leída en el código**: los 4 formatos
+  largos (`?checkin=1&iid=...`, `?checkin=1&iid=...&fam=...`, `?intake=1&iid=...`,
+  `/v/<codigo>?fam=...`) siguen abriendo exactamente lo mismo que antes -- no se quitó ningún
+  parseo existente, solo se agregaron casos nuevos en paralelo.
+- **Verificado en vivo** (servidor local efímero puerto 5577, fila de prueba real insertada a
+  mano en la tabla real de Supabase -- `codigoCorto` propio, 2 familias con el mismo slug base
+  a propósito, "Familia García"/"Familia Garcia", para forzar la desambiguación -- borrada al
+  terminar, confirmado con un SELECT después del DELETE): `/puerta/<codigo>` muestra la lista
+  general con los 3 hrefs ya en formato corto y con "familia-garcia"/"familia-garcia-2"
+  correctamente desambiguados; `/puerta/<codigo>/familia-garcia-2` resuelve la familia SIN
+  acento (la segunda, no la primera); "← Ver lista completa" desde ahí vuelve a
+  `/puerta/<codigo>` (sin familia) -- confirma el fix del bug de arriba; `/datos/<codigo>` abre
+  el formulario de la invitación correcta; `/v/<codigo>/familia-lopez` resuelve el pase de esa
+  familia y dicha URL queda con `&famSlug=familia-lopez` tal como se diseñó; los 2 formatos
+  largos de compatibilidad (`?checkin=1&iid=...&fam=...` y `/v/<codigo>?fam=...`) siguen
+  abriendo lo mismo que antes, y en el caso de `?checkin=1&iid=...`, "Ver lista completa" YA
+  usa el link corto (porque `CheckinPage` ahora conoce el `codigoCorto` de la fila sin importar
+  por dónde se entró) -- mejora adicional, no pedida explícitamente pero consistente con el
+  objetivo. La construcción del `checkinUrl` corto/largo del QR del pase (en `templates.ts`) se
+  verificó aparte con un script standalone de Node (el `document.write()` de la vista de
+  invitado no refrescó su `DOMContentLoaded` de forma confiable en el navegador automatizado de
+  esta sesión -- limitación ya documentada de esta técnica, no un bug de este cambio) -- los 3
+  casos (código+slug, sin código, con código sin slug) dieron el resultado esperado.
+  `npm run lint`/`npm run build` sin errores nuevos (los mismos 6 de siempre, confirmados antes
+  y después). Sin cambios en `docs/guia-de-uso.md`/`public/manual.html` -- ningún botón visible
+  cambió de nombre/comportamiento, solo el formato de la URL que ya generaban.
+- Commit en `main`, pusheado -- Vercel debería redesplegar solo.
+
 ## Cobrar por WhatsApp desde el administrador: links de pago por invitación (2026-11-21)
 
 Pedido explícito: el admin pega UNA sola vez sus links de pago (Mercado Pago/Clip), y cada

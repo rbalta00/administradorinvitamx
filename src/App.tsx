@@ -566,6 +566,47 @@ async function generarCodigoCortoUnico(supabase: any, nombre: string): Promise<s
   return `${slugBase}-${Date.now().toString(36).slice(-4)}`;
 }
 
+// Slug de familia para las rutas cortas /v/<codigoCorto>/<slug> y /puerta/<codigoCorto>/<slug>
+// (2026-11-21): mismo criterio de normalización que generarCodigoCortoUnico arriba (minúsculas,
+// sin acentos, todo lo que no sea letra/número colapsa a un solo guión), pero SIN sufijo
+// aleatorio -- tiene que salir exactamente igual cada vez que se recalcula para el mismo
+// nombre, porque un link que el admin ya compartió debe seguir resolviendo igual más adelante.
+function slugFamilia(nombre: string): string {
+  return (
+    (nombre || "")
+      .toLowerCase()
+      .normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+  ) || "familia";
+}
+
+// Calcula el slug de CADA invitado de la lista, en el mismo orden en que aparecen -- si dos
+// producen el mismo slug base, el segundo (y siguientes) ganan un sufijo numérico estable
+// ("-2", "-3"...) según su posición en el arreglo, nunca por azar ni por orden alfabético. Se
+// usa tanto para CONSTRUIR el link de un invitado (getShareUrl, los botones de "Mis
+// Invitaciones", el QR del editor) como para RESOLVERLO de vuelta (resolverFamiliaPorSlug) --
+// mismo cálculo en los dos sentidos, nunca se persiste en ningún lado.
+function slugsDeInvitados<T extends { nombre: string }>(invitados: T[]): string[] {
+  const vistos = new Map<string, number>();
+  return invitados.map(inv => {
+    const base = slugFamilia(inv.nombre);
+    const n = (vistos.get(base) || 0) + 1;
+    vistos.set(base, n);
+    return n === 1 ? base : `${base}-${n}`;
+  });
+}
+
+// Resuelve un slug de la URL (`/v/<codigo>/<slug>` o `/puerta/<codigo>/<slug>`) contra la lista
+// de invitados de ESA invitación -- recalcula los slugs en vivo (ver slugsDeInvitados) en vez
+// de leer uno guardado, para no tener que migrar nada si la lista de invitados cambia entre que
+// se comparte el link y que se abre.
+function resolverFamiliaPorSlug<T extends { nombre: string }>(invitados: T[], slug: string): T | null {
+  const slugs = slugsDeInvitados(invitados);
+  const idx = slugs.indexOf(slug.toLowerCase());
+  return idx >= 0 ? invitados[idx] : null;
+}
+
 // Función para guardar en Supabase (agregar ANTES de export default function App)
 // Si se pasa `existingId`, actualiza esa fila en vez de crear una nueva — evita que guardar
 // varias veces mientras se edita la MISMA invitación acumule filas duplicadas en la tabla.
@@ -2323,9 +2364,10 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
 
 // Complemento à la carte "Control de Acceso QR" (requiere que la invitación tenga "pases"
 // activo -- ver toggle junto a SeccionesToggleList). Página pública para quien controla la
-// entrada del evento: se llega o bien por el QR de un pase individual (?checkin=1&iid=...&fam=...
-// -- ver mostrarPaseFijo en templates.ts) o por el link general que el admin genera y manda por
-// WhatsApp (?checkin=1&iid=..., sin &fam=, muestra una lista buscable de todas las familias).
+// entrada del evento: se llega por el link corto /puerta/<codigo>[/<slug>] (2026-11-21), por el
+// QR de un pase individual (?checkin=1&iid=...&fam=... -- ver mostrarPaseFijo en templates.ts,
+// compatibilidad con links ya compartidos), o por el link general que el admin genera y manda
+// por WhatsApp (sin familia, muestra una lista buscable de todas las familias).
 // Lee datos_completos por iid con la anon key -- mismo modelo de riesgo aceptado que el resto
 // de los links públicos de esta app (UUID adivinable = acceso a esa fila).
 function CheckinPage({ invitacionId, famNombre }: { invitacionId: string | null; famNombre: string | null }) {
@@ -2333,6 +2375,11 @@ function CheckinPage({ invitacionId, famNombre }: { invitacionId: string | null;
   const [error, setError] = useState<string | null>(null);
   const [insertError, setInsertError] = useState<string | null>(null);
   const [nombreQuinceanera, setNombreQuinceanera] = useState("");
+  // codigoCorto de esta invitación (si tiene, ver dc.codigoCorto más abajo) -- cuando existe,
+  // los links internos de esta página ("Ver lista completa", cada familia de la lista) usan
+  // /puerta/<codigo>[/<slug>] en vez de ?checkin=1&iid=...[&fam=...], para que alguien que llegó
+  // por la ruta corta se quede en rutas cortas en vez de que un clic la regrese a la larga.
+  const [codigoCortoPuerta, setCodigoCortoPuerta] = useState<string | null>(null);
   const [invitados, setInvitados] = useState<{ nombre: string; pases: number }[]>([]);
   const [registros, setRegistros] = useState<{ invitado_nombre: string; personas_registradas: number }[]>([]);
   const [busqueda, setBusqueda] = useState("");
@@ -2362,6 +2409,7 @@ function CheckinPage({ invitacionId, famNombre }: { invitacionId: string | null;
         }
         setNombreQuinceanera(data.nombre_quinceanera || "");
         setInvitados(dc.invitados || []);
+        setCodigoCortoPuerta(dc.codigoCorto || null);
 
         const { data: checkinsData, error: errCheckins } = await window.supabaseClient
           .from("checkins")
@@ -2376,6 +2424,20 @@ function CheckinPage({ invitacionId, famNombre }: { invitacionId: string | null;
     };
     cargar();
   }, [invitacionId]);
+
+  // Links internos de esta página (ver codigoCortoPuerta arriba): corto cuando se puede, largo
+  // de siempre como respaldo (invitación guardada antes del código corto, o nunca re-guardada).
+  const hrefListaCompleta = codigoCortoPuerta
+    ? `/puerta/${codigoCortoPuerta}`
+    : `?checkin=1&iid=${encodeURIComponent(invitacionId || "")}`;
+  const hrefFamilia = (nombreInv: string): string => {
+    if (codigoCortoPuerta) {
+      const idx = invitados.findIndex(i => i.nombre === nombreInv);
+      const slug = idx >= 0 ? slugsDeInvitados(invitados)[idx] : slugFamilia(nombreInv);
+      return `/puerta/${codigoCortoPuerta}/${slug}`;
+    }
+    return `?checkin=1&iid=${encodeURIComponent(invitacionId || "")}&fam=${encodeURIComponent(nombreInv)}`;
+  };
 
   const registradosPorFamilia = (nombre: string) =>
     registros.filter(r => r.invitado_nombre === nombre).reduce((s, r) => s + r.personas_registradas, 0);
@@ -2427,7 +2489,7 @@ function CheckinPage({ invitacionId, famNombre }: { invitacionId: string | null;
         <div className="w-screen h-screen fixed inset-0 flex flex-col items-center justify-center bg-slate-50 px-6 text-center gap-2">
           <span className="text-4xl mb-2">🔳</span>
           <p className="text-sm font-semibold text-slate-700">No encontramos a "{famNombre}" en la lista de pases.</p>
-          <a href={`?checkin=1&iid=${encodeURIComponent(invitacionId || "")}`} className="text-xs font-bold text-indigo-600 mt-2">← Ver lista completa</a>
+          <a href={hrefListaCompleta} className="text-xs font-bold text-indigo-600 mt-2">← Ver lista completa</a>
         </div>
       );
     }
@@ -2463,7 +2525,7 @@ function CheckinPage({ invitacionId, famNombre }: { invitacionId: string | null;
               </button>
             </>
           )}
-          <a href={`?checkin=1&iid=${encodeURIComponent(invitacionId || "")}`} className="block text-[11px] font-bold text-slate-400 hover:text-slate-600 mt-4">← Ver lista completa</a>
+          <a href={hrefListaCompleta} className="block text-[11px] font-bold text-slate-400 hover:text-slate-600 mt-4">← Ver lista completa</a>
         </div>
       </div>
     );
@@ -2489,7 +2551,7 @@ function CheckinPage({ invitacionId, famNombre }: { invitacionId: string | null;
             return (
               <a
                 key={idx}
-                href={`?checkin=1&iid=${encodeURIComponent(invitacionId || "")}&fam=${encodeURIComponent(inv.nombre)}`}
+                href={hrefFamilia(inv.nombre)}
                 className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200 hover:border-indigo-300 transition"
               >
                 <div>
@@ -2668,7 +2730,7 @@ export default function App() {
       // llega async más abajo (ver linkCortoEstado), así que `initialDatos` aquí es solo un
       // relleno que NUNCA se llega a mostrar (el document.write queda bloqueado hasta que ese
       // fetch resuelve, ver el efecto correspondiente).
-      const esLinkCorto = /^\/v\/[a-z0-9-]+\/?$/i.test(window.location.pathname);
+      const esLinkCorto = /^\/v\/[a-z0-9-]+(?:\/[a-z0-9-]+)?\/?$/i.test(window.location.pathname);
       const isView = params.get("v") === "1" || params.get("view") === "true" || esLinkCorto;
       const isCatalog = params.get("catalog") === "true" || params.get("catalogo") === "true";
       const isEmbed = params.get("embed") === "true";
@@ -2771,6 +2833,19 @@ export default function App() {
   const { initialDatos, initialTemaId, isView: isViewMode, isCatalog: isCatalogInitial, initialCatalogTemaId, isEmbed: isEmbedMode } = getInitialState();
 
   const queryParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+
+  // Rutas cortas /puerta/<codigoCorto>[/<slug-familia>] y /datos/<codigoCorto> (2026-11-21):
+  // alias cortos del check-in (?checkin=1&iid=...[&fam=...]) y del formulario (?intake=1&iid=...)
+  // de siempre, colgando del MISMO codigoCorto que ya tiene la invitación (ver resolución de
+  // /v/ más abajo, mismo patrón). Se resuelven contra Supabase (ver rutaCortaEstado más abajo) y
+  // luego se reescriben con `replaceState` a su equivalente largo -- de ahí en adelante,
+  // isCheckinMode/isIntakeMode (que leen `queryParams`, recalculado en cada render desde
+  // `window.location.search`) las toman exactamente igual que si hubieran llegado por el link
+  // largo de toda la vida. Los links largos siguen funcionando tal cual, sin tocarlos.
+  const matchPuertaRuta = typeof window !== "undefined" ? window.location.pathname.match(/^\/puerta\/([a-z0-9-]+)(?:\/([a-z0-9-]+))?\/?$/i) : null;
+  const matchDatosRuta = typeof window !== "undefined" ? window.location.pathname.match(/^\/datos\/([a-z0-9-]+)\/?$/i) : null;
+  const esPuertaCorta = !!matchPuertaRuta;
+  const esDatosCorta = !!matchDatosRuta;
 
   // Modo "formulario de datos del cliente" (?intake=1&iid=<id de la fila en Supabase>): un link
   // público (sin login) que el admin le manda al cliente desde "Mis Invitaciones" en cuanto
@@ -4417,15 +4492,29 @@ export default function App() {
     window.open(`https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(msg)}`, "_blank");
   };
 
-  // Manda por WhatsApp el link público (?intake=1&iid=<id>) del formulario de datos/fotos para
-  // que el cliente lo llene él mismo, en vez de que el admin capture todo a mano.
+  // Links cortos /datos/<codigoCorto> y /puerta/<codigoCorto> (2026-11-21) para el formulario y
+  // el control de acceso, igual que /v/<codigoCorto> para la invitación -- caen al link largo
+  // de siempre (?intake=1&iid=... / ?checkin=1&iid=...) si la fila todavía no tiene código
+  // (guardada antes de este cambio, o nunca re-guardada), para que nunca salga un link roto.
+  const urlFormularioDatos = (row: InvitacionGuardadaRow): string => {
+    const codigo = row.datos_completos?.codigoCorto;
+    return codigo ? `${URL_PUBLICA_INVITAMX}/datos/${codigo}` : `${URL_PUBLICA_INVITAMX}/?intake=1&iid=${row.id}`;
+  };
+  const urlControlAcceso = (row: InvitacionGuardadaRow): string => {
+    const codigo = row.datos_completos?.codigoCorto;
+    return codigo ? `${URL_PUBLICA_INVITAMX}/puerta/${codigo}` : `${URL_PUBLICA_INVITAMX}/?checkin=1&iid=${row.id}`;
+  };
+
+  // Manda por WhatsApp el link público (/datos/<codigo>, antes ?intake=1&iid=<id>) del
+  // formulario de datos/fotos para que el cliente lo llene él mismo, en vez de que el admin
+  // capture todo a mano.
   const handleEnviarFormularioDatos = (row: InvitacionGuardadaRow) => {
     if (!row.telefono_whatsapp?.trim()) {
       mostrarToast("Esta invitación no tiene un número de WhatsApp guardado", "error");
       return;
     }
     const numeroLimpio = row.telefono_whatsapp.replace(/[^0-9]/g, "");
-    const urlFormulario = `${URL_PUBLICA_INVITAMX}/?intake=1&iid=${row.id}`;
+    const urlFormulario = urlFormularioDatos(row);
     const msg = `¡Hola! 🌸 Para seguir con tu invitación de XV Años de *${row.nombre_quinceanera || "tu evento"}*, por favor llena tus datos y sube tus fotos en este link:\n${urlFormulario}`;
     window.open(`https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(msg)}`, "_blank");
   };
@@ -4545,13 +4634,13 @@ export default function App() {
       mostrarToast("Escribe el número del encargado de acceso (código de país + 10 dígitos)", "error");
       return;
     }
-    const urlCheckin = `${URL_PUBLICA_INVITAMX}/?checkin=1&iid=${row.id}`;
+    const urlCheckin = urlControlAcceso(row);
     const msg = `¡Hola! 🔳 Este es el link de control de acceso para la fiesta de XV Años de *${row.nombre_quinceanera || "el evento"}* -- ábrelo el día del evento para registrar la entrada de cada familia:\n${urlCheckin}`;
     window.open(`https://api.whatsapp.com/send?phone=${telefono}&text=${encodeURIComponent(msg)}`, "_blank");
   };
 
   const handleCopiarLinkCheckin = (row: InvitacionGuardadaRow) => {
-    const urlCheckin = `${URL_PUBLICA_INVITAMX}/?checkin=1&iid=${row.id}`;
+    const urlCheckin = urlControlAcceso(row);
     navigator.clipboard.writeText(urlCheckin);
     mostrarToast("Link de control de acceso copiado", "success");
   };
@@ -5005,15 +5094,20 @@ export default function App() {
 
     // Link corto (2026-11-19): una vez que la invitación tiene código asignado (se guardó al
     // menos una vez en Supabase, ver guardarEnSupabase), el link PRINCIPAL pasa a ser el corto
-    // `/v/<codigoCorto>` en vez del blob largo -- `?fam=` reemplaza al viejo `&g=` para un
-    // invitado específico (ver resolución del link corto más abajo). Excepción: un enlace de
-    // "muestra" (preview temporal con marca de agua, ver esEnlaceMuestra/aplicarModoMuestra)
-    // sigue siendo el link largo clásico de siempre -- es un mecanismo aparte, deliberadamente
-    // no tocado por este cambio.
+    // `/v/<codigoCorto>` en vez del blob largo -- `/v/<codigo>/<slug>` reemplaza al viejo
+    // `?fam=` para un invitado específico (2026-11-21, ver resolverFamiliaPorSlug/
+    // slugsDeInvitados arriba y la resolución del link corto más abajo, que sigue aceptando
+    // `?fam=` también para los links ya compartidos antes de este cambio). Excepción: un
+    // enlace de "muestra" (preview temporal con marca de agua, ver esEnlaceMuestra/
+    // aplicarModoMuestra) sigue siendo el link largo clásico de siempre -- es un mecanismo
+    // aparte, deliberadamente no tocado por este cambio.
     const codigo = codigoCortoOverride || datos.codigoCorto;
     if (codigo && !esEnlaceMuestra) {
       const baseCorta = `${URL_PUBLICA_INVITAMX}/v/${codigo}`;
-      return invitadoObjetivo ? `${baseCorta}?fam=${encodeURIComponent(invitadoObjetivo.nombre)}` : baseCorta;
+      if (!invitadoObjetivo) return baseCorta;
+      const idxSlug = (datos.invitados || []).indexOf(invitadoObjetivo);
+      const slugInvitado = idxSlug >= 0 ? slugsDeInvitados(datos.invitados || [])[idxSlug] : slugFamilia(invitadoObjetivo.nombre);
+      return `${baseCorta}/${slugInvitado}`;
     }
 
     // Sincronizar el tema activo de forma explícita en los datos decodificables antes de codificar la URL
@@ -5026,6 +5120,13 @@ export default function App() {
     let url = `${appUrl}?v=1&d=${encodeState(datosListos)}`;
     if (invitadoObjetivo) {
       url += `&g=${encodeURIComponent(invitadoObjetivo.nombre)}`;
+      // `famSlug` para que mostrarPaseFijo() en templates.ts pueda armar el QR del pase como
+      // el link corto de check-in (/puerta/<codigo>/<slug>) cuando esta invitación SÍ tenga
+      // codigoCorto (puede traerlo aunque el link principal haya salido largo por ir con
+      // &g=, ej. una "muestra") -- ver mismo razonamiento en la resolución de /v/ más abajo.
+      const idxSlugBlob = (datos.invitados || []).indexOf(invitadoObjetivo);
+      const slugBlob = idxSlugBlob >= 0 ? slugsDeInvitados(datos.invitados || [])[idxSlugBlob] : slugFamilia(invitadoObjetivo.nombre);
+      url += `&famSlug=${encodeURIComponent(slugBlob)}`;
     }
     // Si esta invitación ya se guardó en Supabase, incluimos su id (`iid`) en el link para que
     // el formulario de RSVP dentro de la invitación pueda asociar cada confirmación a esta fila
@@ -5437,14 +5538,17 @@ export default function App() {
   // a pintar el relleno de initialDatos mientras este fetch sigue en vuelo.
   const [linkCortoEstado, setLinkCortoEstado] = useState<"ninguno" | "cargando" | "listo" | "no-encontrado">(() => {
     if (typeof window === "undefined") return "ninguno";
-    return /^\/v\/[a-z0-9-]+\/?$/i.test(window.location.pathname) ? "cargando" : "ninguno";
+    return /^\/v\/[a-z0-9-]+(?:\/[a-z0-9-]+)?\/?$/i.test(window.location.pathname) ? "cargando" : "ninguno";
   });
   useEffect(() => {
     if (linkCortoEstado !== "cargando") return;
     let cancelado = false;
     const resolver = async () => {
-      const match = window.location.pathname.match(/^\/v\/([a-z0-9-]+)\/?$/i);
+      // Segundo segmento opcional (2026-11-21): /v/<codigo>/<slug-familia>, equivalente corto
+      // de /v/<codigo>?fam=<nombre> -- ver resolverFamiliaPorSlug/slugsDeInvitados arriba.
+      const match = window.location.pathname.match(/^\/v\/([a-z0-9-]+)(?:\/([a-z0-9-]+))?\/?$/i);
       const codigo = match?.[1];
+      const slugFamiliaRuta = match?.[2] || null;
       if (!codigo || !window.supabaseClient) {
         if (!cancelado) setLinkCortoEstado("no-encontrado");
         return;
@@ -5461,16 +5565,19 @@ export default function App() {
           return;
         }
         const dc = data.datos_completos as InvitacionDatos;
-        // Pases por familia (?fam=<nombre>, equivalente al &g= de los links largos): si no
-        // coincide con ninguna familia, se muestra la vista general -- igual que un link largo
-        // "general" (sin invitado), `invitados` SIEMPRE queda vacío en ese caso, nunca la lista
-        // completa (sería exponer a todos los invitados a cualquiera que abra el link base, el
-        // mismo riesgo de privacidad que ya se cerró para los links largos -- ver nota en
-        // getShareUrl).
+        // Pases por familia: por el slug de la ruta corta /v/<codigo>/<slug> (prioridad, ya que
+        // es un link de los que el panel genera hoy) o por el ?fam=<nombre> de los links largos
+        // ya compartidos antes de este cambio (compatibilidad). Si ninguno coincide, se muestra
+        // la vista general -- igual que un link largo "general" (sin invitado), `invitados`
+        // SIEMPRE queda vacío en ese caso, nunca la lista completa (sería exponer a todos los
+        // invitados a cualquiera que abra el link base, el mismo riesgo de privacidad que ya se
+        // cerró para los links largos -- ver nota en getShareUrl).
         const famParam = new URLSearchParams(window.location.search).get("fam");
-        const invitadoFam = famParam
-          ? (dc.invitados || []).find(inv => inv.nombre.trim().toLowerCase() === famParam.trim().toLowerCase())
-          : null;
+        const invitadoFam = slugFamiliaRuta
+          ? resolverFamiliaPorSlug(dc.invitados || [], slugFamiliaRuta)
+          : (famParam
+            ? (dc.invitados || []).find(inv => inv.nombre.trim().toLowerCase() === famParam.trim().toLowerCase()) || null
+            : null);
         setDatos({
           ...dc,
           invitados: invitadoFam ? [invitadoFam] : [],
@@ -5490,7 +5597,15 @@ export default function App() {
         const queryOriginal = new URLSearchParams(window.location.search);
         const muestraOriginal = queryOriginal.get("muestra");
         const expOriginal = queryOriginal.get("exp");
-        const nuevaQuery = `?iid=${encodeURIComponent(data.id)}${invitadoFam ? `&fam=${encodeURIComponent(invitadoFam.nombre)}` : ""}${muestraOriginal ? `&muestra=${encodeURIComponent(muestraOriginal)}` : ""}${expOriginal ? `&exp=${encodeURIComponent(expOriginal)}` : ""}`;
+        // `famSlug` viaja también para los links largos/`?fam=` de siempre (2026-11-21): así
+        // mostrarPaseFijo() en templates.ts puede armar el QR del pase como el link CORTO de
+        // check-in (/puerta/<codigo>/<slug>) sin tener que recalcular el slug ahí mismo con una
+        // lista de invitados incompleta (datosInvitacion.invitados solo trae a ESTE invitado,
+        // no a los demás, así que no podría desambiguar una colisión de slugs por su cuenta).
+        const famSlugResuelto = invitadoFam
+          ? slugsDeInvitados(dc.invitados || [])[(dc.invitados || []).indexOf(invitadoFam)] || null
+          : null;
+        const nuevaQuery = `?iid=${encodeURIComponent(data.id)}${invitadoFam ? `&fam=${encodeURIComponent(invitadoFam.nombre)}` : ""}${famSlugResuelto ? `&famSlug=${encodeURIComponent(famSlugResuelto)}` : ""}${muestraOriginal ? `&muestra=${encodeURIComponent(muestraOriginal)}` : ""}${expOriginal ? `&exp=${encodeURIComponent(expOriginal)}` : ""}`;
         window.history.replaceState(null, "", window.location.pathname + nuevaQuery);
         // Se fija aparte del bloqueoCheck genérico de arriba (que de cualquier forma se va a
         // volver a disparar solo en cuanto `iidVista` cambie con el replaceState de aquí arriba)
@@ -5507,6 +5622,57 @@ export default function App() {
     resolver();
     return () => { cancelado = true; };
   }, [linkCortoEstado]);
+
+  // Rutas cortas /puerta/<codigoCorto>[/<slug-familia>] y /datos/<codigoCorto> (2026-11-21) --
+  // ver matchPuertaRuta/matchDatosRuta más arriba. Mismo patrón que el resolver de /v/ de
+  // arriba: fetch a Supabase por codigoCorto, luego `replaceState` al equivalente largo
+  // (?checkin=1&iid=...[&fam=...] o ?intake=1&iid=...) -- de ahí en adelante, isCheckinMode/
+  // isIntakeMode lo recogen solos en el siguiente render, sin tocar CheckinPage/IntakeForm.
+  const [rutaCortaEstado, setRutaCortaEstado] = useState<"ninguno" | "cargando" | "listo" | "no-encontrado">(() => {
+    if (typeof window === "undefined") return "ninguno";
+    return (esPuertaCorta || esDatosCorta) ? "cargando" : "ninguno";
+  });
+  useEffect(() => {
+    if (rutaCortaEstado !== "cargando") return;
+    let cancelado = false;
+    const resolver = async () => {
+      const pathname = window.location.pathname;
+      const mPuerta = pathname.match(/^\/puerta\/([a-z0-9-]+)(?:\/([a-z0-9-]+))?\/?$/i);
+      const mDatos = pathname.match(/^\/datos\/([a-z0-9-]+)\/?$/i);
+      const codigo = mPuerta?.[1] || mDatos?.[1];
+      const slugRuta = mPuerta?.[2] || null;
+      if (!codigo || !window.supabaseClient) {
+        if (!cancelado) setRutaCortaEstado("no-encontrado");
+        return;
+      }
+      try {
+        const { data, error } = await window.supabaseClient
+          .from("invitaciones")
+          .select("id, datos_completos")
+          .eq("datos_completos->>codigoCorto", codigo)
+          .maybeSingle();
+        if (cancelado) return;
+        if (error || !data) {
+          setRutaCortaEstado("no-encontrado");
+          return;
+        }
+        let query: string;
+        if (mPuerta) {
+          const dc = (data.datos_completos || {}) as Partial<InvitacionDatos>;
+          const famResuelta = slugRuta ? resolverFamiliaPorSlug(dc.invitados || [], slugRuta) : null;
+          query = `?checkin=1&iid=${encodeURIComponent(data.id)}${famResuelta ? `&fam=${encodeURIComponent(famResuelta.nombre)}` : ""}`;
+        } else {
+          query = `?intake=1&iid=${encodeURIComponent(data.id)}`;
+        }
+        window.history.replaceState(null, "", pathname + query);
+        setRutaCortaEstado("listo");
+      } catch {
+        if (!cancelado) setRutaCortaEstado("no-encontrado");
+      }
+    };
+    resolver();
+    return () => { cancelado = true; };
+  }, [rutaCortaEstado]);
 
   // Reemplazar el DOM de la página para la vista de los invitados (isViewMode = true)
   // Esto elimina las restricciones severas de iframe y sandbox del navegador,
@@ -5653,6 +5819,35 @@ export default function App() {
 
   if (isEmbedMode) {
     return <div className="w-screen h-screen fixed inset-0 bg-white" />;
+  }
+
+  // Rutas cortas /puerta/<codigo>[/<slug>] y /datos/<codigo> (2026-11-21): mientras se resuelve
+  // el código contra Supabase, ninguna de las banderas de modo (isCheckinMode/isIntakeMode)
+  // está encendida todavía -- sin esta guardia, caería de largo hasta el editor normal por un
+  // instante. Una vez resuelto, `rutaCortaEstado` pasa a "listo" y el replaceState ya dejó
+  // ?checkin=1/?intake=1 en la URL, así que los bloques de abajo la recogen sin que esta
+  // guardia tenga que hacer nada más. Colocada aquí (después de TODOS los hooks del
+  // componente, igual que isCheckinMode/isIntakeMode más abajo) a propósito -- `rutaCortaEstado`
+  // cambia de verdad durante la vida de este montaje (cargando -> listo/no-encontrado), así que
+  // un return condicionado a su valor nunca puede ir antes de un hook, o React cuenta un número
+  // de hooks distinto entre el render en "cargando" y el siguiente.
+  if ((esPuertaCorta || esDatosCorta) && rutaCortaEstado === "cargando") {
+    return (
+      <div className="w-screen h-screen fixed inset-0 flex flex-col items-center justify-center bg-slate-50 z-50">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-3"></div>
+        <p className="text-xs text-slate-500 font-medium font-sans">Abriendo...</p>
+      </div>
+    );
+  }
+
+  if ((esPuertaCorta || esDatosCorta) && rutaCortaEstado === "no-encontrado") {
+    return (
+      <div className="w-screen h-screen fixed inset-0 flex flex-col items-center justify-center bg-slate-50 z-50 px-6 text-center gap-2">
+        <span className="text-4xl mb-2">🌸</span>
+        <p className="text-sm font-semibold text-slate-700">Este link no es válido o ya no está disponible.</p>
+        <p className="text-xs text-slate-500 max-w-xs">Pide un link nuevo a quien te lo compartió.</p>
+      </div>
+    );
   }
 
   if (isCheckinMode) {
@@ -8334,7 +8529,9 @@ export default function App() {
                                 <>
                                   <img
                                     src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(
-                                      `${URL_PUBLICA_INVITAMX}/?checkin=1&iid=${encodeURIComponent(supabaseRowId)}&fam=${encodeURIComponent(item.nombre)}`
+                                      datos.codigoCorto
+                                        ? `${URL_PUBLICA_INVITAMX}/puerta/${datos.codigoCorto}/${slugsDeInvitados(datos.invitados || [])[index]}`
+                                        : `${URL_PUBLICA_INVITAMX}/?checkin=1&iid=${encodeURIComponent(supabaseRowId)}&fam=${encodeURIComponent(item.nombre)}`
                                     )}`}
                                     alt={`QR de acceso de ${item.nombre}`}
                                     className="w-16 h-16 rounded border border-amber-300 bg-white shrink-0"
@@ -9168,8 +9365,8 @@ export default function App() {
                   const estatusLabelFila = ESTATUS_PEDIDO.find(e => e.id === (row.estado || "cotizacion"))?.label || row.estado || "";
                   const faltaFila = (row.precio_total || 0) - (row.precio_pagado || 0);
                   const iconoEventoFila = TIPOS_EVENTO.find(t => t.id === tipoEventoDeFila(row))?.emoji || "🎂";
-                  const linkFormularioFila = `${URL_PUBLICA_INVITAMX}/?intake=1&iid=${row.id}`;
-                  const linkCheckinFila = `${URL_PUBLICA_INVITAMX}/?checkin=1&iid=${row.id}`;
+                  const linkFormularioFila = urlFormularioDatos(row);
+                  const linkCheckinFila = urlControlAcceso(row);
                   return (
                     <div key={row.id} className={`border rounded-xl ${esLaCargada ? "border-indigo-400 bg-indigo-50/40" : "border-slate-200 bg-slate-50"}`}>
                       {/* Renglón compacto -- un solo clic expande/colapsa el detalle completo
@@ -9645,7 +9842,7 @@ export default function App() {
                                   📋 Enviar formulario de datos y fotos al cliente
                                 </button>
                                 <button
-                                  onClick={() => window.open(`${URL_PUBLICA_INVITAMX}/?intake=1&iid=${row.id}`, "_blank")}
+                                  onClick={() => window.open(urlFormularioDatos(row), "_blank")}
                                   title="Abre el formulario en una pestaña nueva, tal como lo ve el cliente -- para revisarlo o probarlo antes de mandarlo"
                                   className="px-2.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded-lg text-[11px] font-bold transition shrink-0"
                                 >

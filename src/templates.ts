@@ -2743,15 +2743,25 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         }
 
         // Complemento à la carte "Control de Acceso QR": el QR es solo un link de check-in
-        // (?checkin=1&iid=...&fam=...) convertido a imagen por un servicio público -- no hay
-        // librería de generación de QR en este proyecto ni falta hacerla. Requiere que el link
-        // traiga &iid= (invitación ya guardada), igual que el registro de RSVP más abajo.
+        // convertido a imagen por un servicio público -- no hay librería de generación de QR en
+        // este proyecto ni falta hacerla. Requiere que el link traiga &iid= (invitación ya
+        // guardada), igual que el registro de RSVP más abajo.
         if (${datos.controlAccesoQR ? "true" : "false"}) {
           const iid = new URLSearchParams(window.location.search).get('iid');
           const qrBloque = document.getElementById('qr-acceso-bloque');
           const qrImg = document.getElementById('qr-acceso-img');
           if (iid && qrBloque && qrImg) {
-            const checkinUrl = window.location.origin + '/?checkin=1&iid=' + encodeURIComponent(iid) + '&fam=' + encodeURIComponent(invitado.nombre);
+            // Link corto /puerta/<codigoCorto>/<slug-familia> (2026-11-21) cuando se conoce el
+            // slug de esta familia (viaja en ?famSlug=, puesto por App.tsx al resolver el link
+            // -- ver getShareUrl/resolución de /v/) y la invitación ya tiene codigoCorto. Si
+            // falta cualquiera de los dos (invitación vieja sin código, o un link compartido
+            // antes de este cambio sin famSlug), se cae al link largo de check-in de siempre,
+            // que sigue funcionando igual.
+            const codigoCortoQR = "${escDoubleQuote(datos.codigoCorto || "")}";
+            const famSlugQR = new URLSearchParams(window.location.search).get('famSlug');
+            const checkinUrl = (codigoCortoQR && famSlugQR)
+              ? window.location.origin + '/puerta/' + encodeURIComponent(codigoCortoQR) + '/' + encodeURIComponent(famSlugQR)
+              : window.location.origin + '/?checkin=1&iid=' + encodeURIComponent(iid) + '&fam=' + encodeURIComponent(invitado.nombre);
             qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(checkinUrl);
             qrBloque.classList.remove('hidden');
           }
