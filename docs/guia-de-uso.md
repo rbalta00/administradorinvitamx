@@ -115,6 +115,7 @@ Están agrupados por lo que hacen — cada grupo tiene su propia etiqueta:
   - *Ingresos*: dashboard de cobros totales, histórico mensual y lo que falta por cobrar, de todos los clientes (no solo el que tienes abierto).
 - **Cuenta / dispositivo**
   - *Instalar app*: instala el editor como app en tu celular/computadora (acceso directo, sin abrir el navegador cada vez).
+  - *⟳ Actualizar*: recarga la app por completo. Útil si algo se ve viejo, raro, o no coincide con lo que esperabas — sobre todo en la ventana instalada (PWA), que no tiene botón de recargar ni barra de direcciones como un navegador normal. No es lo mismo que el "Actualizar" de dentro de "Mis Invitaciones" (ese solo vuelve a pedir la lista a Supabase, no recarga toda la app).
   - *📖 Manual de uso*: abre este manual completo en una pestaña nueva — también sirve para capacitar a alguien que apenas está aprendiendo a usar el editor.
   - *💬 Enviar link a colaborador*: abre WhatsApp con el link de este administrador ya escrito, listo para mandárselo a quien te esté ayudando (otro vendedor, un asistente) — tú eliges a quién o a qué grupo se lo mandas. No incluye la contraseña (eso se lo compartes tú por separado).
   - *📂 Enviar link del catálogo*: abre WhatsApp con el link del catálogo de los 14 temas ya escrito, para compartirlo con un cliente o prospecto (reemplaza la caja "4. Catálogo Digital de Temas" que antes vivía dentro de la pestaña "Tema/Paquete" — ocupaba mucho espacio, ahora es solo este botón).

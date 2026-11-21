@@ -3181,6 +3181,15 @@ export default function App() {
   // deben quedarse activas (bookkeeping propio del admin, ver InvitacionGuardadaRow).
   const [mostrarMisInvitaciones, setMostrarMisInvitaciones] = useState(false);
   const [cargandoMisInvitaciones, setCargandoMisInvitaciones] = useState(false);
+  // Bug real reportado 2026-11-21: cuando cargarListaInvitaciones fallaba (ej. un 401 del
+  // middleware, que hace que resp.json() truene), listaInvitaciones se quedaba en [] y el modal
+  // mostraba "Aún no has guardado ninguna invitación" -- el mensaje de "cuenta nueva sin datos",
+  // indistinguible de un error real de carga. `errorCargaInvitaciones` guarda el mensaje del
+  // último fallo (null = sin error); se limpia al INICIO de cada carga (éxito o no) y se pone
+  // solo en el catch -- así el modal (y el Dashboard de Ingresos, que comparte el mismo
+  // `listaInvitaciones.length === 0` para el mismo mensaje) pueden distinguir "no hay nada
+  // guardado" de "no se pudo cargar".
+  const [errorCargaInvitaciones, setErrorCargaInvitaciones] = useState<string | null>(null);
   // "🗄️ Respaldo completo" ahora pide `datos_completos` de TODAS las invitaciones aparte (ver
   // handleRespaldoCompletoInvitaciones) -- la lista ligera ya no lo trae de entrada (2026-11-19).
   const [generandoRespaldoCompleto, setGenerandoRespaldoCompleto] = useState(false);
@@ -3543,6 +3552,7 @@ export default function App() {
       return;
     }
     setCargandoMisInvitaciones(true);
+    setErrorCargaInvitaciones(null);
     try {
       // Pasa por api/admin/list-invitaciones.ts (service_role key en el servidor, protegido
       // por el Basic Auth de middleware.ts) en vez de leer la tabla completa directo con la
@@ -3573,6 +3583,7 @@ export default function App() {
       setListaInvitaciones(filas);
     } catch (err: any) {
       mostrarToast("Error al cargar invitaciones: " + err.message, "error");
+      setErrorCargaInvitaciones(err.message || "Error al cargar invitaciones");
     } finally {
       setCargandoMisInvitaciones(false);
     }
@@ -6350,6 +6361,35 @@ export default function App() {
             <span>Instalar app</span>
           </button>
 
+          <button
+            onClick={async () => {
+              // Bug real reportado 2026-11-21: la ventana de la PWA instalada no tiene botón de
+              // recarga ni barra de direcciones -- si arranca con un estado viejo, el admin no
+              // tenía forma de refrescarla. Este botón es una recarga DE VERDAD, no el
+              // "Actualizar" de "Mis Invitaciones" (ese solo vuelve a pedir la lista). No
+              // depende de beforeinstallprompt ni de si la app está instalada -- se ve y
+              // funciona igual en navegador normal y en modo standalone.
+              try {
+                if ("serviceWorker" in navigator) {
+                  const reg = await navigator.serviceWorker.getRegistration();
+                  reg?.update().catch(() => {});
+                }
+                if ("caches" in window) {
+                  const nombresCache = await caches.keys();
+                  await Promise.all(nombresCache.map(nombre => caches.delete(nombre)));
+                }
+              } catch {
+                // Si algo de esto falla, igual recargamos -- lo importante es el reload de abajo.
+              }
+              window.location.reload();
+            }}
+            title="Recarga la app por completo -- útil si algo se ve viejo o raro, sobre todo en la ventana instalada (PWA), que no tiene botón de recargar ni barra de direcciones"
+            className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+          >
+            <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+            <span>⟳ Actualizar</span>
+          </button>
+
           <a
             href="/manual.html"
             target="_blank"
@@ -8659,6 +8699,17 @@ export default function App() {
 
             {cargandoDashboardIngresos ? (
               <p className="text-sm text-slate-500 py-8 text-center">Cargando ingresos desde Supabase...</p>
+            ) : errorCargaInvitaciones ? (
+              <div className="py-8 text-center space-y-3">
+                <p className="text-sm text-red-600 font-semibold">⚠️ No se pudieron cargar tus invitaciones. Revisa tu conexión o vuelve a iniciar sesión.</p>
+                <button
+                  onClick={cargarListaInvitaciones}
+                  disabled={cargandoMisInvitaciones}
+                  className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg transition inline-flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${cargandoMisInvitaciones ? "animate-spin" : ""}`} /> Reintentar
+                </button>
+              </div>
             ) : listaInvitaciones.length === 0 ? (
               <p className="text-sm text-slate-500 py-8 text-center">Aún no has guardado ninguna invitación. Usa "💾 Guardar en Supabase" para que aparezca aquí.</p>
             ) : (
@@ -8868,6 +8919,17 @@ export default function App() {
 
             {cargandoMisInvitaciones ? (
               <p className="text-sm text-slate-500 py-8 text-center">Cargando invitaciones guardadas desde Supabase...</p>
+            ) : errorCargaInvitaciones ? (
+              <div className="py-8 text-center space-y-3">
+                <p className="text-sm text-red-600 font-semibold">⚠️ No se pudieron cargar tus invitaciones. Revisa tu conexión o vuelve a iniciar sesión.</p>
+                <button
+                  onClick={cargarListaInvitaciones}
+                  disabled={cargandoMisInvitaciones}
+                  className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg transition inline-flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${cargandoMisInvitaciones ? "animate-spin" : ""}`} /> Reintentar
+                </button>
+              </div>
             ) : listaInvitaciones.length === 0 ? (
               <p className="text-sm text-slate-500 py-8 text-center">Aún no has guardado ninguna invitación. Usa "💾 Guardar en Supabase" para que aparezca aquí.</p>
             ) : invitacionesFiltradas.length === 0 ? (

@@ -2,6 +2,52 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Botón "⟳ Actualizar" de la app (PWA) y error honesto en "Mis Invitaciones" (2026-11-21)
+
+Dos defectos reales reportados (vistos en vivo en la PWA instalada en la PC, donde "Mis
+Invitaciones" mostró "Aún no has guardado ninguna invitación" pese a tener 12 guardadas, mientras
+Chrome normal sí las listaba):
+
+1. **La ventana de la PWA instalada no tiene botón de recarga ni barra de direcciones** -- si
+   arranca con estado/caché viejo, el admin no tiene forma de refrescarla. El "Actualizar" que ya
+   existía DENTRO del modal de "Mis Invitaciones" solo vuelve a pedir la lista (`cargarListaInvitaciones`),
+   nunca recarga la app completa.
+2. **El estado vacío mentía cuando la carga de verdad FALLABA**: si el `fetch` a
+   `/api/admin/list-invitaciones` fallaba (ej. un 401 de texto plano del middleware hace que
+   `resp.json()` truene), `listaInvitaciones` se quedaba en `[]` y el modal mostraba el mensaje de
+   "cuenta nueva sin datos" -- indistinguible de un error real de carga.
+
+- **Fix 1**: botón nuevo, permanente, "⟳ Actualizar" en la barra principal del editor (grupo
+  "Cuenta / dispositivo", justo después de "Instalar app") -- al pulsarlo: `registration.update()`
+  si hay service worker registrado (sin esperar su resultado), borra cualquier Cache Storage
+  (`caches.keys()`/`caches.delete()`, por defensa -- hoy `sw.js` no cachea nada), y
+  `window.location.reload()`. No depende de `beforeinstallprompt` ni de si la app está instalada
+  -- se ve y funciona igual en navegador normal y en modo standalone. `public/sw.js`,
+  `public/manifest.json` y el registro del service worker en `index.html` NO se tocaron.
+- **Fix 2**: estado nuevo `errorCargaInvitaciones` (`string | null`) -- `cargarListaInvitaciones`
+  lo limpia al INICIO de cada carga y lo llena en su `catch` con el mensaje del error (el toast de
+  error existente se queda igual, sin cambios). Tanto el modal de "Mis Invitaciones" como el
+  Dashboard de Ingresos (que comparten el mismo `listaInvitaciones.length === 0` para el mismo
+  mensaje) ahora revisan `errorCargaInvitaciones` ANTES que el mensaje de "vacío": si hay error,
+  muestran un aviso claro con botón "Reintentar" (vuelve a llamar `cargarListaInvitaciones`) y
+  NUNCA el mensaje de "Aún no has guardado ninguna invitación" en ese caso. No se tocó el
+  endpoint, el middleware, los filtros/pestañas (sigue abriendo en "Activas") ni ningún otro panel.
+- **Verificado en vivo, sin necesitar simular nada**: el servidor de desarrollo local no sirve
+  `/api/admin/list-invitaciones` (es una función serverless de Vercel) -- abrir "Mis Invitaciones"
+  ahí reproduce el fallo real de carga de punta a punta: apareció el aviso nuevo con "Reintentar",
+  NUNCA el mensaje de "vacío"; "Reintentar" volvió a intentar (mismo toast de error de siempre) sin
+  romper nada. El botón "⟳ Actualizar" nuevo se confirmó con un marcador en `window` (se perdió
+  tras el clic, prueba de que SÍ fue un reload real, no solo un re-render) y sin errores de
+  consola nuevos.
+- `docs/guia-de-uso.md`, `public/manual.html` y `D:\InvitaMX\invitamx-manual-usuario.html`
+  actualizados con el botón nuevo (regla fija de este archivo). El archivo de D: ya estaba
+  desactualizado desde antes de este cambio (sigue diciendo "Deluxe", le faltan varios botones
+  agregados en sesiones posteriores) -- no se corrigió esa deriva completa por estar fuera de
+  alcance de este encargo puntual, solo se agregó la fila nueva en el mismo lugar que las otras 2
+  copias.
+- `npm run lint`/`npm run build` limpios (mismos 6 errores preexistentes de `ImportMeta.env`).
+- Commit en `main`, pusheado.
+
 ## Set nuevo de fotos de muestra (ficticias), sin marca de agua (2026-11-20)
 
 Pedido explícito: las 12 fotos de `fotosFicticiasDefault` (`src/data.ts`) -- las que ven portada
