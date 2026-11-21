@@ -2,6 +2,65 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Cobrar por WhatsApp desde el administrador: links de pago por invitación (2026-11-21)
+
+Pedido explícito: el admin pega UNA sola vez sus links de pago (Mercado Pago/Clip), y cada
+invitación guardada gana botones que abren WhatsApp con el mensaje de cobro ya armado y el link
+correcto según su plan y su saldo.
+
+- **Columna nueva en Supabase**: `invitaciones.links_pago` (jsonb), migración
+  `add_links_pago_admin_column` aplicada al proyecto real (`ahwcilcejffgddeeuiux`). Vive en la
+  MISMA fila global única (`FONDOS_ROW_ID`) que ya usa `fondos_personalizados` -- mismo patrón,
+  no una tabla nueva. Confirmado que un upsert con `links_pago` en el payload (sin incluir
+  `fondos_personalizados`) NUNCA toca esa otra columna -- PostgREST solo actualiza las columnas
+  del payload, no la fila entera.
+- **"💳 Links de pago"** (botón nuevo en la cabecera, grupo "Ver todo", junto a "💰 Ingresos"):
+  modal con los 4 campos pedidos (anticipo Básico/Estándar/Premium, monto abierto). Se carga en
+  la MISMA petición que ya trae `fondos_personalizados` al arrancar (una columna más del mismo
+  select, sin viaje de red extra) y se guarda completo de un jalón (`handleGuardarLinksPago`) --
+  a diferencia de `guardarFondoEnSupabase` (que SÍ necesita leer-mezclar-escribir porque es un
+  objeto por tema), aquí el admin edita los 4 campos juntos en un solo formulario, así que
+  reemplazar el objeto entero es lo correcto.
+- **"💬 Cobrar anticipo"/"💬 Cobrar liquidación"** (dos botones nuevos en "Mis Invitaciones",
+  pestaña "💳 Pagos" de cada fila, junto al "Falta pagar: $X"): mismo patrón que
+  `handleEnviarLinkPago` ya existente -- solo ABREN WhatsApp con el mensaje y el link listos, el
+  admin le sigue dando "Enviar" él mismo, y nunca tocan `precio_pagado`/abonos (eso se sigue
+  registrando a mano cuando el pago se refleja). `resolverLinkAnticipo()` decide el link: si
+  `precio_total` coincide EXACTO con el precio base del plan (`PRECIO_BASE_PAQUETE`: Básico $299/
+  Estándar $499/Premium $799, ver "Business/pricing policy" más abajo), usa el link fijo de ese
+  plan; si no (trae extras), usa el link de monto abierto y el mensaje agrega "(ingresa el monto
+  de $X)" -- ese agregado no estaba en el texto literal del encargo para el caso de anticipo
+  (sí para liquidación), pero el encargo pedía explícitamente "el mensaje dice el monto exacto a
+  ingresar" para ese caso, así que se replicó la misma coletilla de la liquidación. "Cobrar
+  anticipo" se deshabilita solo ("Anticipo cobrado") cuando lo pagado ya cubre el 50% calculado;
+  "Cobrar liquidación" se deshabilita ("Liquidada") cuando el saldo llega a $0. Ambos avisan
+  igual que los botones de WhatsApp ya existentes si la invitación no tiene `telefono_whatsapp`
+  guardado, y avisan "Configura primero tus links de pago" si el link que necesitan está vacío.
+- **Requisito #3 del encargo (mismos botones en el editor) -- revisado y NO aplica**: se
+  confirmó leyendo el código que el editor (la pantalla donde se diseña la invitación) NO tiene
+  ninguna "zona de datos del pedido/cliente" propia -- `precio_total`/`precio_pagado`/`estado`
+  solo se gestionan dentro de "Mis Invitaciones" (y, aparte, dentro de `IntakeForm`, el formulario
+  PÚBLICO del cliente -- un componente completamente distinto, no el editor del admin). El
+  encargo decía "SI el editor ya muestra..." -- como no existe esa zona, no se agregó nada ahí
+  para no inventar una pantalla nueva fuera de lo pedido.
+- **Verificado en vivo contra el proyecto real de Supabase** (no un mock): se guardaron 4 links
+  de prueba desde el modal real, confirmados con una consulta SQL directa (los 4 valores exactos,
+  `fondos_personalizados` intacto); se recargó la página completa y el modal volvió a mostrar los
+  4 links guardados (persistencia real confirmada, no solo estado de React). **Los links de
+  prueba se borraron (`links_pago = null`) antes de terminar**, para no dejar URLs falsas
+  (`mpago.test/...`) configuradas en el proyecto real. La lógica de cálculo/decisión
+  (`calcularAnticipo`/`calcularSaldoPendiente`/`resolverLinkAnticipo`) se verificó aparte con los
+  4 escenarios exactos del encargo (Estándar $499 sin pagos → anticipo $250 + link fijo; con
+  extras → link abierto; abono parcial → saldo correcto; liquidada → deshabilitado) en un script
+  standalone de Node, reproduciendo la función tal cual del archivo. No se pudo probar
+  visualmente el renderizado real de los 2 botones nuevos en "Mis Invitaciones" contra datos
+  reales -- el servidor de desarrollo local no sirve `/api/admin/list-invitaciones` (función
+  serverless de Vercel), mismo límite ya documentado en la entrada de abajo.
+- `npm run lint`/`npm run build` limpios (mismos 6 errores preexistentes de `ImportMeta.env`).
+- `docs/guia-de-uso.md`, `public/manual.html` y `D:\InvitaMX\invitamx-manual-usuario.html`
+  actualizados con los botones nuevos.
+- Commit en `main`, pusheado.
+
 ## Botón "⟳ Actualizar" de la app (PWA) y error honesto en "Mis Invitaciones" (2026-11-21)
 
 Dos defectos reales reportados (vistos en vivo en la PWA instalada en la PC, donde "Mis

@@ -111,6 +111,55 @@ const ESTATUS_PEDIDO: { id: string; label: string }[] = [
   { id: "archivada", label: "📦 Archivada" }
 ];
 
+// Cobrar por WhatsApp desde el administrador (2026-11-21): el admin pega UNA sola vez sus links
+// de pago (Mercado Pago/Clip) aquí, y cada invitación guardada gana botones "Cobrar anticipo"/
+// "Cobrar liquidación" que abren WhatsApp con el mensaje y el link correctos, sin que tenga que
+// armar nada a mano cada vez. Se guarda en la fila global única de Supabase (FONDOS_ROW_ID, el
+// mismo patrón ya usado para `fondos_personalizados` -- ver cargarFondosDesdeSupabase/
+// guardarFondoEnSupabase más abajo), no en localStorage, para que esté disponible igual en PC,
+// PWA y celular.
+interface LinksPagoAdmin {
+  anticipoBasico: string;
+  anticipoEstandar: string; // llave interna del paquete: "premium"
+  anticipoPremium: string;  // llave interna del paquete: "deluxe"
+  montoAbierto: string;     // liquidaciones y cualquier anticipo con extras (precio_total != precio base del plan)
+}
+const LINKS_PAGO_VACIO: LinksPagoAdmin = { anticipoBasico: "", anticipoEstandar: "", anticipoPremium: "", montoAbierto: "" };
+
+// Precio BASE de cada plan, sin extras (ver "Business/pricing policy" en CLAUDE.md) -- decide si
+// el anticipo de una invitación puntual usa el link FIJO de su plan (precio_total coincide exacto
+// con el base) o el link de monto abierto (trae algo a la carte, el anticipo ya no es un monto
+// fijo conocido de antemano).
+const PRECIO_BASE_PAQUETE: Record<"basico" | "premium" | "deluxe", number> = {
+  basico: 299,
+  premium: 499,
+  deluxe: 799,
+};
+const LINK_ANTICIPO_KEY_POR_PAQUETE: Record<"basico" | "premium" | "deluxe", keyof LinksPagoAdmin> = {
+  basico: "anticipoBasico",
+  premium: "anticipoEstandar",
+  deluxe: "anticipoPremium",
+};
+
+const calcularAnticipo = (precioTotal: number | null | undefined): number => Math.round((precioTotal || 0) * 0.5);
+const calcularSaldoPendiente = (precioTotal: number | null | undefined, precioPagado: number | null | undefined): number =>
+  Math.round((precioTotal || 0) - (precioPagado || 0));
+
+// Decide qué link de anticipo usar para una invitación puntual, y si es el link fijo de su plan
+// o el de monto abierto (en cuyo caso el mensaje de WhatsApp debe decir el monto exacto a
+// ingresar, ver handleCobrarAnticipo).
+function resolverLinkAnticipo(
+  row: { paquete?: "basico" | "premium" | "deluxe" | null; precio_total: number | null },
+  linksPago: LinksPagoAdmin
+): { link: string; esLinkAbierto: boolean } {
+  const paquete = row.paquete || undefined;
+  const coincideConBase = !!paquete && row.precio_total === PRECIO_BASE_PAQUETE[paquete];
+  if (coincideConBase && paquete) {
+    return { link: linksPago[LINK_ANTICIPO_KEY_POR_PAQUETE[paquete]], esLinkAbierto: false };
+  }
+  return { link: linksPago.montoAbierto, esLinkAbierto: true };
+}
+
 // Motivos del bloqueo manual de acceso (columna `motivo_bloqueo`) -- puramente para que el
 // admin filtre/reporte por qué se cerró cada link; nunca se le muestra el motivo específico
 // al invitado (ver pantallas de bloqueo en isViewMode e IntakeForm más abajo). El bloqueo en
@@ -2743,6 +2792,13 @@ export default function App() {
   // Estado principal de los datos de la invitación
   const [datos, setDatos] = useState<InvitacionDatos>(initialDatos);
 
+  // Links de pago del admin (ver LinksPagoAdmin arriba) -- se cargan de la misma fila global
+  // única que los fondos personalizados, en la MISMA petición (una columna más del mismo
+  // select), para no agregar un segundo viaje de red solo por esto.
+  const [linksPago, setLinksPago] = useState<LinksPagoAdmin>(LINKS_PAGO_VACIO);
+  const [mostrarModalLinksPago, setMostrarModalLinksPago] = useState(false);
+  const [guardandoLinksPago, setGuardandoLinksPago] = useState(false);
+
   // Cargar fondos personalizados desde Supabase al iniciar. Esta carga es asíncrona (red),
   // así que `datos.bgImages` empieza vacío durante uno o dos segundos en cada carga de página
   // -- sin `cargandoFondos`, la UI ("Ver fondos guardados (0 temas)", "No hay fondos guardados
@@ -2757,7 +2813,7 @@ export default function App() {
         const supabase = window.supabaseClient;
         const { data, error } = await supabase
           .from('invitaciones')
-          .select('fondos_personalizados')
+          .select('fondos_personalizados, links_pago')
           .eq('id', FONDOS_ROW_ID)
           .maybeSingle();
 
@@ -2784,6 +2840,10 @@ export default function App() {
             console.warn('Error al guardar fondos en localStorage:', err);
           }
         }
+
+        if (data && data.links_pago) {
+          setLinksPago(prev => ({ ...prev, ...data.links_pago }));
+        }
       } catch (err: any) {
         console.warn('Error al cargar fondos desde Supabase:', err);
         mostrarToast('⚠️ No se pudieron cargar los fondos guardados: ' + (err?.message || 'error de red'), 'error');
@@ -2794,6 +2854,37 @@ export default function App() {
 
     cargarFondosDesdeSupabase();
   }, []);
+
+  // Guarda los 4 links de pago completos (reemplaza el objeto entero -- a diferencia de
+  // guardarFondoEnSupabase, aquí no hace falta leer-mezclar-escribir: el admin edita los 4
+  // campos juntos en un solo formulario y los guarda de un jalón). Columna nueva `links_pago`
+  // en la misma fila global única -- PostgREST solo actualiza las columnas incluidas en el
+  // payload, así que esto nunca toca `fondos_personalizados` ni ninguna otra columna de esa fila.
+  const handleGuardarLinksPago = async () => {
+    if (!window.supabaseClient) {
+      mostrarToast("Supabase no está disponible", "error");
+      return;
+    }
+    setGuardandoLinksPago(true);
+    try {
+      const { error } = await window.supabaseClient
+        .from('invitaciones')
+        .upsert([{
+          id: FONDOS_ROW_ID,
+          nombre_quinceanera: 'Configuración global',
+          estado: 'fondos_personalizados',
+          links_pago: linksPago,
+          updated_at: new Date().toISOString(),
+        }], { onConflict: 'id' });
+      if (error) throw error;
+      mostrarToast("💳 Links de pago guardados", "success");
+      setMostrarModalLinksPago(false);
+    } catch (err: any) {
+      mostrarToast("Error al guardar los links de pago: " + err.message, "error");
+    } finally {
+      setGuardandoLinksPago(false);
+    }
+  };
 
   // Auto-guardar cambios de datos en localStorage para persistencia local
   useEffect(() => {
@@ -4280,6 +4371,49 @@ export default function App() {
     }
     const numeroLimpio = row.telefono_whatsapp.replace(/[^0-9]/g, "");
     const msg = `¡Hola! 🌸 Te comparto el link de pago para tu invitación de XV Años de *${row.nombre_quinceanera || "tu evento"}*:\n${row.link_pago.trim()}`;
+    window.open(`https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(msg)}`, "_blank");
+  };
+
+  // Cobrar por WhatsApp (2026-11-21), mismo patrón que handleEnviarLinkPago -- el botón solo
+  // ABRE WhatsApp con el mensaje y el link de pago correctos ya listos, el admin le sigue dando
+  // "Enviar" él mismo. Nunca toca precio_pagado/abonos (eso se sigue registrando a mano cuando
+  // el pago se refleja, ver handleRegistrarAbono) -- esto solo manda el cobro.
+  const handleCobrarAnticipo = (row: InvitacionGuardadaRow) => {
+    if (!row.telefono_whatsapp?.trim()) {
+      mostrarToast("Esta invitación no tiene un número de WhatsApp guardado", "error");
+      return;
+    }
+    const anticipo = calcularAnticipo(row.precio_total);
+    const { link, esLinkAbierto } = resolverLinkAnticipo(row, linksPago);
+    if (!link?.trim()) {
+      mostrarToast('Configura primero tus links de pago ("💳 Links de pago" en la cabecera)', "error");
+      return;
+    }
+    const nombrePlan = row.paquete ? paquetes[row.paquete].nombre : "tu plan";
+    const numeroLimpio = row.telefono_whatsapp.replace(/[^0-9]/g, "");
+    // Si el link es el de monto abierto (no uno fijo por plan), el pago no trae el monto
+    // pre-cargado -- el mensaje debe decírselo explícito para que lo escriba al pagar.
+    const notaMontoAbierto = esLinkAbierto ? ` (ingresa el monto de $${anticipo.toLocaleString("es-MX")})` : "";
+    const msg = `Hola ${row.nombre_quinceanera || "tu evento"}, soy de InvitaMX 💌 Te comparto el link para el anticipo de tu invitación ${nombrePlan} por $${anticipo.toLocaleString("es-MX")}: ${link.trim()}${notaMontoAbierto}\nCon tu anticipo queda apartada la fecha de tu evento. ¡Gracias!`;
+    window.open(`https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(msg)}`, "_blank");
+  };
+
+  const handleCobrarLiquidacion = (row: InvitacionGuardadaRow) => {
+    if (!row.telefono_whatsapp?.trim()) {
+      mostrarToast("Esta invitación no tiene un número de WhatsApp guardado", "error");
+      return;
+    }
+    const saldo = calcularSaldoPendiente(row.precio_total, row.precio_pagado);
+    if (saldo <= 0) {
+      mostrarToast("Esta invitación ya está liquidada", "error");
+      return;
+    }
+    if (!linksPago.montoAbierto?.trim()) {
+      mostrarToast('Configura primero tus links de pago ("💳 Links de pago" en la cabecera)', "error");
+      return;
+    }
+    const numeroLimpio = row.telefono_whatsapp.replace(/[^0-9]/g, "");
+    const msg = `Hola ${row.nombre_quinceanera || "tu evento"}, tu invitación ya está lista 🎉 El saldo para liquidar es de $${saldo.toLocaleString("es-MX")}. Puedes pagarlo en este link (ingresa el monto de $${saldo.toLocaleString("es-MX")}): ${linksPago.montoAbierto.trim()}\nEn cuanto se refleje te entrego tu invitación.`;
     window.open(`https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(msg)}`, "_blank");
   };
 
@@ -6212,6 +6346,14 @@ export default function App() {
             title="Ver ingresos totales, histórico mensual y pendiente por cobrar"
           >
             <span>💰 Ingresos</span>
+          </button>
+
+          <button
+            onClick={() => setMostrarModalLinksPago(true)}
+            className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+            title="Configura una sola vez tus links de pago (Mercado Pago/Clip) para poder cobrar por WhatsApp desde cada invitación"
+          >
+            <span>💳 Links de pago</span>
           </button>
             </div>
           </div>
@@ -8778,6 +8920,86 @@ export default function App() {
         </div>
       )}
 
+      {mostrarModalLinksPago && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-lg w-full shadow-2xl animate-scaleIn max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-extrabold text-slate-900">💳 Links de pago</h3>
+              <button
+                onClick={() => setMostrarModalLinksPago(false)}
+                className="p-1 hover:bg-slate-100 rounded-lg transition"
+              >
+                <X className="w-5 h-5 text-slate-600" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 mb-5">
+              Pega aquí tus links de pago de Mercado Pago/Clip una sola vez — se guardan en Supabase, así que están disponibles igual en esta PC, la PWA instalada o tu celular. Los botones "Cobrar anticipo"/"Cobrar liquidación" de cada invitación (en "Mis Invitaciones") los usan automáticamente. Puedes dejar cualquiera vacío sin que se rompa nada: el botón que lo necesite avisa que falta configurarlo.
+            </p>
+
+            <div className="space-y-3">
+              <label className="block">
+                <span className="text-xs font-bold text-slate-700 block mb-1">Link anticipo Básico</span>
+                <input
+                  type="text"
+                  value={linksPago.anticipoBasico}
+                  onChange={(e) => setLinksPago(prev => ({ ...prev, anticipoBasico: e.target.value }))}
+                  placeholder="https://..."
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 outline-none focus:border-indigo-500 font-mono"
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs font-bold text-slate-700 block mb-1">Link anticipo Estándar</span>
+                <input
+                  type="text"
+                  value={linksPago.anticipoEstandar}
+                  onChange={(e) => setLinksPago(prev => ({ ...prev, anticipoEstandar: e.target.value }))}
+                  placeholder="https://..."
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 outline-none focus:border-indigo-500 font-mono"
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs font-bold text-slate-700 block mb-1">Link anticipo Premium</span>
+                <input
+                  type="text"
+                  value={linksPago.anticipoPremium}
+                  onChange={(e) => setLinksPago(prev => ({ ...prev, anticipoPremium: e.target.value }))}
+                  placeholder="https://..."
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 outline-none focus:border-indigo-500 font-mono"
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs font-bold text-slate-700 block mb-1">Link de monto abierto (liquidaciones y extras)</span>
+                <input
+                  type="text"
+                  value={linksPago.montoAbierto}
+                  onChange={(e) => setLinksPago(prev => ({ ...prev, montoAbierto: e.target.value }))}
+                  placeholder="https://..."
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 outline-none focus:border-indigo-500 font-mono"
+                />
+              </label>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-5">
+              <button
+                type="button"
+                onClick={() => setMostrarModalLinksPago(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleGuardarLinksPago}
+                disabled={guardandoLinksPago}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold rounded-lg transition cursor-pointer"
+              >
+                {guardandoLinksPago ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {mostrarMisInvitaciones && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 bg-slate-900/60 backdrop-blur-xs">
           <div className="bg-white border border-slate-200 rounded-3xl p-6 w-[95vw] max-w-6xl shadow-2xl animate-scaleIn max-h-[94vh] overflow-y-auto">
@@ -9245,6 +9467,31 @@ export default function App() {
                                 {falta > 0 ? `Falta pagar: $${falta.toLocaleString("es-MX")} MXN` : "✅ Pagado por completo"}
                               </p>
                             )}
+
+                            <div className="flex gap-1.5 flex-wrap">
+                              {(() => {
+                                const anticipo = calcularAnticipo(row.precio_total);
+                                const anticipoCobrado = !!row.precio_total && (row.precio_pagado || 0) >= anticipo;
+                                return (
+                                  <button
+                                    onClick={() => handleCobrarAnticipo(row)}
+                                    disabled={!row.precio_total || anticipoCobrado}
+                                    title={!row.precio_total ? "Agrega el precio total primero" : anticipoCobrado ? "El anticipo ya quedó cubierto" : `Abre WhatsApp con el link de pago del anticipo ($${anticipo.toLocaleString("es-MX")} MXN)`}
+                                    className="px-2.5 py-1.5 bg-[#25D366] hover:bg-[#20ba56] disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white rounded-lg text-[10px] font-bold transition"
+                                  >
+                                    {anticipoCobrado ? "Anticipo cobrado" : "💬 Cobrar anticipo"}
+                                  </button>
+                                );
+                              })()}
+                              <button
+                                onClick={() => handleCobrarLiquidacion(row)}
+                                disabled={falta <= 0}
+                                title={falta <= 0 ? "Esta invitación ya está liquidada" : `Abre WhatsApp con el link de pago del saldo ($${falta.toLocaleString("es-MX")} MXN)`}
+                                className="px-2.5 py-1.5 bg-[#25D366] hover:bg-[#20ba56] disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white rounded-lg text-[10px] font-bold transition"
+                              >
+                                {falta <= 0 ? "Liquidada" : "💬 Cobrar liquidación"}
+                              </button>
+                            </div>
 
                             <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
                               <p className="text-[10px] font-bold text-slate-600">💵 Registrar abono (queda en el historial, además de sumarse a "Pagado hasta ahora")</p>
