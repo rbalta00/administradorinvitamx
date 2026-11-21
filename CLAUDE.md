@@ -2,6 +2,38 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Set nuevo de fotos de muestra (ficticias), sin marca de agua (2026-11-20)
+
+Pedido explícito: las 12 fotos de `fotosFicticiasDefault` (`src/data.ts`) -- las que ven portada
+y galería de CUALQUIER invitación/muestra cuando la clienta no sube sus propias fotos -- eran
+vistas previas de stock, 8 de 12 con marca de agua visible de "dreamstime" y PNG de hasta 8.9 MB.
+El usuario ya generó un set nuevo coherente (una misma quinceañera ficticia, mismo vestido
+rosa/dorado) y ya lo subió al Cloudinary del proyecto (cloud `dswrrm5u1`).
+
+- **Cambio de solo datos**: las 12 URLs viejas reemplazadas por las 12 nuevas (`.webp`), mismo
+  orden exacto en ambas llaves (`"dorado-clasico"`/`"mariposas"`, que ya compartían la misma
+  lista) -- el orden importa: la primera es la de cuerpo completo en jardín (la que usa la
+  portada), Básico solo muestra las primeras 4. No se tocó `getFotosPorTema()` ni qué temas caen
+  a qué llave, ni los cortes de galería por plan (`maxFotos`), ni ninguna otra constante/tema/
+  fondo/flujo. Las fotos viejas NO se borraron de Cloudinary, solo dejaron de referenciarse.
+- Verificado que las 12 URLs nuevas responden HTTP 200 antes de usarlas.
+- **Verificación real hecha con la función real** (`generarHTMLFinal`), no con el modo catálogo:
+  `?catalog=true&tema=X` resultó ser una vía de prueba engañosa para esto -- `getDatosCatalogTema`
+  (App.tsx) elige a propósito una `fotoPortada` ALEATORIA para la demo del catálogo (variedad
+  entre vistas, código preexistente, no tocado), que tiene prioridad sobre `fotosFiltradas[0]` --
+  confirmado dos corridas seguidas del mismo tema devolviendo portadas distintas, antes de darme
+  cuenta de la causa real. La prueba correcta (la que describe el propio encargo, "invitación SIN
+  subir fotos") es una invitación real (`datos.fotos: []`, sin `fotoPortada`), donde
+  `generarHTMLFinal` cae a `getFotosPorTema(tema.id)` directo (`templates.ts`, sin aleatoriedad) --
+  probado importando el módulo real desde la consola del navegador (servidor de desarrollo local,
+  `import('/src/templates.ts')`) con un `datos` de prueba (`datosDefault.basico` con `fotos: []`):
+  la portada usa exactamente la foto 1 (cuerpo completo en jardín) y la galería trae exactamente
+  las primeras 4 fotos nuevas, en el orden correcto -- confirmado con `DOMParser` sobre el HTML
+  real generado, no solo leyendo el código. Revisada a ojo la foto 1 directo en Cloudinary: sin
+  marca de agua, coherente con la descripción (quinceañera, vestido rosa/dorado, jardín).
+- `npm run lint`/`npm run build` limpios (mismos 6 errores preexistentes de `ImportMeta.env`).
+- Commit en `main`, pusheado.
+
 ## Textura de papel sutil en el sobre y el fondo (temas elegantes) (2026-11-20)
 
 Pedido explícito: que la invitación se sienta como una tarjeta de papel real -- grano sutil en el

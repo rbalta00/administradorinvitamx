@@ -1158,34 +1158,42 @@ export const temas: TemaConfig[] = [
   }
 ];
 
+// Set único de fotos de muestra (una misma quinceañera ficticia, vestido rosa/dorado),
+// reemplaza 2026-11-20 el set viejo de stock con marca de agua de "dreamstime" visible (8 de 12
+// fotos) y PNG de hasta 8.9 MB -- ya subido al Cloudinary del proyecto (cloud dswrrm5u1,
+// verificado HTTP 200 en las 12 URLs antes del cambio). El orden importa: la portada usa la
+// primera (cuerpo completo en jardín) y el paquete Básico solo muestra las primeras 4. Ambas
+// llaves ("dorado-clasico"/"mariposas") comparten la MISMA lista, igual que antes del cambio --
+// ver getFotosPorTema() más abajo, que cae a "dorado-clasico" para cualquier tema sin su propia
+// llave.
 export const fotosFicticiasDefault: Record<string, string[]> = {
   "dorado-clasico": [
-    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1783221472/galeria_14_lxes6z.png",
-    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1783221472/galeria_11_bpjkfg.png",
-    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1783221471/galeria_9_fav4yb.png",
-    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1783221471/galeria_13_u9b4yy.png",
-    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1783221470/galeria_2_qzis0h.png",
-    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1783221470/galeria_10_ivhusz.png",
-    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1783221470/galeria_8_pen1l9.png",
-    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1783221469/galeria_3_unnvjq.png",
-    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1783221469/galeria_4_xezb3u.png",
-    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1783221469/galeria_7_v8wlcb.png",
-    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1783221467/galeria_6_eknlb7.png",
-    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1783221466/galeria_5_qndgra.png"
+    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238790/yfl5jblsbo3v8g89ypah.webp",
+    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238798/pxp4yrnr5ieqlfdlxwcr.webp",
+    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238799/joyl3txv8jbqlowg2k88.webp",
+    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238800/kaio442qnly8kzrkdmfo.webp",
+    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238801/v5gcmfyiyw30qlddlnhb.webp",
+    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238803/iw4seyifvdbdeyktizpn.webp",
+    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238805/cuqrbnq3hil0xvdazds3.webp",
+    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238806/v553t8kwufvqtqpx9bie.webp",
+    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238807/gkwtvgbtnibotxdop4yw.webp",
+    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238808/qwerh0s8b7bljorset1o.webp",
+    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238810/wmjpxuf3yy7l6e4s5v2i.webp",
+    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238811/qoxwwnnrhkkhtgp1vwlg.webp"
   ],
   "mariposas": [
-    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1783221472/galeria_14_lxes6z.png",
-    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1783221472/galeria_11_bpjkfg.png",
-    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1783221471/galeria_9_fav4yb.png",
-    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1783221471/galeria_13_u9b4yy.png",
-    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1783221470/galeria_2_qzis0h.png",
-    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1783221470/galeria_10_ivhusz.png",
-    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1783221470/galeria_8_pen1l9.png",
-    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1783221469/galeria_3_unnvjq.png",
-    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1783221469/galeria_4_xezb3u.png",
-    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1783221469/galeria_7_v8wlcb.png",
-    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1783221467/galeria_6_eknlb7.png",
-    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1783221466/galeria_5_qndgra.png"
+    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238790/yfl5jblsbo3v8g89ypah.webp",
+    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238798/pxp4yrnr5ieqlfdlxwcr.webp",
+    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238799/joyl3txv8jbqlowg2k88.webp",
+    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238800/kaio442qnly8kzrkdmfo.webp",
+    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238801/v5gcmfyiyw30qlddlnhb.webp",
+    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238803/iw4seyifvdbdeyktizpn.webp",
+    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238805/cuqrbnq3hil0xvdazds3.webp",
+    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238806/v553t8kwufvqtqpx9bie.webp",
+    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238807/gkwtvgbtnibotxdop4yw.webp",
+    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238808/qwerh0s8b7bljorset1o.webp",
+    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238810/wmjpxuf3yy7l6e4s5v2i.webp",
+    "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238811/qoxwwnnrhkkhtgp1vwlg.webp"
   ]
 };
 
