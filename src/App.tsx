@@ -1469,7 +1469,7 @@ const PRECIO_CONTROL_ACCESO_QR = "A la carte +$150 MXN";
 
 // Banco de mensajes predeterminados por cliente (pedido 2026-11-02: "mensajes predeterminados
 // listos para WhatsApp... poderlos mandar desde acá"). Mismo patrón ya probado que
-// handleEnviarLinkPago/handleEnviarFormularioDatos: cada uno abre api.whatsapp.com/send con
+// handleEnviarFormularioDatos/handleCobrarAnticipo: cada uno abre api.whatsapp.com/send con
 // el texto ya armado en el número guardado del cliente (row.telefono_whatsapp), el admin
 // sigue teniendo que darle "Enviar" él mismo -- WhatsApp no deja mandarlo automático sin la
 // API de Negocios de pago. `construir` regresa null cuando el mensaje no aplica para esa
@@ -4864,25 +4864,15 @@ export default function App() {
     }
   };
 
-  // Manda el link de pago guardado de esta fila por WhatsApp al número del cliente.
-  const handleEnviarLinkPago = (row: InvitacionGuardadaRow) => {
-    if (!row.link_pago?.trim()) {
-      mostrarToast("Primero pega el link de pago en esta invitación", "error");
-      return;
-    }
-    if (!row.telefono_whatsapp?.trim()) {
-      mostrarToast("Esta invitación no tiene un número de WhatsApp guardado", "error");
-      return;
-    }
-    const numeroLimpio = row.telefono_whatsapp.replace(/[^0-9]/g, "");
-    const msg = `¡Hola! 🌸 Te comparto el link de pago para tu invitación de XV Años de *${row.nombre_quinceanera || "tu evento"}*:\n${row.link_pago.trim()}`;
-    window.open(`https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(msg)}`, "_blank");
-  };
-
-  // Cobrar por WhatsApp (2026-11-21), mismo patrón que handleEnviarLinkPago -- el botón solo
-  // ABRE WhatsApp con el mensaje y el link de pago correctos ya listos, el admin le sigue dando
-  // "Enviar" él mismo. Nunca toca precio_pagado/abonos (eso se sigue registrando a mano cuando
-  // el pago se refleja, ver handleRegistrarAbono) -- esto solo manda el cobro.
+  // Cobrar por WhatsApp (2026-11-21) -- el botón solo ABRE WhatsApp con el mensaje y el link de
+  // pago correctos ya listos, el admin le sigue dando "Enviar" él mismo. Nunca toca
+  // precio_pagado/abonos (eso se sigue registrando a mano cuando el pago se refleja, ver
+  // handleRegistrarAbono) -- esto solo manda el cobro. Reemplaza al viejo "link de pago pegado a
+  // mano por clienta" (`handleEnviarLinkPago`, campo `row.link_pago`) -- ese campo/botón se
+  // quitó de esta vista (2026-11-22, consolidado con "Links de la clienta"/Parte 1 del encargo)
+  // porque ahora los 4 links de Mercado Pago guardados en `linksPago` cubren el mismo caso de
+  // uso sin que el admin tenga que pegar nada por clienta. El dato `link_pago` se queda intacto
+  // en la base (columna sin tocar), simplemente esta vista ya no lo lee ni lo muestra.
   const handleCobrarAnticipo = (row: InvitacionGuardadaRow) => {
     if (!row.telefono_whatsapp?.trim()) {
       mostrarToast("Esta invitación no tiene un número de WhatsApp guardado", "error");
@@ -4950,12 +4940,12 @@ export default function App() {
   };
 
   // Manda uno de los textos predeterminados (ver MENSAJES_PREDETERMINADOS) al WhatsApp de
-  // ESTE cliente -- mismo patrón que handleEnviarLinkPago/handleEnviarFormularioDatos (abre
+  // ESTE cliente -- mismo patrón que handleCobrarAnticipo/handleEnviarFormularioDatos (abre
   // api.whatsapp.com/send con el texto ya listo en el cuadro, nunca lo manda solo; el admin
   // sigue teniendo que darle "Enviar" él mismo). Pedido 2026-11-02: tener textos listos para
   // no escribirlos de cero cada vez, sin necesidad de abrir esta invitación en el editor.
   // Arma el link general (sin invitado específico) DIRECTO desde la fila guardada, sin
-  // necesidad de tenerla abierta en el editor -- mismo espíritu que handleEnviarLinkPago /
+  // necesidad de tenerla abierta en el editor -- mismo espíritu que handleCobrarAnticipo /
   // handleEnviarFormularioDatos. Pedido 2026-11-02: poder mandar la vista previa desde "Mis
   // Invitaciones" (vía "👤 Administrar cliente") sin pasar por "Abrir en editor" primero.
   // Siempre en modo "muestra" (pedido 2026-11-02: "vista previa temporal con marca de agua, 1
@@ -4992,6 +4982,29 @@ export default function App() {
     const numeroLimpio = fila.telefono_whatsapp.replace(/[^0-9]/g, "");
     const msg = `¡Hola! 🌸 Aquí está la vista previa (temporal, válida ${MUESTRA_DIAS_VIGENCIA} días) de tu invitación de XV Años de *${fila.nombre_quinceanera || "tu evento"}*:\n${url}`;
     window.open(`https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(msg)}`, "_blank");
+  };
+
+  // Resuelve el link de vista previa/muestra de esta fila para Copiar/Abrir (2026-11-22, "Links
+  // de la clienta" ganó su propia fila para este link, antes solo existía como botón de
+  // WhatsApp en la pestaña "Mensajes" -- ver handleEnviarPreviewWhatsApp arriba, que ya hace
+  // exactamente este mismo `asegurarDatosCompletos` + `getShareUrlDesdeFila`). Mismo patrón
+  // resolver+copiar/abrir que `resolverLinkInvitacionFila`/`resolverLinkClasicoFila` más abajo.
+  const resolverLinkMuestraFila = async (row: InvitacionGuardadaRow): Promise<string | null> => {
+    const fila = await asegurarDatosCompletos(row);
+    const url = getShareUrlDesdeFila(fila);
+    if (!url) {
+      mostrarToast("Esta invitación se guardó antes de esta función y no tiene el estado completo disponible para compartir.", "error");
+      return null;
+    }
+    return url;
+  };
+  const handleCopiarLinkMuestraFila = async (row: InvitacionGuardadaRow) => {
+    const url = await resolverLinkMuestraFila(row);
+    if (url) copiarLinkClienta(url);
+  };
+  const handleAbrirLinkMuestraFila = async (row: InvitacionGuardadaRow) => {
+    const url = await resolverLinkMuestraFila(row);
+    if (url) abrirLinkClienta(url);
   };
 
   const handleEnviarMensajePredefinido = (row: InvitacionGuardadaRow, texto: string) => {
@@ -5069,18 +5082,10 @@ export default function App() {
     window.open(`https://api.whatsapp.com/send?phone=${telefono}&text=${encodeURIComponent(msg)}`, "_blank");
   };
 
-  const handleCopiarLinkCheckin = (row: InvitacionGuardadaRow) => {
-    const urlCheckin = urlControlAcceso(row);
-    navigator.clipboard.writeText(urlCheckin);
-    mostrarToast("Link de control de acceso copiado", "success");
-  };
-
-  // Botón "Abrir" junto a "Copiar" (2026-11-22, pedido explícito): abre exactamente la misma
-  // URL que su "Copiar" hermano en una pestaña nueva, para poder revisar el link antes de
-  // enviarlo. `urlControlAcceso(row)` es síncrona -- no hace falta duplicar ninguna resolución.
-  const handleAbrirLinkCheckin = (row: InvitacionGuardadaRow) => {
-    window.open(urlControlAcceso(row), "_blank", "noopener,noreferrer");
-  };
+  // Copiar/Abrir el link de control de acceso viven en el bloque "🔗 Links de la clienta"
+  // (`copiarLinkClienta(linkCheckinFila)`/`abrirLinkClienta(linkCheckinFila)` más abajo) --
+  // antes existían aquí también como `handleCopiarLinkCheckin`/`handleAbrirLinkCheckin`,
+  // duplicando la misma acción; se quitaron el 2026-11-22 al consolidar ese bloque.
 
   // Copia/abre cualquiera de los "Links de la clienta" (invitación/formulario/control de
   // acceso) -- helpers genéricos compartidos por ese bloque del detalle de cada fila en "Mis
@@ -5162,6 +5167,38 @@ export default function App() {
   const handleAbrirLinkClasicoFila = async (row: InvitacionGuardadaRow) => {
     const url = await resolverLinkClasicoFila(row);
     if (url) abrirLinkClienta(url);
+  };
+
+  // Tercer botón "WhatsApp" de cada link de "Links de la clienta" (2026-11-22, pedido
+  // explícito: Copiar / Abrir / WhatsApp en los tres) -- abre el WhatsApp de LA CLIENTA
+  // (`row.telefono_whatsapp`) con el link ya resuelto y un mensaje breve, mismo formato que el
+  // resto de botones de WhatsApp del panel (nunca lo manda solo, el admin le da "Enviar" él
+  // mismo en WhatsApp). Helper genérico para no repetir la guardia de teléfono + la URL de
+  // api.whatsapp.com en cada variante.
+  const enviarWhatsAppLinkClienta = (row: InvitacionGuardadaRow, url: string, introduccion: string) => {
+    if (!row.telefono_whatsapp?.trim()) {
+      mostrarToast("Esta invitación no tiene un número de WhatsApp guardado", "error");
+      return;
+    }
+    const numeroLimpio = row.telefono_whatsapp.replace(/[^0-9]/g, "");
+    const msg = `${introduccion}\n${url}`;
+    window.open(`https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(msg)}`, "_blank");
+  };
+  const handleEnviarWhatsAppLinkInvitacionFila = async (row: InvitacionGuardadaRow) => {
+    const url = await resolverLinkInvitacionFila(row);
+    if (url) enviarWhatsAppLinkClienta(row, url, `¡Hola! 🌸 Aquí está el link de tu invitación de XV Años de *${row.nombre_quinceanera || "tu evento"}*:`);
+  };
+  const handleEnviarWhatsAppLinkClasicoFila = async (row: InvitacionGuardadaRow) => {
+    const url = await resolverLinkClasicoFila(row);
+    if (url) enviarWhatsAppLinkClienta(row, url, `¡Hola! 🌸 Aquí está el link de tu invitación de XV Años de *${row.nombre_quinceanera || "tu evento"}*:`);
+  };
+  // Distinto de `handleEnviarLinkCheckin` (más abajo, manda al número del ENCARGADO de la
+  // puerta, capturado aparte en `telefonoCheckinPorInvitacion` -- normalmente no es la clienta):
+  // este manda el mismo link al WhatsApp de LA CLIENTA, para que ella misma se lo reenvíe a
+  // quien vaya a controlar el acceso, si así prefiere hacerlo. No es un duplicado -- el
+  // destinatario y el mensaje son distintos.
+  const handleEnviarWhatsAppLinkCheckinCliente = (row: InvitacionGuardadaRow) => {
+    enviarWhatsAppLinkClienta(row, urlControlAcceso(row), `¡Hola! 🔳 Este es el link de control de acceso para la fiesta de XV Años de *${row.nombre_quinceanera || "tu evento"}* -- compártelo con quien vaya a registrar la entrada de cada familia el día del evento:`);
   };
 
   // Exporta la lista de "Mis Invitaciones" (respetando los filtros/búsqueda activos) a un CSV
@@ -9951,49 +9988,77 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* Links de la clienta (pedido 2026-11-19): para reenviar en segundos el
-                          link que ya se le mandó antes, sin tener que reconstruirlo a mano ni
-                          abrir la invitación en el editor -- el caso de uso es "la clienta
-                          perdió su link", buscándola por nombre en el buscador de arriba.
-                          "Invitación" ya es el link CORTO (/v/<codigoCorto>, ver guardarEnSupabase)
-                          -- si esta fila todavía no tiene código (vieja, de antes de ese cambio),
-                          "Generar y copiar" lo crea y lo guarda en el momento. */}
+                      {/* Links de la clienta (pedido 2026-11-19, con WhatsApp agregado
+                          2026-11-22): para reenviar en segundos el link que ya se le mandó
+                          antes, sin tener que reconstruirlo a mano ni abrir la invitación en el
+                          editor -- el caso de uso es "la clienta perdió su link", buscándola por
+                          nombre en el buscador de arriba. Cada link lleva sus tres acciones:
+                          Copiar / Abrir (revisarlo antes de mandarlo) / WhatsApp (abre el chat
+                          de la clienta con el mensaje y el link ya listos -- nunca lo manda
+                          solo). "Invitación" ya es el link CORTO (/v/<codigoCorto>, ver
+                          guardarEnSupabase) -- si esta fila todavía no tiene código (vieja, de
+                          antes de ese cambio), cada botón lo genera y lo guarda en el momento. */}
                       <div className="mt-3 pt-3 border-t border-slate-200/60 space-y-1.5">
                         <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">🔗 Links de la clienta</p>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-[10px] font-semibold text-slate-600 w-24 shrink-0">Invitación</span>
                           {row.link_invitacion ? (
                             <>
                               <span className="flex-1 min-w-0 text-[10px] text-slate-500 truncate font-mono">{row.link_invitacion}</span>
                               <button onClick={() => handleCopiarLinkInvitacionFila(row)} className="shrink-0 px-2 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded text-[10px] font-bold transition">Copiar</button>
                               <button onClick={() => handleAbrirLinkInvitacionFila(row)} className="shrink-0 px-2 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded text-[10px] font-bold transition">Abrir</button>
+                              <button onClick={() => handleEnviarWhatsAppLinkInvitacionFila(row)} className="shrink-0 px-2 py-1 bg-[#25D366] hover:bg-[#20ba56] text-white rounded text-[10px] font-bold transition">WhatsApp</button>
                             </>
                           ) : (
                             <>
                               <span className="flex-1 min-w-0 text-[10px] text-slate-400">Todavía no tiene link corto.</span>
                               <button onClick={() => handleCopiarLinkInvitacionFila(row)} className="shrink-0 px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[10px] font-bold transition">Generar y copiar</button>
                               <button onClick={() => handleAbrirLinkInvitacionFila(row)} className="shrink-0 px-2 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded text-[10px] font-bold transition">Generar y abrir</button>
+                              <button onClick={() => handleEnviarWhatsAppLinkInvitacionFila(row)} className="shrink-0 px-2 py-1 bg-[#25D366] hover:bg-[#20ba56] text-white rounded text-[10px] font-bold transition">Generar y enviar</button>
                             </>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 pl-[6.5rem]">
+                        <div className="flex items-center gap-2 flex-wrap pl-[6.5rem]">
                           <button onClick={() => handleCopiarLinkClasicoFila(row)} className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 underline">Copiar link clásico (el de siempre)</button>
                           <button onClick={() => handleAbrirLinkClasicoFila(row)} className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 underline">Abrir</button>
+                          <button onClick={() => handleEnviarWhatsAppLinkClasicoFila(row)} className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 underline">WhatsApp</button>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-[10px] font-semibold text-slate-600 w-24 shrink-0">Formulario</span>
                           <span className="flex-1 min-w-0 text-[10px] text-slate-500 truncate font-mono">{linkFormularioFila}</span>
                           <button onClick={() => copiarLinkClienta(linkFormularioFila)} className="shrink-0 px-2 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded text-[10px] font-bold transition">Copiar</button>
                           <button onClick={() => abrirLinkClienta(linkFormularioFila)} className="shrink-0 px-2 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded text-[10px] font-bold transition">Abrir</button>
+                          <button onClick={() => handleEnviarFormularioDatos(row)} className="shrink-0 px-2 py-1 bg-[#25D366] hover:bg-[#20ba56] text-white rounded text-[10px] font-bold transition">WhatsApp</button>
                         </div>
+                        <p className="text-[9px] text-slate-400 pl-24">El cliente llena fecha, ceremonia/recepción, itinerario, padrinos y sube sus fotos directamente — se guarda solo en esta invitación.</p>
                         {row.checkin_pagado && (
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-[10px] font-semibold text-slate-600 w-24 shrink-0">Control de acceso</span>
                             <span className="flex-1 min-w-0 text-[10px] text-slate-500 truncate font-mono">{linkCheckinFila}</span>
                             <button onClick={() => copiarLinkClienta(linkCheckinFila)} className="shrink-0 px-2 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded text-[10px] font-bold transition">Copiar</button>
                             <button onClick={() => abrirLinkClienta(linkCheckinFila)} className="shrink-0 px-2 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded text-[10px] font-bold transition">Abrir</button>
+                            <button onClick={() => handleEnviarWhatsAppLinkCheckinCliente(row)} title="Manda este link al WhatsApp de LA CLIENTA -- para avisar a quien lo controle, usa el campo de teléfono de la pestaña 'Pagos'" className="shrink-0 px-2 py-1 bg-[#25D366] hover:bg-[#20ba56] text-white rounded text-[10px] font-bold transition">WhatsApp</button>
                           </div>
                         )}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] font-semibold text-slate-600 w-24 shrink-0">Vista previa</span>
+                          {row.datos_completos ? (
+                            <>
+                              <span className="flex-1 min-w-0 text-[10px] text-slate-500 truncate font-mono">{getShareUrlDesdeFila(row) || "—"}</span>
+                              <button onClick={() => handleCopiarLinkMuestraFila(row)} className="shrink-0 px-2 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded text-[10px] font-bold transition">Copiar</button>
+                              <button onClick={() => handleAbrirLinkMuestraFila(row)} className="shrink-0 px-2 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded text-[10px] font-bold transition">Abrir</button>
+                              <button onClick={() => handleEnviarPreviewWhatsApp(row)} className="shrink-0 px-2 py-1 bg-[#25D366] hover:bg-[#20ba56] text-white rounded text-[10px] font-bold transition">WhatsApp</button>
+                            </>
+                          ) : (
+                            <>
+                              <span className="flex-1 min-w-0 text-[10px] text-slate-400">Toca para generar la vista previa.</span>
+                              <button onClick={() => handleCopiarLinkMuestraFila(row)} className="shrink-0 px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[10px] font-bold transition">Generar y copiar</button>
+                              <button onClick={() => handleAbrirLinkMuestraFila(row)} className="shrink-0 px-2 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded text-[10px] font-bold transition">Generar y abrir</button>
+                              <button onClick={() => handleEnviarPreviewWhatsApp(row)} className="shrink-0 px-2 py-1 bg-[#25D366] hover:bg-[#20ba56] text-white rounded text-[10px] font-bold transition">Generar y enviar</button>
+                            </>
+                          )}
+                        </div>
+                        <p className="text-[9px] text-slate-400 pl-24">Link temporal con marca de agua, válido {MUESTRA_DIAS_VIGENCIA} días -- para que la clienta vea un avance sin entregarle todavía el link final.</p>
                       </div>
 
                       <div className="mt-3 pt-3 border-t border-slate-200/60 flex items-center gap-1.5 flex-wrap">
@@ -10255,9 +10320,15 @@ export default function App() {
                               </label>
                             </div>
 
+                            {/* El link de control de acceso (Copiar/Abrir/WhatsApp a la clienta) ya
+                                está en el bloque "🔗 Links de la clienta" de arriba (2026-11-22,
+                                quitado de aquí para no duplicar la misma acción en dos lugares) --
+                                este cuadro se queda SOLO con lo que es único de aquí: el teléfono
+                                del ENCARGADO de controlar la puerta (normalmente no es la clienta)
+                                y el envío directo a ese número. */}
                             {row.checkin_pagado && (
                               <div>
-                                <label className="text-[10px] font-bold text-slate-600 block mb-1">Control de Acceso QR — link para quien controle la puerta</label>
+                                <label className="text-[10px] font-bold text-slate-600 block mb-1">Control de Acceso QR — avisar al encargado de la puerta</label>
                                 {!row.datos_completos?.controlAccesoQR ? (
                                   <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5">
                                     ⚠️ Activa el toggle "Control de Acceso QR" dentro del editor de esta invitación (requiere que "pases" esté activo) para que el QR aparezca en los pases de los invitados.
@@ -10277,71 +10348,10 @@ export default function App() {
                                     >
                                       Enviar
                                     </button>
-                                    <button
-                                      onClick={() => handleCopiarLinkCheckin(row)}
-                                      className="px-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-600 rounded-lg text-[10px] font-bold transition whitespace-nowrap"
-                                    >
-                                      Copiar
-                                    </button>
-                                    <button
-                                      onClick={() => handleAbrirLinkCheckin(row)}
-                                      className="px-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-600 rounded-lg text-[10px] font-bold transition whitespace-nowrap"
-                                    >
-                                      Abrir
-                                    </button>
                                   </div>
                                 )}
                               </div>
                             )}
-
-                            <div>
-                              <label className="text-[10px] font-bold text-slate-600 block mb-1">Link de pago (Mercado Pago, PayPal.me, etc.)</label>
-                              <div className="flex gap-1.5">
-                                <input
-                                  type="text"
-                                  defaultValue={row.link_pago || ""}
-                                  onBlur={(e) => handleActualizarCampoInvitacion(row, "link_pago", e.target.value || null)}
-                                  placeholder="Pega aquí el link de pago..."
-                                  className="flex-1 px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 outline-none focus:border-indigo-500 font-mono"
-                                />
-                                <button
-                                  onClick={() => handleEnviarLinkPago(row)}
-                                  className="px-2.5 bg-[#25D366] hover:bg-[#20ba56] text-white rounded-lg text-[10px] font-bold transition whitespace-nowrap"
-                                >
-                                  Enviar
-                                </button>
-                              </div>
-                              {!!row.link_pago?.trim() && falta <= 0 && (
-                                <p className="text-[10px] font-bold text-amber-700 mt-1 flex items-center gap-1.5 flex-wrap">
-                                  ⚠️ Ya no aplica: el saldo está en $0. Bórralo para no confundir al cliente si vuelve a este link.
-                                  <button
-                                    onClick={() => handleActualizarCampoInvitacion(row, "link_pago", null)}
-                                    className="underline hover:text-amber-900"
-                                  >
-                                    Borrar link
-                                  </button>
-                                </p>
-                              )}
-                            </div>
-
-                            <div>
-                              <div className="flex gap-1.5">
-                                <button
-                                  onClick={() => handleEnviarFormularioDatos(row)}
-                                  className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 rounded-lg text-[11px] font-bold transition"
-                                >
-                                  📋 Enviar formulario de datos y fotos al cliente
-                                </button>
-                                <button
-                                  onClick={() => window.open(urlFormularioDatos(row), "_blank")}
-                                  title="Abre el formulario en una pestaña nueva, tal como lo ve el cliente -- para revisarlo o probarlo antes de mandarlo"
-                                  className="px-2.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded-lg text-[11px] font-bold transition shrink-0"
-                                >
-                                  👁️ Abrir
-                                </button>
-                              </div>
-                              <p className="text-[9px] text-slate-400 mt-1">El cliente llena fecha, ceremonia/recepción, itinerario, padrinos y sube sus fotos directamente — se guarda solo en esta invitación.</p>
-                            </div>
 
                             <div>
                               <label className="text-[10px] font-bold text-slate-600 block mb-1">Notas</label>
@@ -10364,19 +10374,7 @@ export default function App() {
                           .filter(m => m.texto !== null) as { id: string; nombre: string; texto: string }[];
                         return (
                           <div className="mt-3 pt-3 border-t border-slate-200/60 space-y-2">
-                            <p className="text-[10px] text-slate-400">Abre WhatsApp con el número guardado de este cliente y el texto ya listo -- tú le das "Enviar".</p>
-                            <div className="p-2.5 bg-indigo-50/60 border border-indigo-200 rounded-lg">
-                              <p className="text-[11px] font-bold text-indigo-800 mb-1">📤 Vista previa de su invitación</p>
-                              <p className="text-[11px] text-indigo-600 leading-relaxed mb-2">Manda el link de SU invitación tal cual está guardada ahora mismo, sin necesidad de abrirla en el editor primero.</p>
-                              <button
-                                onClick={() => handleEnviarPreviewWhatsApp(row)}
-                                disabled={row.datos_completos === null}
-                                className="px-2.5 py-1 bg-[#25D366] hover:bg-[#20ba56] disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg text-[10px] font-bold transition"
-                              >
-                                Abrir en WhatsApp
-                              </button>
-                              {row.datos_completos === null && <p className="text-[10px] text-amber-600 mt-1">Guardada antes de esta función -- ábrela en el editor y guárdala de nuevo para poder compartirla desde aquí.</p>}
-                            </div>
+                            <p className="text-[10px] text-slate-400">Abre WhatsApp con el número guardado de este cliente y el texto ya listo -- tú le das "Enviar". El link de la vista previa/muestra ya está en "🔗 Links de la clienta" de arriba (fila "Vista previa").</p>
                             {disponibles.map(m => (
                               <div key={m.id} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
                                 <p className="text-[11px] font-bold text-slate-700 mb-1">{m.nombre}</p>

@@ -2,6 +2,91 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Consolidado: Links de la clienta (Copiar/Abrir/WhatsApp) + limpieza de botones repetidos (2026-11-22, noche)
+
+Prompt consolidado que SUSTITUYE a los dos anteriores de la misma sesión (cobro por WhatsApp y
+botón Abrir, ver las 2 entradas de abajo) -- "todo lo de ellos, corregido y junto, está aquí".
+**Hallazgo al investigar antes de tocar nada**: la Parte 1 (links de pago de Mercado Pago
+guardados globalmente por paquete + "Cobrar anticipo"/"Cobrar liquidación") **ya estaba
+implementada por completo** desde la entrada de la tarde ("Cobrar por WhatsApp desde el admin",
+commit `8915c4d`) -- `LinksPagoAdmin`/`LINKS_PAGO_VACIO`/`resolverLinkAnticipo`/
+`handleCobrarAnticipo`/`handleCobrarLiquidacion`/el modal "💳 Links de pago" ya existían y
+funcionan tal cual pide el encargo. Confirmado en vivo (modal abierto en el editor) que los 4
+links reales de Mercado Pago del usuario ya están guardados y persistidos -- no se tocó ese
+modal ni esos handlers, solo quedaba la Parte 1 pendiente: dejar de MOSTRAR el campo viejo de
+`link_pago` pegado a mano por clienta.
+
+- **Parte 1, lo único que faltaba**: se quitó de la pestaña "Pagos" de "Administrar cliente" el
+  bloque completo "Link de pago (Mercado Pago, PayPal.me, etc.)" (input + botón "Enviar" +
+  aviso de "ya no aplica, bórralo") y se eliminó `handleEnviarLinkPago` (su único handler,
+  ahora sin ningún call site). La columna `link_pago` en Supabase, su tipo en
+  `InvitacionGuardadaRow`, y el soporte genérico de `handleActualizarCampoInvitacion` para
+  escribirla NO se tocaron -- el dato se queda intacto en la base, esta vista simplemente ya no
+  lo lee ni lo muestra, tal como pedía el encargo explícitamente.
+- **Parte 2, WhatsApp en cada link de "🔗 Links de la clienta"**: las filas Invitación/"link
+  clásico"/Formulario/Control de acceso ya tenían Copiar+Abrir (de la entrada de la tarde) --
+  se agregó un tercer botón verde "WhatsApp" a cada una:
+  - **Invitación** y **"link clásico"**: `handleEnviarWhatsAppLinkInvitacionFila`/
+    `handleEnviarWhatsAppLinkClasicoFila` (nuevas) reutilizan los resolvers ya existentes
+    (`resolverLinkInvitacionFila`/`resolverLinkClasicoFila`, incluida la generación del código
+    corto si todavía no existe) + un helper nuevo `enviarWhatsAppLinkClienta(row, url, intro)`
+    que arma el mensaje y abre `api.whatsapp.com/send` al número de LA CLIENTA
+    (`row.telefono_whatsapp`) -- mismo patrón de siempre, nunca lo manda solo.
+  - **Formulario**: el botón WhatsApp reutiliza DIRECTO `handleEnviarFormularioDatos(row)` (ya
+    existía, mandaba exactamente este link a este mismo número) -- sin duplicar nada nuevo.
+  - **Control de acceso**: `handleEnviarWhatsAppLinkCheckinCliente` (nueva) manda el link al
+    WhatsApp de LA CLIENTA (`row.telefono_whatsapp`), **deliberadamente distinto** de
+    `handleEnviarLinkCheckin` (ya existía, manda al número del ENCARGADO de controlar la
+    puerta, capturado aparte en `telefonoCheckinPorInvitacion` -- normalmente no es la clienta).
+    No es un duplicado: destinatario y mensaje son distintos, los dos se quedan.
+  - **Nueva fila "Vista previa"** en "Links de la clienta" (antes el link de muestra/preview
+    solo existía como un botón de WhatsApp en la pestaña "Mensajes", sin Copiar ni Abrir): dos
+    resolvers nuevos, `resolverLinkMuestraFila`/`handleCopiarLinkMuestraFila`/
+    `handleAbrirLinkMuestraFila`, que reutilizan `getShareUrlDesdeFila` (ya existía, siempre
+    agrega `&muestra=1&exp=...`) tras `asegurarDatosCompletos`. El WhatsApp de esta fila
+    reutiliza `handleEnviarPreviewWhatsApp` (ya existía) sin cambios. Mismo patrón "Generar y
+    copiar/abrir/enviar" que ya usaba la fila "Invitación" cuando el dato aún no está cargado.
+  - **El pase por familia** (editor, "Lista Pases") ya tenía las tres acciones desde antes
+    (Copiar/Abrir/WhatsApp vía `handleEnviarWhatsApp(index)`) -- confirmado por revisión, no
+    necesitaba ningún cambio.
+- **Parte 3, botones repetidos eliminados** (misma acción, mismo link, en dos lugares):
+  - El bloque "📋 Enviar formulario de datos y fotos al cliente" + "👁️ Abrir" de la pestaña
+    "Pagos" (llamaba exactamente `handleEnviarFormularioDatos`/`urlFormularioDatos(row)`, lo
+    mismo que la fila "Formulario" de "Links de la clienta") -- eliminado completo; su texto
+    explicativo ("El cliente llena fecha, ceremonia/recepción...") se movió como leyenda de esa
+    fila en vez de perderse.
+  - Los botones "Copiar"/"Abrir" del bloque de control de acceso en la pestaña "Pagos"
+    (`handleCopiarLinkCheckin`/`handleAbrirLinkCheckin`, mismo link que la fila "Control de
+    acceso") -- eliminados junto con esas dos funciones (sin call sites restantes). El input
+    del teléfono del ENCARGADO + su botón "Enviar" (`handleEnviarLinkCheckin`) se quedó intacto
+    -- es la única acción única real de ese bloque (destinatario distinto al de la clienta),
+    renombrado el label a "Control de Acceso QR — avisar al encargado de la puerta" para
+    reflejar que ya no es de donde se copia/abre el link.
+  - La tarjeta "📤 Vista previa de su invitación" de la pestaña "Mensajes" (llamaba
+    `handleEnviarPreviewWhatsApp`, ahora duplicado con la fila nueva "Vista previa") --
+    eliminada; el resto de esa pestaña (textos predeterminados de `MENSAJES_PREDETERMINADOS`)
+    sigue intacto, con una nota agregada avisando dónde quedó ese link ahora.
+  - **No se tocó** ninguna acción única real: "Enlace de Invitación Resultante" del editor
+    (Copiar + "🔗 Abrir link directo" + "Enviar por WhatsApp", ya cumplía desde antes, contexto
+    distinto -- trabaja sobre la invitación ABIERTA en el editor, no sobre una fila guardada) ni
+    los mensajes predeterminados genéricos, ni estados/abonos/archivar/notas.
+- **Verificado en vivo** (servidor local efímero sirviendo `dist/` tras `npm run build`,
+  `npm run lint` limpio -- mismos 6 errores preexistentes de siempre, cero nuevos): el modal
+  "💳 Links de pago" del editor sigue mostrando los 4 links reales ya guardados (sin tocarlos).
+  Como `/api/admin/list-invitaciones.ts` (función serverless) no corre bajo un `npx serve`
+  estático, se interceptó `window.fetch` en el navegador para esa URL con una fila de prueba
+  (datos de Sofía, de solo lectura, nunca escrita a Supabase) y así SÍ se pudo probar "Mis
+  Invitaciones" de punta a punta con el código real: las 5 filas de "Links de la clienta"
+  (Invitación/link clásico/Formulario/Control de acceso/Vista previa) se ven con sus 3 botones
+  cada una; "Cobrar liquidación" y "Anticipo cobrado" (deshabilitado) calculan correcto con
+  precio_total=$299/pagado=$150; el campo de Link de pago y el botón duplicado de Formulario ya
+  no aparecen en "Pagos". Clic real en el nuevo botón "WhatsApp" de la fila "Control de acceso"
+  abrió de verdad `api.whatsapp.com/send` con el número real de la clienta (+52 221 744 5410,
+  tal cual está en Supabase) y el mensaje/link correctos -- confirmado visualmente en la propia
+  pantalla de WhatsApp, sin enviar nada de verdad (no se le dio "Abrir aplicación"/"Continuar").
+  Cero errores de consola en todo el recorrido.
+- Commit y push pendientes al momento de escribir esta entrada -- ver `git log` si ya se hizo.
+
 ## Botón "Abrir" junto a cada "Copiar" en los links de la clienta (2026-11-22)
 
 Pedido explícito: poder revisar un link antes de enviarlo, sin solo poder copiarlo. Alcance
