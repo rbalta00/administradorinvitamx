@@ -127,6 +127,13 @@ interface InvitacionGuardadaRow {
   pausada: boolean;
   pausada_en: string | null;
   motivo_pausa: string | null;
+  // Folio de clienta (2026-11-22, "Folio de clienta en el administrador") -- liga a la tabla
+  // `clientes` (la PERSONA, separada del evento/invitación). Null cuando esta invitación nunca
+  // tuvo teléfono capturado. El embed `clientes(...)` lo trae PostgREST automáticamente por la
+  // FK `cliente_id` en list-invitaciones.ts/get-invitacion.ts -- ver resolverClienteId en este
+  // archivo para cómo se resuelve/crea al guardar.
+  cliente_id: string | null;
+  clientes: { folio: number; nombre: string | null; telefono_whatsapp: string } | null;
 }
 
 // Estatus del pedido (columna `estado`), en el orden en que normalmente avanza una venta.
@@ -669,6 +676,61 @@ function resolverPaseEscaneado<T extends { nombre: string }>(
   return null;
 }
 
+// Folio de clienta (2026-11-22, "Folio de clienta en el administrador"): identifica a la
+// PERSONA que contrata (la mamá/clienta), separado del `codigoCorto` de cada invitación (el
+// EVENTO). Llave natural: el teléfono de WhatsApp normalizado a sus últimos 10 dígitos, para que
+// "5212345678" y "525212345678" (con o sin 52/código de país) empaten en la misma clienta.
+function normalizarTelefono(tel: string | null | undefined): string {
+  const soloDigitos = (tel || "").replace(/\D/g, "");
+  return soloDigitos.length >= 10 ? soloDigitos.slice(-10) : "";
+}
+
+// "C-007" / "C-042" / "C-1000" (de 1000 en adelante, natural -- no se trunca a 3 dígitos).
+function folioFormateado(folio: number | null | undefined): string {
+  if (folio === null || folio === undefined) return "—";
+  return `C-${String(folio).padStart(3, "0")}`;
+}
+
+// Encuentra o crea la clienta (tabla `clientes`) ligada a este teléfono -- null si no hay
+// teléfono capturado, sin que nada truene (una invitación sin teléfono simplemente no tiene
+// clienta). Se llama en CADA guardado, alta o actualización (ver `guardarEnSupabase` más abajo),
+// para que un teléfono que cambia se vuelva a ligar con la misma regla -- el folio de una
+// clienta, una vez asignado, nunca cambia (columna `identity`, nunca se reescribe aquí).
+async function resolverClienteId(supabase: any, telefonoRaw: string, nombreSugerido: string): Promise<string | null> {
+  const telNorm = normalizarTelefono(telefonoRaw);
+  if (!telNorm) return null;
+  try {
+    const { data: existente } = await supabase
+      .from("clientes")
+      .select("id")
+      .eq("telefono_whatsapp", telNorm)
+      .maybeSingle();
+    if (existente?.id) return existente.id;
+    const { data: creada, error: errCrear } = await supabase
+      .from("clientes")
+      .insert([{ telefono_whatsapp: telNorm, nombre: nombreSugerido?.trim() || null }])
+      .select("id")
+      .maybeSingle();
+    if (!errCrear && creada?.id) return creada.id;
+    // Carrera (poco probable, pero posible con 2 pestañas guardando casi al mismo tiempo): otra
+    // escritura ya creó esta misma clienta entre el select y el insert de aquí arriba --
+    // `telefono_whatsapp` es unique, así que el insert de esta pestaña falló; se vuelve a leer
+    // en vez de dejar la invitación sin clienta.
+    const { data: reintento } = await supabase
+      .from("clientes")
+      .select("id")
+      .eq("telefono_whatsapp", telNorm)
+      .maybeSingle();
+    return reintento?.id || null;
+  } catch (err) {
+    // Nunca debe tronar el guardado de la invitación por esto -- si algo sale mal resolviendo
+    // la clienta, la invitación se guarda igual, simplemente sin `cliente_id` por ahora (se
+    // vuelve a intentar ligar en el siguiente guardado).
+    console.error("Error al resolver la clienta (folio):", err);
+    return null;
+  }
+}
+
 // Función para guardar en Supabase (agregar ANTES de export default function App)
 // Si se pasa `existingId`, actualiza esa fila en vez de crear una nueva — evita que guardar
 // varias veces mientras se edita la MISMA invitación acumule filas duplicadas en la tabla.
@@ -697,6 +759,16 @@ async function guardarEnSupabase(datosInvitacion: InvitacionDatos, temaActual: T
   const datosConCodigo: InvitacionDatos = { ...datosInvitacion, codigoCorto };
   const linkCorto = `${URL_PUBLICA_INVITAMX}/v/${codigoCorto}`;
 
+  // Folio de clienta (2026-11-22): se re-resuelve en CADA guardado (alta o actualización), no
+  // solo al crear -- así, si el teléfono de una invitación cambia, se vuelve a ligar con la
+  // misma regla (ver resolverClienteId). El folio de la clienta en sí nunca cambia una vez
+  // asignado.
+  const clienteId = await resolverClienteId(
+    supabase,
+    datosInvitacion.whatsappConfirmacion || '',
+    (datosInvitacion.padres && datosInvitacion.padres[1]) || ''
+  );
+
   const datosParaGuardar = {
     nombre_quinceanera: datosInvitacion.nombre || 'Sin nombre',
     apellido_quinceanera: '',
@@ -711,6 +783,7 @@ async function guardarEnSupabase(datosInvitacion: InvitacionDatos, temaActual: T
     nombre_papa: (datosInvitacion.padres && datosInvitacion.padres[0]) || '',
     nombre_mama: (datosInvitacion.padres && datosInvitacion.padres[1]) || '',
     telefono_whatsapp: datosInvitacion.whatsappConfirmacion || '',
+    cliente_id: clienteId,
     email_cliente: '',
     link_invitacion: linkCorto,
     fondos_personalizados: datosInvitacion.bgImages || {},
@@ -5406,6 +5479,19 @@ export default function App() {
       return;
     }
     abrirPestanaCliente(row, "pagos");
+  };
+
+  // "Otras invitaciones de esta clienta" (2026-11-22, "Folio de clienta") -- clic en una de la
+  // lista de historial: quita cualquier filtro/búsqueda/pestaña que pudiera esconderla y
+  // expande esa fila, el mismo mecanismo de "abrir" que ya usa toda esta lista (no hay una
+  // página aparte por invitación, expandir la fila ES abrirla).
+  const handleAbrirInvitacionDesdeHistorial = (id: string) => {
+    setBusquedaInvitaciones("");
+    setFiltroEstatusInvitaciones("todos");
+    setFiltroEventoInvitaciones("todos");
+    const esPasada = invitacionesPasadasTab.some(r => r.id === id);
+    setPestanaListaInvitaciones(esPasada ? "pasados" : "activas");
+    setInvitacionFilaExpandidaId(id);
   };
 
   // Complemento à la carte "Control de Acceso QR": manda el link GENERAL de check-in
@@ -10323,6 +10409,14 @@ export default function App() {
                         {expandida ? <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
                         <span className="shrink-0" title={TIPOS_EVENTO.find(t => t.id === tipoEventoDeFila(row))?.label}>{iconoEventoFila}</span>
                         <span className="text-sm font-bold text-slate-900 truncate">{row.nombre_quinceanera || "Sin nombre"}</span>
+                        {row.clientes?.folio != null && (
+                          // Folio de clienta (2026-11-22, "Folio de clienta en el administrador"):
+                          // identifica a la PERSONA (ver tabla `clientes`), no al evento -- visible
+                          // de un vistazo en la lista, sin tener que expandir la fila.
+                          <span className="px-1.5 py-0.5 rounded bg-slate-200 text-slate-600 text-[9px] font-bold whitespace-nowrap" title="Folio de clienta">
+                            {folioFormateado(row.clientes.folio)}
+                          </span>
+                        )}
                         <span className="text-slate-300">·</span>
                         <span className="text-[11px] text-slate-500 whitespace-nowrap">{row.fecha_fiesta ? new Date(row.fecha_fiesta + "T00:00:00").toLocaleDateString("es-MX") : "Sin fecha"}</span>
                         <span className="text-slate-300">·</span>
@@ -10349,6 +10443,7 @@ export default function App() {
                           <span className="block text-[11px] text-slate-500">
                             {tema?.nombre || row.tema_elegido || "Sin tema"}
                             {row.telefono_whatsapp?.trim() && <> · 📱 {row.telefono_whatsapp}</>}
+                            {row.clientes?.folio != null && <> · 🪪 Clienta {folioFormateado(row.clientes.folio)}</>}
                             {" · "}
                             {row.intake_actualizado_en ? (
                               <span className="text-emerald-600 font-semibold" title={new Date(row.intake_actualizado_en).toLocaleString("es-MX")}>
@@ -10413,6 +10508,35 @@ export default function App() {
                           </div>
                         </div>
                       </div>
+
+                      {/* "Otras invitaciones de esta clienta" (2026-11-22, "Folio de clienta"):
+                          solo aparece si la clienta (misma `cliente_id`, ligada por teléfono)
+                          tiene MÁS de una invitación -- si esta es la única, la sección no se
+                          muestra, tal como pide el encargo. Se deriva de `listaInvitaciones`
+                          (ya cargada completa) en vez de una consulta aparte. */}
+                      {row.cliente_id && (() => {
+                        const otras = listaInvitaciones.filter(r => r.cliente_id === row.cliente_id && r.id !== row.id);
+                        if (otras.length === 0) return null;
+                        return (
+                          <div className="pt-2 pb-1 border-t border-slate-200/60 mt-1">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                              🪪 Otras invitaciones de {folioFormateado(row.clientes?.folio)}
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {otras.map(otra => (
+                                <button
+                                  key={otra.id}
+                                  onClick={() => handleAbrirInvitacionDesdeHistorial(otra.id)}
+                                  className="px-2.5 py-1 bg-white hover:bg-violet-50 border border-slate-200 hover:border-violet-200 rounded-lg text-[10px] text-slate-600 hover:text-violet-700 font-semibold transition"
+                                  title={`Estatus: ${ESTATUS_PEDIDO.find(e => e.id === (otra.estado || "cotizacion"))?.label || otra.estado || ""}`}
+                                >
+                                  {otra.nombre_quinceanera || "Sin nombre"} · {otra.link_invitacion?.split("/v/")[1]?.split("/")[0] || "sin código"}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       {/* Links de la clienta (pedido 2026-11-19, con WhatsApp agregado
                           2026-11-22): para reenviar en segundos el link que ya se le mandó

@@ -2,6 +2,65 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Folio de clienta en el administrador (2026-11-22, madrugada)
+
+Pedido de Isaac: el administrador solo identifica invitaciones (su `codigoCorto`, el EVENTO) -- la
+clienta (la mamá) no existe como tal, así que si regresa con otro evento, su nueva invitación
+nace sin historial. Se agrega un folio de clienta corto (C-001, C-002...) ligado a su teléfono de
+WhatsApp, que es su llave natural -- la invitación conserva su código, el folio identifica a la
+PERSONA.
+
+- **Tabla nueva `clientes`** (migración `add_clientes_table_y_folio`, proyecto `ahwcilcejffgddeeuiux`):
+  `id` (uuid), `folio` (`generated always as identity`, nunca se reusa aunque se borre una
+  clienta -- se muestra como `C-007` con `folioFormateado()`), `nombre`, `telefono_whatsapp`
+  (único, normalizado), `creado_en`. RLS abierta, mismo modelo "Allow all" que el resto del
+  proyecto. `invitaciones.cliente_id` (uuid, nullable, FK) liga cada invitación a su clienta.
+- **Normalización del teléfono** (`normalizarTelefono()`, en `App.tsx`): se guarda y se compara
+  solo por los ÚLTIMOS 10 dígitos -- así "5212345678" y "525212345678" (con o sin 52/código de
+  país) empatan en la misma clienta, sin importar el formato con el que se haya capturado.
+- **`resolverClienteId()`** (busca o crea la clienta por teléfono): se llama en `guardarEnSupabase`
+  -- la ÚNICA función que escribe una invitación en este repo (alta Y actualización) -- así que
+  un teléfono que cambia se vuelve a ligar solo, con la misma regla, en cualquier guardado futuro.
+  Sin teléfono capturado, regresa `null` sin tronar nada (la invitación queda sin clienta, folio
+  "—"). Maneja la carrera rara de 2 guardados casi simultáneos con el mismo teléfono nuevo
+  (reintenta el SELECT si el INSERT choca con la unicidad de `telefono_whatsapp`).
+- **Backfill aplicado en la misma migración**: agrupó las 15 invitaciones reales existentes por
+  teléfono normalizado (excluyendo la fila de config global de fondos y las que no tienen
+  teléfono), creó su clienta y asignó folios por antigüedad real (`fecha_creacion` de la
+  invitación más vieja de cada teléfono) -- verificado que "Barra" (tel. `2217445410`, sin 52) y
+  "Sofía" (tel. `522217445410`, con 52) quedaron correctamente ligadas a LA MISMA clienta.
+- **Dónde se ve**: chip de folio junto al nombre en el renglón COLAPSADO de "Mis Invitaciones"
+  (visible de un vistazo, sin expandir), y "· 🪪 Clienta C-007" en el encabezado expandido (que en
+  este repo ES "Administrar cliente" -- no existe una pantalla separada, expandir la fila es
+  abrir la ficha del cliente, así que ambos puntos del encargo apuntan al mismo lugar real).
+  Sección nueva "🪪 Otras invitaciones de C-007" (solo si la clienta tiene más de una, derivada de
+  `listaInvitaciones` ya cargada, sin consulta aparte) con un botón por cada una (nombre + código,
+  extraído de `link_invitacion` ya que la lista ligera no trae `datos_completos`) --
+  `handleAbrirInvitacionDesdeHistorial()` limpia cualquier filtro/búsqueda/pestaña que pudiera
+  esconderla y expande esa fila (el mismo mecanismo de "abrir" que ya usa toda la lista).
+- **API admin** (`list-invitaciones.ts`/`get-invitacion.ts`, service-role key): agregan `cliente_id`
+  y el embed `clientes(folio, nombre, telefono_whatsapp)` -- PostgREST lo resuelve solo por la FK,
+  sin una segunda consulta.
+- **Explícitamente NO tocado**: el `codigoCorto`/las URLs públicas de cada invitación, la vista
+  pública/check-in/formulario/cobros, y cualquier "recibo"/"Panel WhatsApp" -- esos viven en otro
+  repo (según el propio encargo, "ya dejé los dos recibos del catálogo con `{{folioClienta}}`")
+  y simplemente ya pueden leer `clientes.folio` de la misma base de datos; no había ningún
+  generador de recibo que construir aquí, el alcance de este encargo era solo este repo.
+- **Verificado en vivo, de punta a punta** (build local + servidor estático + Claude in Chrome,
+  mockeando `/api/admin/list-invitaciones` como un proxy a la base REAL vía `window.supabaseClient`
+  -- las escrituras corrieron 100% reales contra Supabase, limpiadas al final): se confirmó primero
+  que los datos YA EXISTENTES (Sofía/Valentina/Barra/Luna Isabella, etc.) ya traían su folio
+  correcto desde el backfill; se creó "Prueba Folio Uno" (tel. `529998887766`) vía "+ Nuevo
+  Cliente" -- folio nuevo asignado (`C-009`); se creó "Prueba Folio Dos" con el MISMO teléfono
+  pero SIN el 52 (`9998887766`) -- quedó con el MISMO folio `C-009`, y cada una mostró a la otra
+  en su "Otras invitaciones de C-009", clic incluido (expande la otra fila, limpia filtros); se
+  limpió el campo de WhatsApp de "Prueba Folio Dos" en el editor y se guardó -- se confirmó por
+  SQL directo que quedó `cliente_id: null`/`telefono_whatsapp: ""` sin ningún error de consola, y
+  la UI la mostró sin folio ni sección de historial, tal como pide el encargo. Las 2 invitaciones
+  y la clienta de prueba se borraron al terminar (`DELETE ... RETURNING`), confirmado en 0.
+- `npm run build`/`npm run lint` limpios (mismos 6 errores preexistentes de `ImportMeta.env`, cero
+  nuevos).
+
 ## Link de revisión y pausa por falta de pago (2026-11-22, noche, regla de negocio nueva)
 
 Regla de negocio nueva de Isaac ("revisión primero, entrega final al liquidar"): hoy el panel
