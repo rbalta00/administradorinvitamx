@@ -10820,29 +10820,68 @@ export default function App() {
                               </p>
                             )}
 
-                            <div className="flex gap-1.5 flex-wrap">
+                            {/* "Enviar link de pago por WhatsApp" (2026-11-22, pedido explícito: el
+                                admin no encontraba dónde se manda el link ni podía saber cuál iba a
+                                salir antes de enviarlo) -- bloque con encabezado propio + un renglón
+                                de vista previa ENCIMA de cada botón, calculado con el MISMO selector
+                                que usan los handlers (resolverLinkAnticipo/calcularAnticipo/
+                                linksPago.montoAbierto) -- nunca un cálculo aparte que pudiera
+                                desalinearse del mensaje real que manda el botón. Los handlers, el
+                                selector de links y los mensajes de WhatsApp NO se tocan -- esto es
+                                solo presentación. */}
+                            <div className="pt-2 border-t border-slate-200/60">
+                              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">✉️ Enviar link de pago por WhatsApp</p>
                               {(() => {
                                 const anticipo = calcularAnticipo(row.precio_total);
                                 const anticipoCobrado = !!row.precio_total && (row.precio_pagado || 0) >= anticipo;
+                                const { link: linkAnticipo, esLinkAbierto: anticipoEsAbierto } = resolverLinkAnticipo(row, linksPago);
+                                const faltaLinkAnticipo = !linkAnticipo?.trim();
+                                const nombrePlanPreview = row.paquete ? paquetes[row.paquete].nombre : "tu plan";
+                                const faltaLinkLiquidacion = !linksPago.montoAbierto?.trim();
+                                const telefonoPreview = row.telefono_whatsapp?.trim() || "— sin teléfono guardado";
                                 return (
-                                  <button
-                                    onClick={() => handleCobrarAnticipo(row)}
-                                    disabled={!row.precio_total || anticipoCobrado}
-                                    title={!row.precio_total ? "Agrega el precio total primero" : anticipoCobrado ? "El anticipo ya quedó cubierto" : `Abre WhatsApp con el link de pago del anticipo ($${anticipo.toLocaleString("es-MX")} MXN)`}
-                                    className="px-2.5 py-1.5 bg-[#25D366] hover:bg-[#20ba56] disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white rounded-lg text-[10px] font-bold transition"
-                                  >
-                                    {anticipoCobrado ? "Anticipo cobrado" : "💬 Cobrar anticipo"}
-                                  </button>
+                                  <>
+                                    <div className="space-y-1 mb-2">
+                                      {!!row.precio_total && !anticipoCobrado && (
+                                        faltaLinkAnticipo ? (
+                                          <p className="text-[10px] font-bold text-rose-600">⚠️ Falta configurar el link de {anticipoEsAbierto ? "monto abierto" : `anticipo ${nombrePlanPreview}`} en "💳 Links de pago".</p>
+                                        ) : (
+                                          <p className="text-[10px] text-slate-500">
+                                            {anticipoEsAbierto
+                                              ? `Se enviará el link de monto abierto por $${anticipo.toLocaleString("es-MX")} — su total trae complementos — a ${telefonoPreview}.`
+                                              : `Se enviará el link de anticipo del paquete ${nombrePlanPreview} ($${anticipo.toLocaleString("es-MX")}) a ${telefonoPreview}.`}
+                                          </p>
+                                        )
+                                      )}
+                                      {falta > 0 && (
+                                        faltaLinkLiquidacion ? (
+                                          <p className="text-[10px] font-bold text-rose-600">⚠️ Falta configurar el link de monto abierto en "💳 Links de pago".</p>
+                                        ) : (
+                                          <p className="text-[10px] text-slate-500">Se enviará el link de monto abierto por ${falta.toLocaleString("es-MX")} a {telefonoPreview}.</p>
+                                        )
+                                      )}
+                                    </div>
+                                    <div className="flex gap-1.5 flex-wrap">
+                                      <button
+                                        onClick={() => handleCobrarAnticipo(row)}
+                                        disabled={!row.precio_total || anticipoCobrado || faltaLinkAnticipo}
+                                        title={!row.precio_total ? "Agrega el precio total primero" : anticipoCobrado ? "El anticipo ya quedó cubierto" : faltaLinkAnticipo ? "Falta configurar ese link en \"💳 Links de pago\"" : `Abre WhatsApp con el link de pago del anticipo ($${anticipo.toLocaleString("es-MX")} MXN)`}
+                                        className="px-2.5 py-1.5 bg-[#25D366] hover:bg-[#20ba56] disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white rounded-lg text-[10px] font-bold transition"
+                                      >
+                                        {anticipoCobrado ? "Anticipo cobrado" : "💬 Cobrar anticipo"}
+                                      </button>
+                                      <button
+                                        onClick={() => handleCobrarLiquidacion(row)}
+                                        disabled={falta <= 0 || faltaLinkLiquidacion}
+                                        title={falta <= 0 ? "Esta invitación ya está liquidada" : faltaLinkLiquidacion ? "Falta configurar ese link en \"💳 Links de pago\"" : `Abre WhatsApp con el link de pago del saldo ($${falta.toLocaleString("es-MX")} MXN)`}
+                                        className="px-2.5 py-1.5 bg-[#25D366] hover:bg-[#20ba56] disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white rounded-lg text-[10px] font-bold transition"
+                                      >
+                                        {falta <= 0 ? "Liquidada" : "💬 Cobrar liquidación"}
+                                      </button>
+                                    </div>
+                                  </>
                                 );
                               })()}
-                              <button
-                                onClick={() => handleCobrarLiquidacion(row)}
-                                disabled={falta <= 0}
-                                title={falta <= 0 ? "Esta invitación ya está liquidada" : `Abre WhatsApp con el link de pago del saldo ($${falta.toLocaleString("es-MX")} MXN)`}
-                                className="px-2.5 py-1.5 bg-[#25D366] hover:bg-[#20ba56] disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white rounded-lg text-[10px] font-bold transition"
-                              >
-                                {falta <= 0 ? "Liquidada" : "💬 Cobrar liquidación"}
-                              </button>
                             </div>
 
                             {(() => {
