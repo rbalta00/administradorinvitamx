@@ -2762,7 +2762,11 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
             const checkinUrl = (codigoCortoQR && famSlugQR)
               ? window.location.origin + '/puerta/' + encodeURIComponent(codigoCortoQR) + '/' + encodeURIComponent(famSlugQR)
               : window.location.origin + '/?checkin=1&iid=' + encodeURIComponent(iid) + '&fam=' + encodeURIComponent(invitado.nombre);
-            qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(checkinUrl);
+            // size=400x400 (2026-11-21 noche): la imagen se sigue mostrando a 150px (ver el
+            // width/height del <img> arriba), pero pedirla con más píxeles por módulo es lo que
+            // permite que una cámara la lea en el primer intento, en pantalla o impresa -- con
+            // menos píxeles (180x180) el QR salía demasiado denso para decodificarse bien.
+            qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=' + encodeURIComponent(checkinUrl);
             qrBloque.classList.remove('hidden');
           }
         }
