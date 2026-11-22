@@ -31,8 +31,11 @@ import {
   LogOut,
   MoreVertical,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Camera,
+  ScanLine
 } from "lucide-react";
+import jsQR from "jsqr";
 import { createClient } from "@supabase/supabase-js";
 import { InvitacionDatos, TemaConfig } from "./types";
 import { temas, paquetes, datosDefault, getFotosPorTema, getOrdenSeccionesEfectivo, PALETAS_COLOR_PERSONALIZADO } from "./data";
@@ -605,6 +608,40 @@ function resolverFamiliaPorSlug<T extends { nombre: string }>(invitados: T[], sl
   const slugs = slugsDeInvitados(invitados);
   const idx = slugs.indexOf(slug.toLowerCase());
   return idx >= 0 ? invitados[idx] : null;
+}
+
+// Resuelve el texto decodificado del QR de un pase (escáner inline del control de acceso,
+// 2026-11-22) contra ESTA invitación -- acepta los dos formatos que puede traer un pase real:
+// el corto `/puerta/<codigoCorto>/<slug-familia>` (templates.ts, pases nuevos) y el largo
+// `?checkin=1&iid=<uuid>&fam=<nombre>` (pases ya compartidos antes del link corto, o reenviados
+// con el link largo de toda la vida). Regresa el invitado real solo si el código/iid coincide
+// con ESTA invitación Y la familia existe en su lista -- cualquier otra cosa (QR de otro evento,
+// texto que no es ni siquiera una URL, familia que ya no está en la lista) regresa `null` para
+// que el escáner muestre "Ese pase no corresponde a este evento" y siga escaneando, sin cerrar
+// la cámara ni adivinar una coincidencia parcial.
+function resolverPaseEscaneado<T extends { nombre: string }>(
+  textoQR: string,
+  ctx: { invitacionId: string | null; codigoCortoPuerta: string | null; invitados: T[] }
+): T | null {
+  let url: URL;
+  try {
+    url = new URL(textoQR, typeof window !== "undefined" ? window.location.origin : undefined);
+  } catch {
+    return null;
+  }
+  const matchCorto = url.pathname.match(/^\/puerta\/([a-z0-9-]+)\/([a-z0-9-]+)\/?$/i);
+  if (matchCorto) {
+    const [, codigo, slug] = matchCorto;
+    if (!ctx.codigoCortoPuerta || codigo.toLowerCase() !== ctx.codigoCortoPuerta.toLowerCase()) return null;
+    return resolverFamiliaPorSlug(ctx.invitados, slug);
+  }
+  if (url.searchParams.get("checkin") === "1") {
+    const iid = url.searchParams.get("iid");
+    const fam = url.searchParams.get("fam");
+    if (!iid || !fam || !ctx.invitacionId || iid !== ctx.invitacionId) return null;
+    return ctx.invitados.find(i => i.nombre === fam) || null;
+  }
+  return null;
 }
 
 // Función para guardar en Supabase (agregar ANTES de export default function App)
@@ -2362,6 +2399,135 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
   );
 }
 
+// Escáner de QR a pantalla completa, EMBEBIDO dentro del control de acceso (2026-11-22) -- antes
+// había que salir a la cámara nativa del celular para leer el QR de un pase, lo cual sacaba a
+// quien controla la puerta de esta página. Usa BarcodeDetector nativo cuando el navegador lo
+// trae (más rápido, cero dependencias) y cae a jsQR (decodificación en JS puro) si no existe --
+// Safari/iOS no lo trae en todas sus versiones, así que el respaldo es necesario, no opcional.
+// Solo decodifica: no sabe nada de invitados/invitaciones, eso lo resuelve el llamador
+// (resolverPaseEscaneado) con el texto crudo que este componente entrega.
+function EscanerPaseQR({ onDetectado, onCerrar, aviso }: { onDetectado: (texto: string) => void; onCerrar: () => void; aviso: string | null }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const activoRef = useRef(true);
+  // Evita re-disparar el mismo texto decenas de veces por segundo mientras el QR sigue frente a
+  // la cámara (el loop de decodificación corre en cada frame) -- 1.5s de "enfriamiento" por texto.
+  const ultimoRef = useRef<{ texto: string; ts: number } | null>(null);
+  const onDetectadoRef = useRef(onDetectado);
+  onDetectadoRef.current = onDetectado;
+  const [estado, setEstado] = useState<"abriendo" | "lista" | "sin-permiso">("abriendo");
+
+  useEffect(() => {
+    activoRef.current = true;
+    const BarcodeDetectorCtor: any = (window as any).BarcodeDetector;
+    let detector: any = null;
+    if (BarcodeDetectorCtor) {
+      try { detector = new BarcodeDetectorCtor({ formats: ["qr_code"] }); } catch { detector = null; }
+    }
+
+    const procesarTexto = (texto: string) => {
+      const ahora = Date.now();
+      if (ultimoRef.current && ultimoRef.current.texto === texto && ahora - ultimoRef.current.ts < 1500) return;
+      ultimoRef.current = { texto, ts: ahora };
+      onDetectadoRef.current(texto);
+    };
+
+    const loop = () => {
+      if (!activoRef.current) return;
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      if (video && canvas && video.readyState >= video.HAVE_ENOUGH_DATA && video.videoWidth > 0) {
+        if (detector) {
+          detector.detect(video)
+            .then((codigos: any[]) => { if (codigos && codigos[0]?.rawValue) procesarTexto(codigos[0].rawValue); })
+            .catch(() => {});
+        } else {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const resultado = jsQR(frame.data, frame.width, frame.height);
+            if (resultado?.data) procesarTexto(resultado.data);
+          }
+        }
+      }
+      rafRef.current = requestAnimationFrame(loop);
+    };
+
+    navigator.mediaDevices
+      .getUserMedia({ video: { facingMode: "environment" }, audio: false })
+      .then(async (stream) => {
+        if (!activoRef.current) {
+          stream.getTracks().forEach(t => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+        }
+        setEstado("lista");
+        loop();
+      })
+      .catch(() => setEstado("sin-permiso"));
+
+    return () => {
+      activoRef.current = false;
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      streamRef.current?.getTracks().forEach(t => t.stop());
+    };
+    // Monta la cámara una sola vez; onDetectado se lee de onDetectadoRef para no tener que
+    // reabrir la cámara cada vez que el llamador cambia esa función entre renders.
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-[300] bg-black flex flex-col">
+      <div className="flex items-center justify-between px-4 py-3 shrink-0">
+        <span className="text-white text-sm font-bold flex items-center gap-1.5"><ScanLine size={16} /> Escanea el QR del pase</span>
+        <button type="button" onClick={onCerrar} className="text-white/80 hover:text-white p-1">
+          <X size={22} />
+        </button>
+      </div>
+      <div className="relative flex-1 overflow-hidden bg-black">
+        <video ref={videoRef} playsInline muted className="absolute inset-0 w-full h-full object-cover" />
+        <canvas ref={canvasRef} className="hidden" />
+        {estado === "lista" && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="w-64 h-64 border-4 border-white/80 rounded-2xl" />
+          </div>
+        )}
+        {estado === "abriendo" && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/70">
+            <p className="text-white text-xs">Abriendo cámara...</p>
+          </div>
+        )}
+        {estado === "sin-permiso" && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 px-6 text-center gap-3">
+            <Camera className="text-white/70" size={32} />
+            <p className="text-white text-sm font-semibold">No pudimos abrir la cámara</p>
+            <p className="text-white/70 text-xs max-w-xs">Da permiso de cámara a este navegador para escanear, o cierra esto y busca a la familia a mano en la lista.</p>
+            <button type="button" onClick={onCerrar} className="mt-2 px-4 py-2 bg-white text-slate-800 text-xs font-bold rounded-full">
+              Usar la lista
+            </button>
+          </div>
+        )}
+        {aviso && (
+          <div className="absolute bottom-6 left-4 right-4 bg-rose-600 text-white text-xs font-bold text-center py-2.5 px-3 rounded-xl shadow-lg">
+            {aviso}
+          </div>
+        )}
+      </div>
+      {estado === "lista" && (
+        <p className="text-white/60 text-[11px] text-center py-3 px-6 shrink-0">Apunta la cámara al código QR del pase del invitado</p>
+      )}
+    </div>
+  );
+}
+
 // Complemento à la carte "Control de Acceso QR" (requiere que la invitación tenga "pases"
 // activo -- ver toggle junto a SeccionesToggleList). Página pública para quien controla la
 // entrada del evento: se llega por el link corto /puerta/<codigo>[/<slug>] (2026-11-21), por el
@@ -2387,7 +2553,49 @@ function CheckinPage({ invitacionId, famNombre }: { invitacionId: string | null;
   const [confirmando, setConfirmando] = useState(false);
   const [confirmado, setConfirmado] = useState(false);
 
+  // "Marca de celular de puerta" (2026-11-22, sin PIN ni claves -- la llave es el link de
+  // control mismo): abrir el control GENERAL de esta invitación (esta ruta, sin `famNombre`)
+  // marca este navegador en localStorage. Esa marca es lo único que distingue, al abrir el
+  // link de UNA familia (`/puerta/<codigo>/<slug>` o el largo con `&fam=`), si quien lo abre es
+  // el celular de la puerta (ya vio la lista general antes, ve el registro real) o el propio
+  // invitado reenviando/escaneando su pase (nunca vio la lista general, solo un saludo genérico,
+  // sin ningún dato). Se guarda por invitacionId -- único y siempre conocido en esta página, sin
+  // importar si se llegó por la ruta corta o la larga, así una sola marca cubre ambas.
+  const marcaKey = invitacionId ? `puerta_ok_${invitacionId}` : null;
+  // Calculado una sola vez al montar (no debe cambiar durante la vida de este montaje -- cada
+  // ruta/familia distinta es un montaje nuevo de esta página). Si localStorage no está
+  // disponible (navegación privada estricta, etc.) se asume lo más conservador: SÍ requiere
+  // saludo genérico, es decir, nunca mostrar datos reales por una falla al leer la marca.
+  const [requiereSaludo] = useState<boolean>(() => {
+    if (!famNombre) return false;
+    try {
+      return !(marcaKey && localStorage.getItem(marcaKey) === "1");
+    } catch {
+      return true;
+    }
+  });
+
+  // Escáner de QR embebido en la lista general (2026-11-22) -- ver EscanerPaseQR arriba y
+  // resolverPaseEscaneado (helper puro, cerca de slugsDeInvitados). `familiaEscaneada` guarda el
+  // NOMBRE de la familia que se acaba de escanear y validar: con eso, el bloque de "ficha de una
+  // familia" más abajo se muestra SIN navegar a `/puerta/<codigo>/<slug>` (que exigiría otra
+  // carga de página) -- se queda todo dentro de este mismo montaje, como pide el encargo
+  // ("sin salir del control"). `famNombre` (el de la URL) y `familiaEscaneada` nunca compiten:
+  // el escáner solo se ofrece en la pantalla general, que por definición no trae `famNombre`.
+  const [familiaEscaneada, setFamiliaEscaneada] = useState<string | null>(null);
+  const [escaneando, setEscaneando] = useState(false);
+  const [avisoEscaneo, setAvisoEscaneo] = useState<string | null>(null);
+  const familiaActiva = familiaEscaneada || famNombre;
+
   useEffect(() => {
+    if (requiereSaludo) {
+      // Sin marca de "celular de puerta": pantalla de saludo genérica (ver render más abajo),
+      // SIN consultar Supabase -- ni siquiera se lee el nombre de la quinceañera ni la lista de
+      // invitados, por diseño, para que un invitado que abre su propio pase (o se lo reenvía a
+      // sí mismo) nunca dispare ninguna lectura de datos de la familia/evento.
+      setCargando(false);
+      return;
+    }
     const cargar = async () => {
       if (!invitacionId || !window.supabaseClient) {
         setError("Este link no es válido.");
@@ -2416,6 +2624,13 @@ function CheckinPage({ invitacionId, famNombre }: { invitacionId: string | null;
           .select("invitado_nombre, personas_registradas")
           .eq("invitacion_id", invitacionId);
         if (!errCheckins) setRegistros(checkinsData || []);
+
+        // Marca este navegador como el de la puerta (ver comentario de `marcaKey` arriba) --
+        // SOLO al abrir el control GENERAL (sin `famNombre`), nunca al abrir el link de una
+        // familia directo -- eso es justo el punto 1 del flujo pedido.
+        if (!famNombre && marcaKey) {
+          try { localStorage.setItem(marcaKey, "1"); } catch { /* localStorage no disponible: sin marca, sin romper la pantalla general */ }
+        }
       } catch (e: any) {
         setError("Ocurrió un error al cargar: " + e.message);
       } finally {
@@ -2424,6 +2639,14 @@ function CheckinPage({ invitacionId, famNombre }: { invitacionId: string | null;
     };
     cargar();
   }, [invitacionId]);
+
+  // El aviso de "Ese pase no corresponde a este evento" (ver EscanerPaseQR más abajo) se borra
+  // solo a los pocos segundos, para no quedarse tapando la cámara mientras se sigue escaneando.
+  useEffect(() => {
+    if (!avisoEscaneo) return;
+    const t = setTimeout(() => setAvisoEscaneo(null), 2500);
+    return () => clearTimeout(t);
+  }, [avisoEscaneo]);
 
   // Links internos de esta página (ver codigoCortoPuerta arriba): corto cuando se puede, largo
   // de siempre como respaldo (invitación guardada antes del código corto, o nunca re-guardada).
@@ -2446,16 +2669,16 @@ function CheckinPage({ invitacionId, famNombre }: { invitacionId: string | null;
   const totalRegistrado = registros.reduce((s, r) => s + r.personas_registradas, 0);
 
   const handleConfirmar = async () => {
-    if (!invitacionId || !famNombre || !window.supabaseClient) return;
+    if (!invitacionId || !familiaActiva || !window.supabaseClient) return;
     setConfirmando(true);
     setInsertError(null);
     try {
       const { error: err } = await window.supabaseClient
         .from("checkins")
-        .insert([{ invitacion_id: invitacionId, invitado_nombre: famNombre, personas_registradas: cantidadAConfirmar }]);
+        .insert([{ invitacion_id: invitacionId, invitado_nombre: familiaActiva, personas_registradas: cantidadAConfirmar }]);
       if (err) throw err;
       setConfirmado(true);
-      setRegistros(prev => [...prev, { invitado_nombre: famNombre, personas_registradas: cantidadAConfirmar }]);
+      setRegistros(prev => [...prev, { invitado_nombre: familiaActiva, personas_registradas: cantidadAConfirmar }]);
     } catch (e: any) {
       setInsertError("No se pudo registrar la entrada: " + e.message);
     } finally {
@@ -2472,6 +2695,22 @@ function CheckinPage({ invitacionId, famNombre }: { invitacionId: string | null;
     );
   }
 
+  // Sin la marca de "celular de puerta" y llegando al link de UNA familia (QR de su propio
+  // pase, con su celular o uno reenviado): saludo genérico, nada de datos del sistema -- ni
+  // nombre de familia, ni evento, ni formulario, ni link al control general. Va ANTES del
+  // chequeo de `error` a propósito: como el efecto de arriba ni siquiera consultó Supabase en
+  // este caso, `error` nunca se puso, pero tampoco debe importar -- este saludo no depende de
+  // si la invitación/familia son válidas o no.
+  if (requiereSaludo) {
+    return (
+      <div className="w-screen h-screen fixed inset-0 flex flex-col items-center justify-center bg-slate-50 px-6 text-center gap-2">
+        <span className="text-4xl mb-2">🔳</span>
+        <p className="text-sm font-semibold text-slate-700">¡Hola!</p>
+        <p className="text-sm text-slate-600 max-w-xs">Este es un pase de acceso: muéstralo en la puerta cuando llegues.</p>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className="w-screen h-screen fixed inset-0 flex flex-col items-center justify-center bg-slate-50 px-6 text-center gap-2">
@@ -2481,19 +2720,34 @@ function CheckinPage({ invitacionId, famNombre }: { invitacionId: string | null;
     );
   }
 
-  // Pantalla de confirmación de UNA familia -- llegó desde el QR de su pase o desde la lista general.
-  if (famNombre) {
-    const invitado = invitados.find(i => i.nombre === famNombre);
+  // Pantalla de confirmación de UNA familia -- llegó desde el link de su pase (`famNombre`,
+  // con la marca de puerta ya confirmada arriba) o se acaba de resolver desde el escáner
+  // embebido de la pantalla general (`familiaEscaneada`, ver EscanerPaseQR/resolverPaseEscaneado).
+  if (familiaActiva) {
+    const invitado = invitados.find(i => i.nombre === familiaActiva);
     if (!invitado) {
       return (
         <div className="w-screen h-screen fixed inset-0 flex flex-col items-center justify-center bg-slate-50 px-6 text-center gap-2">
           <span className="text-4xl mb-2">🔳</span>
-          <p className="text-sm font-semibold text-slate-700">No encontramos a "{famNombre}" en la lista de pases.</p>
+          <p className="text-sm font-semibold text-slate-700">No encontramos a "{familiaActiva}" en la lista de pases.</p>
           <a href={hrefListaCompleta} className="text-xs font-bold text-indigo-600 mt-2">← Ver lista completa</a>
         </div>
       );
     }
-    const yaRegistrados = registradosPorFamilia(famNombre);
+    const yaRegistrados = registradosPorFamilia(familiaActiva);
+    const volverAEscanear = () => {
+      setFamiliaEscaneada(null);
+      setConfirmado(false);
+      setCantidadAConfirmar(1);
+      setInsertError(null);
+      setEscaneando(true);
+    };
+    const volverALaListaDesdeEscaneo = () => {
+      setFamiliaEscaneada(null);
+      setConfirmado(false);
+      setCantidadAConfirmar(1);
+      setInsertError(null);
+    };
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <div className="max-w-sm w-full bg-white rounded-2xl shadow-lg border border-slate-200 p-6 text-center">
@@ -2504,7 +2758,27 @@ function CheckinPage({ invitacionId, famNombre }: { invitacionId: string | null;
             <p className="text-xs font-bold text-amber-600 mt-2">Ya se registraron {yaRegistrados} de este pase.</p>
           )}
           {confirmado ? (
-            <p className="text-sm font-bold text-emerald-600 mt-4">✅ Entrada registrada</p>
+            <>
+              <p className="text-sm font-bold text-emerald-600 mt-4">✅ Entrada registrada</p>
+              {familiaEscaneada && (
+                <div className="flex flex-col gap-2 mt-4">
+                  <button
+                    type="button"
+                    onClick={volverAEscanear}
+                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition flex items-center justify-center gap-2"
+                  >
+                    <Camera size={16} /> Escanear siguiente pase
+                  </button>
+                  <button
+                    type="button"
+                    onClick={volverALaListaDesdeEscaneo}
+                    className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-xl transition"
+                  >
+                    Volver a la lista
+                  </button>
+                </div>
+              )}
+            </>
           ) : (
             <>
               <label className="block text-[11px] font-bold text-slate-600 mt-4 mb-1">¿Cuántas personas entran ahora?</label>
@@ -2525,19 +2799,33 @@ function CheckinPage({ invitacionId, famNombre }: { invitacionId: string | null;
               </button>
             </>
           )}
-          <a href={hrefListaCompleta} className="block text-[11px] font-bold text-slate-400 hover:text-slate-600 mt-4">← Ver lista completa</a>
+          {!familiaEscaneada && (
+            <a href={hrefListaCompleta} className="block text-[11px] font-bold text-slate-400 hover:text-slate-600 mt-4">← Ver lista completa</a>
+          )}
+          {familiaEscaneada && !confirmado && (
+            <button type="button" onClick={volverALaListaDesdeEscaneo} className="block w-full text-[11px] font-bold text-slate-400 hover:text-slate-600 mt-4">
+              ← Volver a la lista
+            </button>
+          )}
         </div>
       </div>
     );
   }
 
-  // Pantalla general: lista buscable de familias + contador en vivo.
+  // Pantalla general: lista buscable de familias + contador en vivo + escáner de QR embebido.
   const invitadosFiltrados = invitados.filter(i => i.nombre.toLowerCase().includes(busqueda.trim().toLowerCase()));
   return (
     <div className="min-h-screen bg-slate-50 p-4">
       <div className="max-w-md mx-auto">
         <h1 className="text-base font-bold text-slate-800 text-center mt-2">Control de Acceso — {nombreQuinceanera}</h1>
         <p className="text-xs text-slate-500 text-center mt-1 mb-4">{totalRegistrado} de {totalAsignado} pases registrados</p>
+        <button
+          type="button"
+          onClick={() => { setAvisoEscaneo(null); setEscaneando(true); }}
+          className="w-full mb-4 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition flex items-center justify-center gap-2 shadow-sm"
+        >
+          <Camera size={18} /> Escanear pase
+        </button>
         <input
           type="text"
           placeholder="Buscar familia..."
@@ -2569,6 +2857,25 @@ function CheckinPage({ invitacionId, famNombre }: { invitacionId: string | null;
           )}
         </div>
       </div>
+      {escaneando && (
+        <EscanerPaseQR
+          aviso={avisoEscaneo}
+          onCerrar={() => { setEscaneando(false); setAvisoEscaneo(null); }}
+          onDetectado={(texto) => {
+            const invitadoValido = resolverPaseEscaneado(texto, { invitacionId, codigoCortoPuerta, invitados });
+            if (!invitadoValido) {
+              setAvisoEscaneo("Ese pase no corresponde a este evento");
+              return;
+            }
+            setAvisoEscaneo(null);
+            setEscaneando(false);
+            setConfirmado(false);
+            setCantidadAConfirmar(1);
+            setInsertError(null);
+            setFamiliaEscaneada(invitadoValido.nombre);
+          }}
+        />
+      )}
     </div>
   );
 }

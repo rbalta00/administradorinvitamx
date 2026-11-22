@@ -2,6 +2,78 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Escáner de QR embebido en el control de acceso + saludo genérico sin marca de puerta (2026-11-22)
+
+Sustituye por completo cualquier intento anterior de este mismo arreglo (sin PIN ni claves --
+la llave sigue siendo el link de control mismo, ver entradas de abajo). El usuario reportó dos
+problemas reales con el control de acceso: (1) el link de control solo mostraba la lista, sin
+forma de escanear sin salir a la cámara nativa del celular; (2) el QR del pase, escaneado por
+CUALQUIERA (incluido el propio invitado con su celular), abría el registro de su familia y
+permitía confirmar su propia entrada -- el pase trae el QR, así que un invitado podía
+"registrarse" solo, sin pasar por la puerta.
+
+- **"Marca de celular de puerta"** (`localStorage`, clave `puerta_ok_<invitacionId>` -- por
+  `invitacionId`, no por `codigoCorto`, para que una sola marca cubra la ruta corta Y la larga
+  sin duplicar lógica): abrir el control GENERAL de una invitación (`/puerta/<codigo>` o el
+  largo `?checkin=1&iid=...`, SIN `&fam=`/slug de familia) marca ese navegador, dentro de
+  `CheckinPage` (`src/App.tsx`), justo después de cargar los datos con éxito. Abrir el link de
+  UNA familia (`/puerta/<codigo>/<slug>` o el largo con `&fam=...`) en un navegador SIN esa
+  marca ya NO muestra el registro real -- muestra un saludo genérico ("¡Hola! Este es un pase de
+  acceso: muéstralo en la puerta cuando llegues."), sin nombre de familia, sin pases, sin
+  formulario y sin link al control general. Con la marca, se comporta exactamente igual que
+  antes (sin cambios en esa ruta). El chequeo de la marca es deliberadamente conservador: si
+  `localStorage` no está disponible (navegación privada estricta), se asume que NO hay marca
+  (muestra el saludo) en vez de arriesgar mostrar datos reales por error. Cuando falta la marca,
+  `CheckinPage` ni siquiera consulta Supabase -- por diseño, para que abrir/reenviar el propio
+  pase nunca dispare ninguna lectura de datos de la familia o del evento.
+- **Escáner embebido** (`EscanerPaseQR`, componente nuevo en `src/App.tsx`, justo antes de
+  `CheckinPage`): botón "📷 Escanear pase" arriba de la lista general, abre un overlay de
+  cámara a pantalla completa (`getUserMedia({video:{facingMode:"environment"}})`) SIN salir de
+  la página. Decodifica con `BarcodeDetector` nativo cuando el navegador lo trae (Chrome/Android,
+  más rápido, cero costo) y cae a `jsQR` (paquete nuevo, puro JS, instalado con
+  `npm install jsqr`) dibujando cada frame en un `<canvas>` oculto cuando no existe -- Safari/iOS
+  no lo trae en todas sus versiones, así que el respaldo es necesario, no opcional. Un
+  "enfriamiento" de 1.5s por texto idéntico evita que el mismo QR dispare decenas de detecciones
+  por segundo mientras sigue frente a la cámara. Si se niega el permiso de cámara, muestra un
+  aviso y un botón "Usar la lista" -- la lista sigue siendo la vía alterna de siempre, sin
+  cambios.
+- **`resolverPaseEscaneado()`** (función pura nueva, módulo-nivel, junto a
+  `resolverFamiliaPorSlug`): recibe el texto crudo decodificado y lo valida contra ESTA
+  invitación -- acepta los dos formatos reales que puede traer un pase (`mostrarPaseFijo()` en
+  `templates.ts`, sin tocar): el corto `/puerta/<codigoCorto>/<slug-familia>` (comparado contra
+  el `codigoCorto` de esta invitación) y el largo `?checkin=1&iid=...&fam=...` (comparado contra
+  este `invitacionId`). Si el código/iid no coincide, o la familia no existe en la lista, regresa
+  `null` -- el escáner muestra "Ese pase no corresponde a este evento" (se borra solo a los 2.5s)
+  y SIGUE escaneando, sin cerrar la cámara ni adivinar una coincidencia parcial. Si resuelve bien,
+  cierra la cámara y muestra la ficha de esa familia DENTRO del mismo montaje de `CheckinPage`
+  (estado nuevo `familiaEscaneada`, sin navegar a `/puerta/<codigo>/<slug>` -- así no hace falta
+  otra carga de página ni otro viaje a Supabase, los invitados/registros ya están en memoria) --
+  misma lógica de siempre de "pases asignados / ya se registraron X / confirmar entrada". Al
+  confirmar, dos botones nuevos exclusivos de este flujo: "📷 Escanear siguiente pase" (limpia el
+  estado y reabre la cámara) y "Volver a la lista" (limpia el estado, sin reabrir nada).
+- **Nada de lo existente cambió de comportamiento**: `templates.ts` (el QR del pase) intacto;
+  la tabla `checkins` y sus conteos/avisos de "ya se registraron X" sin tocar; `/v/<codigo>`,
+  `/v/<codigo>/<slug>` y `/datos/<codigo>` sin tocar; abrir el link de una familia CON la marca
+  (el celular de la puerta, de siempre) se sigue viendo exactamente igual que antes de este
+  cambio, botón "← Ver lista completa" incluido, sin los botones nuevos del flujo de escaneo.
+- **Verificado en vivo** (servidor local efímero sirviendo `dist/` tras `npm run build`, con el
+  fixture real `sofia-1fse`/`cbbcf3aa-9424-4a76-ac57-b7727f92b218` ya conocido de la entrada de
+  abajo): `/puerta/sofia-1fse` muestra el botón "Escanear pase" y marca el navegador
+  (`localStorage.getItem('puerta_ok_<iid>')` queda en `"1"`); `/puerta/sofia-1fse/familia-garcia`
+  con esa marca muestra el registro real de Familia García (4 pases, 1 ya registrado) sin
+  cambios; tras `localStorage.clear()`, la MISMA ruta de familia muestra solo el saludo genérico,
+  sin ningún dato. La resolución de `resolverPaseEscaneado()` se verificó aparte con Node
+  (misma lógica exacta, 6 casos: corto válido, corto de otro evento, largo válido, largo con
+  otro `iid`, texto que no es URL, URL sin ningún patrón conocido) -- los 6 resuelven como se
+  espera. No se pudo probar la cámara real en el navegador automatizado (sin hardware de cámara
+  en ese entorno) -- la decodificación en sí (`jsQR`/`BarcodeDetector`) no se tocó más allá de
+  usarla tal cual, y el camino de validación que sí depende de este código (`resolverPaseEscaneado`)
+  quedó cubierto por las pruebas de Node.
+- `npm run lint`/`npm run build` limpios (mismos 6 errores preexistentes de `ImportMeta.env`,
+  cero nuevos). Pendiente: commit y push (ver si ya se hizo en una entrada posterior o
+  `git log`), y que el usuario confirme en un celular real que la cámara escanea el pase de
+  Familia García y lo registra sin salir del control.
+
 ## QR del pase a 400x400 para que lo lea la cámara de un celular (2026-11-21 noche)
 
 Seguimiento directo de la entrada de abajo (links cortos). El usuario probó escanear el QR del
