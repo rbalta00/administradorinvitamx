@@ -2,6 +2,54 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Fondos listos por evento en el editor (2026-11-22, noche, v2)
+
+Prompt v2 del dueño (sustituye una v1 nunca ejecutada, `prompt-fondos-boda-en-editor.md`): ya
+existían 6 fondos de boda generados y subidos a Cloudinary (cloud `dswrrm5u1`) sin forma de
+aplicarlos salvo subiendo el archivo a mano en "Fondo de la Invitación". El v2 agrega la regla
+clave que no traía el v1: el fondo de galería vive atado al TIPO DE EVENTO de la invitación, no
+al tema, y jamás toca el catálogo de temas ni la fila global `fondos_personalizados`.
+
+- **`src/fondosListos.ts`** (nuevo): catálogo fijo `FONDOS_LISTOS: {nombre, evento, url}[]` -- hoy
+  6 fondos de boda, pensado para crecer (agregar un fondo o un evento nuevo es solo agregar una
+  entrada aquí). `fondosListosPorEvento(evento)` filtra por tipo de evento.
+- **`InvitacionDatos.fondosGaleriaPorEvento?`** (`types.ts`, nuevo) -- `Partial<Record<TipoEvento,
+  string>>`, un fondo de galería elegido por cada tipo de evento que esta invitación haya usado,
+  independiente de `bgImages` (el fondo subido a mano, por TEMA, que ya existía). Agregado a
+  `KEY_MAP` (`fg`, `App.tsx`) para que sobreviva a un link largo compartido (`?v=1&d=...`) -- el
+  camino real hoy (`/v/<codigoCorto>`) de cualquier forma lee `datos_completos` completo de
+  Supabase, sin pasar por ese blob.
+- **`resolverFondoEfectivo(datos, tema)`** (nuevo, exportado en `templates.ts`, junto a
+  `resolverTemaEfectivo`): única fuente de la prioridad -- fondo de galería del EVENTO actual >
+  fondo subido a mano para el TEMA actual > ninguno (cae al degradado del tema). `generarHTMLFinal`
+  calcula `fondoEfectivo` una sola vez y reemplaza las 3 referencias que antes leían
+  `datos.bgImages[tema.id]` directo -- mismo mecanismo para la vista previa del editor y el link
+  público, nunca pueden desincronizarse.
+- **Editor** (`App.tsx`, pestaña Álbum, bloque nuevo "Fondos listos (N)" justo debajo de "Fondo de
+  la Invitación"): miniaturas con nombre de los fondos del evento ACTUAL de la invitación (o un
+  aviso si ese evento no tiene ninguno todavía); clic aplica (`handleAplicarFondoGaleria`, marca
+  "✓" sobre el elegido); botón "Quitar fondo de galería de este evento"
+  (`handleQuitarFondoGaleria`) solo si hay uno elegido para el evento actual -- ninguno de los dos
+  toca Supabase, es 100% estado local de la invitación (se persiste cuando la invitación misma se
+  guarda, como cualquier otro campo). Aviso visible cuando el fondo de galería está activo,
+  recordando que tiene prioridad sobre uno subido a mano.
+- **Verificado en vivo** (build local + servidor estático efímero + Claude in Chrome, sobre una
+  invitación de prueba desechable en `localStorage`, el real "Emma Elizabeth" respaldado antes y
+  restaurado al terminar -- nunca se tocó Supabase): cambiar el evento a Boda mostró los 6 fondos
+  reales; aplicar "Vino Elegante" lo embebió de inmediato en el HTML real de la vista previa
+  (confirmado buscando la regla `background-image: url(...)` exacta, no solo el texto en
+  cualquier parte de la página); se inyectó a mano un fondo "subido" falso para el mismo tema y se
+  confirmó que el de galería lo sigue ganando (prioridad real, no solo visual); cambiar a XV Años
+  dejó de usar el fondo de galería (cayó al fondo real del tema ya guardado en el catálogo) sin
+  perder la elección de Boda; regresar a Boda la recuperó sola, sin tener que elegirla de nuevo.
+- `npm run build`/`npm run lint` limpios (mismos 6 errores preexistentes de `ImportMeta.env`, cero
+  nuevos). `docs/guia-de-uso.md`/`public/manual.html` actualizados con el bloque nuevo (regla fija
+  de abajo) -- **no se pudo actualizar** `D:\InvitaMX\invitamx-manual-usuario.html` (tercera copia
+  del manual, fuera de este repo) por un bloqueo del clasificador de auto mode sobre ediciones
+  fuera del directorio de trabajo; pendiente que el usuario agregue ahí la misma línea si la
+  quiere en sync, o lo autorice explícitamente.
+- Commit `76e026d` en `main`, pusheado -- Vercel debería redesplegar solo.
+
 ## Cobro por WhatsApp v4: el paquete manda el precio, lista manual de links, complementos en un solo bloque (2026-11-22, noche)
 
 Prompt v4 del dueño, sustituye v3/v2/v1 -- mismo alcance de siempre (pestaña "💳 Pagos" de "Administrar cliente"), con un solo punto nuevo (el 7, "Complementos juntos") y 6 puntos ya construidos en pasadas anteriores, reafirmados aquí.
