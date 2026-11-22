@@ -2,6 +2,27 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## QR del pase a 400x400 para que lo lea la cámara de un celular (2026-11-21 noche)
+
+Seguimiento directo de la entrada de abajo (links cortos). El usuario probó escanear el QR del
+control de acceso con la cámara de un celular y "no activó nada" -- no era un bug de la URL
+(ya corta, ~55 caracteres), sino de densidad de imagen: el `<img>` del QR se muestra a 150px
+pero la imagen se pedía a `api.qrserver.com` en `size=180x180` -- muy pocos píxeles por módulo
+para que una cámara lo decodifique bien en pantalla o impreso, sin importar cuán corta sea la
+URL codificada.
+
+- **Fix de una línea** en `src/templates.ts` (el script del pase que genera el QR del control de
+  acceso): `size=180x180` → `size=400x400`. El `<img id="qr-acceso-img" width="150" height="150">`
+  no se tocó -- sigue mostrándose igual de chico, solo llega con más resolución.
+- Verificado por código y por el bundle de producción (`grep` sobre `dist/assets/*.js` tras
+  `npm run build`) que `size=400x400` queda embebido en el script generado. **No se pudo
+  confirmar visualmente en vivo** (navegar a `/v/sofia-1fse/garcia` con un servidor local
+  sirviendo `dist/`) por la misma flakiness de `document.write()` ya documentada en la entrada de
+  abajo -- el init script del pase no corrió en absoluto en esa sesión de navegador automatizado
+  (ni el nombre del invitado ni el bloque del QR se llenaron), no es algo nuevo de este cambio.
+- Commit `78d91a5` en `main`, pusheado. Pendiente que el usuario confirme en producción real
+  (no en este entorno de prueba) que el QR ya se deja leer por la cámara sin reintentos.
+
 ## Links cortos para puerta, pases por familia y formulario (2026-11-21)
 
 Pedido explícito: todos los links del sistema (no solo la invitación) deben colgar del mismo
