@@ -2,6 +2,51 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Botón "Abrir" junto a cada "Copiar" en los links de la clienta (2026-11-22)
+
+Pedido explícito: poder revisar un link antes de enviarlo, sin solo poder copiarlo. Alcance
+confirmado grepeando TODOS los "Copiar"/"Copiar enlace" del panel: 6 lugares en `src/App.tsx`
+tenían un link de cliente sin su "Abrir" -- se agregó junto a cada uno. Un 7° lugar ya lo
+tenía desde antes ("Enlace de Invitación Resultante", pestaña Tema/Paquete: "Copiar enlace" +
+"🔗 Abrir link directo" como botón aparte) -- no se tocó, ya cumplía el pedido.
+
+- **Editor, pestaña "Lista Pases"** (link de pase por familia, `/v/<codigo>/<slug-familia>`):
+  icono nuevo (flecha saliendo de un cuadro) junto al icono de "Copiar enlace personalizado" de
+  cada invitado -- mismo `asegurarCodigoCortoParaEntregarLink()` + `getShareUrl(index, codigo)`
+  que ya usa "Copiar", solo cambia el paso final (`window.open(..., "_blank", "noopener,noreferrer")`
+  en vez de `navigator.clipboard.writeText(...)`) -- la URL nunca se reconstruye por otro camino.
+- **"Mis Invitaciones", bloque "🔗 Links de la clienta"** (una fila por invitación guardada):
+  - **Invitación** (`/v/<codigo>`): `resolverLinkInvitacionFila()` nueva -- antes
+    `handleCopiarLinkInvitacionFila` resolvía el código (generándolo y guardándolo si la fila
+    todavía no tenía uno) y copiaba, todo en una sola función; se separó en un resolver puro +
+    dos acciones (copiar/abrir) que comparten exactamente la misma resolución, incluida la
+    generación del código cuando falta ("Generar y copiar" ganó un "Generar y abrir" hermano).
+  - **"Copiar link clásico (el de siempre)"** (el long-link `?v=1&d=...&iid=...`): mismo patrón,
+    `resolverLinkClasicoFila()` + `handleAbrirLinkClasicoFila`.
+  - **Formulario** (`/datos/<codigo>`) y **Control de acceso** (`/puerta/<codigo>`, solo si
+    `row.checkin_pagado`): estos ya eran strings síncronas (`linkFormularioFila`/
+    `linkCheckinFila`, de `urlFormularioDatos`/`urlControlAcceso`) -- "Abrir" nuevo es
+    simplemente `abrirLinkClienta(url)` (helper nuevo, gemelo de `copiarLinkClienta`).
+  - **Segunda ubicación del link de control de acceso** (pestaña "Vigencia y acceso" de la
+    misma fila, junto a "Enviar"/"Copiar"): `handleAbrirLinkCheckin(row)` nuevo, misma
+    `urlControlAcceso(row)` sin reconstruir nada.
+- **Nada más cambió**: ninguna URL, texto ni comportamiento de "Copiar"; el resto de la app
+  (invitación pública, formulario, check-in) no se tocó.
+- **Verificado**: `npm run build`/`npm run lint` limpios (mismos 6 errores preexistentes de
+  siempre). En vivo (servidor local efímero sirviendo `dist/` tras el build, editando la
+  invitación real "Emma Elizabeth" solo para ver la UI -- sin guardar ni tocar sus datos): el
+  icono nuevo de "Abrir" aparece junto al de "Copiar enlace personalizado" en cada invitado de
+  "Lista Pases", visualmente distinto (flecha-fuera-de-cuadro vs. el icono de copiar), y el
+  clic no lanzó ningún error de consola. **El bloque de "Mis Invitaciones" no se pudo probar en
+  vivo en este entorno** -- esa lista depende de `/api/admin/list-invitaciones.ts` (función
+  serverless de Vercel), que no corre bajo un `npx serve` estático de `dist/` (mostró "No se
+  pudieron cargar tus invitaciones", esperado en este entorno de prueba, no un bug del cambio).
+  Esa parte se verificó solo por revisión de código -- reutiliza el mismo patrón ya probado y
+  en producción de "Enlace de Invitación Resultante" (`asegurarCodigoCortoParaEntregarLink` +
+  `window.open(..., "_blank", "noopener,noreferrer")`). Pendiente que el usuario confirme los
+  botones de "Mis Invitaciones" en producción real.
+- Commit y push pendientes al momento de escribir esta entrada -- ver `git log` si ya se hizo.
+
 ## El formulario de datos (IntakeForm) se viste con el tema de la invitación (2026-11-22)
 
 Pedido explícito: `/datos/<codigo>` (y su equivalente largo `?intake=1&iid=...`) se veía como un

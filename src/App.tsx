@@ -5075,30 +5075,44 @@ export default function App() {
     mostrarToast("Link de control de acceso copiado", "success");
   };
 
-  // Copia cualquiera de los "Links de la clienta" (invitación/formulario/control de acceso) --
-  // helper genérico compartido por ese bloque del detalle de cada fila en "Mis Invitaciones".
+  // Botón "Abrir" junto a "Copiar" (2026-11-22, pedido explícito): abre exactamente la misma
+  // URL que su "Copiar" hermano en una pestaña nueva, para poder revisar el link antes de
+  // enviarlo. `urlControlAcceso(row)` es síncrona -- no hace falta duplicar ninguna resolución.
+  const handleAbrirLinkCheckin = (row: InvitacionGuardadaRow) => {
+    window.open(urlControlAcceso(row), "_blank", "noopener,noreferrer");
+  };
+
+  // Copia/abre cualquiera de los "Links de la clienta" (invitación/formulario/control de
+  // acceso) -- helpers genéricos compartidos por ese bloque del detalle de cada fila en "Mis
+  // Invitaciones". `abrirLinkClienta` es la contraparte de "Abrir" (2026-11-22) junto a cada
+  // "Copiar" de ese bloque -- misma URL ya resuelta, nunca se reconstruye aparte.
   const copiarLinkClienta = (url: string) => {
     navigator.clipboard.writeText(url).then(() => mostrarToast("Link copiado", "success")).catch(() => {});
   };
+  const abrirLinkClienta = (url: string) => {
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
 
-  // Copia el link CORTO (/v/<codigoCorto>) de esta fila -- es el que "Invitación" muestra en
+  // Resuelve el link CORTO (/v/<codigoCorto>) de esta fila -- es el que "Invitación" muestra en
   // "Links de la clienta". Si todavía no tiene código (fila guardada antes de este cambio, o
   // nunca guardada desde que se agregó), lo genera y lo persiste en el momento (mismo
   // generarCodigoCortoUnico que usa guardarEnSupabase al guardar desde el editor) -- siempre
   // reconstruido con el origen ACTUAL, nunca con lo que haya quedado guardado en
   // `link_invitacion`, para que si algún día cambia el dominio los links ya existentes lo
-  // reflejen solos.
-  const handleCopiarLinkInvitacionFila = async (row: InvitacionGuardadaRow) => {
+  // reflejen solos. Extraída a su propio resolver (2026-11-22) para que "Copiar" y "Abrir"
+  // compartan la MISMA resolución -- incluida la generación del código si todavía no existe --
+  // y solo difieran en el paso final (copiar vs. abrir en pestaña nueva).
+  const resolverLinkInvitacionFila = async (row: InvitacionGuardadaRow): Promise<string | null> => {
     const fila = await asegurarDatosCompletos(row);
     if (!fila.datos_completos) {
       mostrarToast("Esta invitación se guardó antes de esta función y no tiene el estado completo disponible para generar su link.", "error");
-      return;
+      return null;
     }
     let codigoCorto = fila.datos_completos.codigoCorto;
     if (!codigoCorto) {
       if (!window.supabaseClient) {
         mostrarToast("Supabase no está disponible", "error");
-        return;
+        return null;
       }
       try {
         const temaDeEsaFila = temas.find(t => t.id === fila.datos_completos!.tema) || temas.find(t => t.id === fila.tema_elegido) || temas[0];
@@ -5109,29 +5123,45 @@ export default function App() {
         }
       } catch (err: any) {
         mostrarToast("No se pudo generar el link corto: " + err.message, "error");
-        return;
+        return null;
       }
     }
     if (!codigoCorto) {
       mostrarToast("No se pudo generar el link corto", "error");
-      return;
+      return null;
     }
-    copiarLinkClienta(`${URL_PUBLICA_INVITAMX}/v/${codigoCorto}`);
+    return `${URL_PUBLICA_INVITAMX}/v/${codigoCorto}`;
+  };
+  const handleCopiarLinkInvitacionFila = async (row: InvitacionGuardadaRow) => {
+    const url = await resolverLinkInvitacionFila(row);
+    if (url) copiarLinkClienta(url);
+  };
+  const handleAbrirLinkInvitacionFila = async (row: InvitacionGuardadaRow) => {
+    const url = await resolverLinkInvitacionFila(row);
+    if (url) abrirLinkClienta(url);
   };
 
-  // Copia el link LARGO clásico (?v=1&d=...&iid=...) de esta fila -- opción secundaria "por si
-  // se necesita el de siempre" (pedido explícito), nunca el principal. A diferencia de
+  // Resuelve el link LARGO clásico (?v=1&d=...&iid=...) de esta fila -- opción secundaria "por
+  // si se necesita el de siempre" (pedido explícito), nunca el principal. A diferencia de
   // getShareUrlDesdeFila (que SIEMPRE agrega &muestra=1&exp=... para la vista previa temporal),
-  // este es el link PERMANENTE de toda la vida, sin marca de agua ni expiración.
-  const handleCopiarLinkClasicoFila = async (row: InvitacionGuardadaRow) => {
+  // este es el link PERMANENTE de toda la vida, sin marca de agua ni expiración. Mismo patrón
+  // de resolver+copiar/abrir que `resolverLinkInvitacionFila` arriba.
+  const resolverLinkClasicoFila = async (row: InvitacionGuardadaRow): Promise<string | null> => {
     const fila = await asegurarDatosCompletos(row);
     if (!fila.datos_completos) {
       mostrarToast("Esta invitación se guardó antes de esta función y no tiene el estado completo disponible para generar su link clásico.", "error");
-      return;
+      return null;
     }
     const datosListos = { ...fila.datos_completos, tema: fila.tema_elegido || fila.datos_completos.tema, invitados: [] };
-    const linkClasico = `${URL_PUBLICA_INVITAMX}/?v=1&d=${encodeState(datosListos)}&iid=${encodeURIComponent(fila.id)}`;
-    copiarLinkClienta(linkClasico);
+    return `${URL_PUBLICA_INVITAMX}/?v=1&d=${encodeState(datosListos)}&iid=${encodeURIComponent(fila.id)}`;
+  };
+  const handleCopiarLinkClasicoFila = async (row: InvitacionGuardadaRow) => {
+    const url = await resolverLinkClasicoFila(row);
+    if (url) copiarLinkClienta(url);
+  };
+  const handleAbrirLinkClasicoFila = async (row: InvitacionGuardadaRow) => {
+    const url = await resolverLinkClasicoFila(row);
+    if (url) abrirLinkClienta(url);
   };
 
   // Exporta la lista de "Mis Invitaciones" (respetando los filtros/búsqueda activos) a un CSV
@@ -8907,6 +8937,26 @@ export default function App() {
                                 </svg>
                               </button>
 
+                              {/* Botón abrir link del invitado en pestaña nueva (2026-11-22,
+                                  junto a "Copiar enlace personalizado") -- misma URL, misma
+                                  resolución (asegurarCodigoCortoParaEntregarLink + getShareUrl),
+                                  sin reconstruirla por otro camino. */}
+                              <button
+                                onClick={async () => {
+                                  // Compartir guarda primero (2026-11-19) -- ver nota en handleEnviarWhatsApp.
+                                  const listo = await asegurarCodigoCortoParaEntregarLink();
+                                  if (!listo.ok) return;
+                                  const customLink = getShareUrl(index, listo.codigo);
+                                  window.open(customLink, "_blank", "noopener,noreferrer");
+                                }}
+                                className="p-1 hover:bg-slate-50 text-indigo-600 hover:text-indigo-800 rounded transition cursor-pointer"
+                                title="Abrir enlace personalizado en pestaña nueva"
+                              >
+                                <svg className="w-3.5 h-3.5 fill-none stroke-current" strokeWidth="2.5" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
+                                </svg>
+                              </button>
+
                               {/* Botón enviar por WhatsApp */}
                               <button
                                 onClick={() => handleEnviarWhatsApp(index)}
@@ -9916,27 +9966,32 @@ export default function App() {
                             <>
                               <span className="flex-1 min-w-0 text-[10px] text-slate-500 truncate font-mono">{row.link_invitacion}</span>
                               <button onClick={() => handleCopiarLinkInvitacionFila(row)} className="shrink-0 px-2 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded text-[10px] font-bold transition">Copiar</button>
+                              <button onClick={() => handleAbrirLinkInvitacionFila(row)} className="shrink-0 px-2 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded text-[10px] font-bold transition">Abrir</button>
                             </>
                           ) : (
                             <>
                               <span className="flex-1 min-w-0 text-[10px] text-slate-400">Todavía no tiene link corto.</span>
                               <button onClick={() => handleCopiarLinkInvitacionFila(row)} className="shrink-0 px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[10px] font-bold transition">Generar y copiar</button>
+                              <button onClick={() => handleAbrirLinkInvitacionFila(row)} className="shrink-0 px-2 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded text-[10px] font-bold transition">Generar y abrir</button>
                             </>
                           )}
                         </div>
                         <div className="flex items-center gap-2 pl-[6.5rem]">
                           <button onClick={() => handleCopiarLinkClasicoFila(row)} className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 underline">Copiar link clásico (el de siempre)</button>
+                          <button onClick={() => handleAbrirLinkClasicoFila(row)} className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 underline">Abrir</button>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] font-semibold text-slate-600 w-24 shrink-0">Formulario</span>
                           <span className="flex-1 min-w-0 text-[10px] text-slate-500 truncate font-mono">{linkFormularioFila}</span>
                           <button onClick={() => copiarLinkClienta(linkFormularioFila)} className="shrink-0 px-2 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded text-[10px] font-bold transition">Copiar</button>
+                          <button onClick={() => abrirLinkClienta(linkFormularioFila)} className="shrink-0 px-2 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded text-[10px] font-bold transition">Abrir</button>
                         </div>
                         {row.checkin_pagado && (
                           <div className="flex items-center gap-2">
                             <span className="text-[10px] font-semibold text-slate-600 w-24 shrink-0">Control de acceso</span>
                             <span className="flex-1 min-w-0 text-[10px] text-slate-500 truncate font-mono">{linkCheckinFila}</span>
                             <button onClick={() => copiarLinkClienta(linkCheckinFila)} className="shrink-0 px-2 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded text-[10px] font-bold transition">Copiar</button>
+                            <button onClick={() => abrirLinkClienta(linkCheckinFila)} className="shrink-0 px-2 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded text-[10px] font-bold transition">Abrir</button>
                           </div>
                         )}
                       </div>
@@ -10227,6 +10282,12 @@ export default function App() {
                                       className="px-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-600 rounded-lg text-[10px] font-bold transition whitespace-nowrap"
                                     >
                                       Copiar
+                                    </button>
+                                    <button
+                                      onClick={() => handleAbrirLinkCheckin(row)}
+                                      className="px-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-600 rounded-lg text-[10px] font-bold transition whitespace-nowrap"
+                                    >
+                                      Abrir
                                     </button>
                                   </div>
                                 )}
