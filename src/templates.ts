@@ -354,6 +354,26 @@ export function resolverTemaEfectivo(datos: InvitacionDatos, tema: TemaConfig): 
   return tema;
 }
 
+// Fondo efectivo de una invitación (2026-11-22) -- ver tipos.ts (`fondosGaleriaPorEvento`) y
+// `fondosListos.ts`. Dos mecanismos conviven, cada uno con su propio alcance:
+//   - `bgImages[tema.id]`: fondo subido A MANO por el admin, por TEMA (ver "Fondo de la
+//     Invitación" en el editor) -- ya existía, nunca cambió de comportamiento por este cambio.
+//   - `fondosGaleriaPorEvento[tipoEvento]`: fondo elegido de una galería de fondos "listos" por
+//     EVENTO (hoy solo hay fondos de boda) -- nuevo, vive solo dentro de esta invitación,
+//     atado a SU evento actual. Al cambiar el tipo de evento, cada uno de sus fondos de
+//     galería se recuerda por separado (uno por evento, nunca se mezclan).
+// Prioridad: galería del evento actual > fondo subido a mano para el tema actual > ninguno
+// (cae al degradado normal del tema). Nunca toca el catálogo de temas (`data.ts`) ni la fila
+// global `fondos_personalizados` -- es puro cálculo de lectura sobre los datos de ESTA
+// invitación, exportada para que App.tsx (la galería "Fondos listos" del editor) pueda saber
+// qué está mostrándose de verdad sin duplicar esta lógica.
+export function resolverFondoEfectivo(datos: InvitacionDatos, tema: TemaConfig): string | undefined {
+  const tipoActual: TipoEvento = (datos.tipoEvento && TEXTOS_POR_EVENTO[datos.tipoEvento]) ? datos.tipoEvento : "xv";
+  const fondoGaleria = datos.fondosGaleriaPorEvento?.[tipoActual];
+  if (fondoGaleria) return fondoGaleria;
+  return datos.bgImages?.[tema.id];
+}
+
 export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opciones?: { esDemoDeCatalogo?: boolean; esVistaPreviaEditor?: boolean; paraExportarPDF?: boolean }): string {
   const esDemoDeCatalogo = opciones?.esDemoDeCatalogo === true;
   const paraExportarPDF = opciones?.paraExportarPDF === true;
@@ -367,6 +387,11 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
   // tenían el texto de XV años fijo.
   const textosEvento = textosEventoDe(datos.tipoEvento);
   tema = resolverTemaEfectivo(datos, tema);
+  // Fondo efectivo de esta invitación (2026-11-22, ver resolverFondoEfectivo abajo): el fondo
+  // "listo" de galería elegido para el EVENTO actual manda sobre el fondo subido a mano por
+  // TEMA; si no hay ninguno de los dos, no hay fondo personalizado y se usa el degradado del
+  // tema como siempre.
+  const fondoEfectivo = resolverFondoEfectivo(datos, tema);
 
   // Aseguramos que existan fotos válidas, si no, tomamos las ficticias del tema
   const fotosValidas = (datos.fotos || []).filter(f => f && typeof f === "string" && f.trim() !== "");
@@ -1914,11 +1939,13 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       background-blend-mode: multiply;
     }` : ""}
 
-    ${datos.bgImages && datos.bgImages[tema.id] ? `
-    /* Imagen de fondo cargada para este tema por separado (solo se muestra al abrir el sobre).
-       El fondo de respaldo usa el degradado real del tema (no transparent) -- si esta imagen
-       en particular se cae (link roto, borrada del hosting, etc.), la invitación no se queda
-       en blanco: se ve el degradado normal del tema por debajo mientras se resuelve. */
+    ${fondoEfectivo ? `
+    /* Imagen de fondo de esta invitación (solo se muestra al abrir el sobre) -- ya sea subida a
+       mano por tema, o un fondo "listo" de galería elegido para el evento actual (2026-11-22,
+       ver resolverFondoEfectivo arriba, el que manda cuando hay ambos). El fondo de respaldo
+       usa el degradado real del tema (no transparent) -- si esta imagen en particular se cae
+       (link roto, borrada del hosting, etc.), la invitación no se queda en blanco: se ve el
+       degradado normal del tema por debajo mientras se resuelve. */
     html {
       background: ${tema.bgGradient} !important;
     }
@@ -1932,14 +1959,14 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
          aparte) porque body ya usa su ::before/::after para el velo/respaldo de abajo. Cada
          propiedad lleva un valor por capa (textura primero, foto después) para que
          background-size:cover no le aplique también al tile de 180px de la textura. */
-      background-image: ${TEXTURA_PAPEL_DATAURI}, url('${datos.bgImages[tema.id]}') !important;
+      background-image: ${TEXTURA_PAPEL_DATAURI}, url('${fondoEfectivo}') !important;
       background-size: 180px 180px, cover !important;
       background-position: 0 0, center !important;
       background-repeat: repeat, no-repeat !important;
       background-attachment: fixed, fixed !important;
       background-blend-mode: multiply, normal !important;
       ` : `
-      background-image: url('${datos.bgImages[tema.id]}') !important;
+      background-image: url('${fondoEfectivo}') !important;
       background-size: cover !important;
       background-position: center !important;
       background-repeat: no-repeat !important;
@@ -1951,7 +1978,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       content: "";
       position: fixed;
       inset: 0;
-      background-image: url('${datos.bgImages[tema.id]}') !important;
+      background-image: url('${fondoEfectivo}') !important;
       background-size: cover !important;
       background-position: center !important;
       background-repeat: no-repeat !important;

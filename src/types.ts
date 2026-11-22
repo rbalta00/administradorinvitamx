@@ -68,6 +68,20 @@ export interface InvitacionDatos {
    *  templates.ts) que apunta a /?checkin=1&iid=...&fam=... */
   controlAccesoQR?: boolean;
   bgImages?: Record<string, string>;
+  /** Fondos "listos" de galería elegidos por EVENTO (2026-11-22, ver `fondosListos.ts` y
+   *  `resolverFondoEfectivo` en templates.ts) -- a diferencia de `bgImages` (subido a mano,
+   *  por TEMA), este fondo se elige con un clic de una galería de fondos predefinidos y se
+   *  recuerda SOLO dentro de esta invitación, un fondo distinto por cada tipo de evento que
+   *  esta invitación haya tenido. Al cambiar el tipo de evento, la invitación muestra el
+   *  fondo de galería de ESE evento (si tiene uno elegido) o cae al comportamiento de
+   *  siempre (bgImages/el default del tema) -- nunca toca el catálogo de temas ni la fila
+   *  global `fondos_personalizados`. La unión de llaves duplica a propósito la de
+   *  `tipoEvento` arriba (no se puede referenciar ese campo desde su propio tipo sin crear
+   *  un tipo recursivo más confuso de leer). */
+  fondosGaleriaPorEvento?: Partial<Record<
+    "xv" | "boda" | "cumpleanos" | "bautizo" | "primera-comunion" | "graduacion" | "baby-shower" | "aniversario",
+    string
+  >>;
   /** Opacidad (0-1) del velo que se pone encima del fondo personalizado para mantener el
    *  texto legible. Si no está definida, se usa el valor por tema en generarHTMLFinal
    *  (0.55 claros / 0.65 oscuros). Ver control deslizante "Nitidez del fondo" en el editor. */

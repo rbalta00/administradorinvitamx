@@ -30,11 +30,13 @@ Estas son las secciones donde capturas los datos de la invitación. Son 9 — si
 | 4 | **Agenda y Vestido** | El itinerario/programa del evento (hora por hora) y el código de vestimenta. |
 | 5 | **Familia** | Padres y padrinos. |
 | 6 | **Regalos** | Mesa de regalos y datos bancarios (con botón de copiar para el invitado). |
-| 7 | **Álbum** | Las fotos de la galería (el número máximo depende del paquete — ver tabla abajo). |
+| 7 | **Álbum** | Las fotos de la galería (el número máximo depende del paquete — ver tabla abajo), el fondo de la invitación (subido a mano, o elegido con un clic de "Fondos listos" si tu evento ya tiene fondos predefinidos — hoy solo Boda — ver abajo) y la foto de portada. |
 | 8 | **Lista Pases** | Los invitados/familias con su número de pases, para generarles un link personalizado. Aquí también se asigna la mesa de cada familia (opcional) y se activa, si se contrató, el **Control de Acceso QR**. |
 | 9 | **A Medida** | Personalización libre de colores, tipografía, estilo de apertura, itinerario, portada y más — **funciona con cualquier tema del catálogo**, no solo "Personalizado 🎨" (desde el 2026-11-19). Si no tocas nada aquí, cada control se queda con lo que trae el tema elegido. |
 
 **Máximo de fotos por paquete:** Básico 4 — Estándar 8 — Premium 14.
+
+**Fondos listos (pestaña Álbum, 2026-11-22)**: debajo del fondo subido a mano, un bloque nuevo muestra fondos prediseñados que puedes aplicar con un clic, sin subir nada — la lista depende del **Tipo de Evento** que elegiste en la pestaña "Quinceañera" (hoy solo hay fondos de Boda; si el evento no tiene ninguno todavía, el bloque avisa que aún no hay). El fondo que elijas se recuerda por separado para cada tipo de evento que esta invitación use: si cambias de Boda a XV Años, se usa el fondo normal de ese caso (el subido a mano o el del tema); si vuelves a Boda, tu elección de fondo listo reaparece sola. Cuando hay un fondo listo elegido para el evento actual, ese manda sobre cualquier fondo subido a mano — un aviso en el propio bloque te lo recuerda.
 
 **Tipo de Apertura (pestañas 1 y 9, mismo control en ambos lugares)**: la pantalla animada que ve el invitado antes de entrar a la invitación. 5 opciones, cada una con su mini-vista previa animada en los colores del tema activo — **aplica a cualquier tema**, no solo a "Personalizado" (a diferencia de fuente/colores de la pestaña 9, que sí requieren ese tema):
 - **Tarjeta 🎴**: tarjeta con brillo metálico y botón "Tocar para abrir" — usa de fondo la foto de portada si ya la subiste, difuminada.
