@@ -39,7 +39,7 @@ import jsQR from "jsqr";
 import { createClient } from "@supabase/supabase-js";
 import { InvitacionDatos, TemaConfig } from "./types";
 import { temas, paquetes, datosDefault, getFotosPorTema, getOrdenSeccionesEfectivo, PALETAS_COLOR_PERSONALIZADO } from "./data";
-import { generarHTMLFinal, TipoEvento, TEXTOS_POR_EVENTO } from "./templates";
+import { generarHTMLFinal, TipoEvento, TEXTOS_POR_EVENTO, resolverTemaEfectivo, construirUrlGoogleFonts } from "./templates";
 
 // Inicializar cliente de Supabase a partir de variables de entorno (Vite las inyecta en build time)
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -1692,8 +1692,11 @@ const SECCIONES_INTAKE_TOGGLEABLES = ["mensaje", "ceremonia", "recepcion", "itin
 
 // Switch chico reutilizado por cada sección opcional del formulario público -- mismo patrón
 // visual que SeccionesToggleList del editor, para que un cliente que también haya visto la
-// demo del catálogo reconozca el control.
-function IntakeSeccionToggle({ activa, onToggle }: { activa: boolean; onToggle: () => void }) {
+// demo del catálogo reconozca el control. `colorAcento` (2026-11-22): antes siempre era la
+// píldora verde esmeralda fija -- ahora el estado "Incluida" se pinta con el acento del tema de
+// la invitación de esta clienta (el "No incluida" se queda neutro a propósito, para que la
+// función -- prendido/apagado -- se siga leyendo igual sin importar el tema).
+function IntakeSeccionToggle({ activa, onToggle, colorAcento }: { activa: boolean; onToggle: () => void; colorAcento: string }) {
   return (
     <button
       type="button"
@@ -1701,10 +1704,13 @@ function IntakeSeccionToggle({ activa, onToggle }: { activa: boolean; onToggle: 
       className="shrink-0 flex items-center gap-1.5 cursor-pointer select-none"
       title={activa ? "Quitar esta sección de tu invitación" : "Incluir esta sección en tu invitación"}
     >
-      <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded ${activa ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-500'}`}>
+      <span
+        className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded"
+        style={activa ? { background: `${colorAcento}22`, color: colorAcento } : { background: "#E2E8F0", color: "#64748B" }}
+      >
         {activa ? "Incluida" : "No incluida"}
       </span>
-      <div className={`w-8 h-4.5 rounded-full p-0.5 transition-colors duration-200 ease-in-out ${activa ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+      <div className="w-8 h-4.5 rounded-full p-0.5 transition-colors duration-200 ease-in-out" style={{ background: activa ? colorAcento : "#CBD5E1" }}>
         <div className={`w-3.5 h-3.5 rounded-full bg-white shadow-xs transform duration-200 ease-in-out ${activa ? 'translate-x-3.5' : 'translate-x-0'}`}></div>
       </div>
     </button>
@@ -1760,6 +1766,20 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
   // NUNCA se le muestra un "—" ni ningún error a la clienta, se oculta la línea en silencio.
   const [aperturasCliente, setAperturasCliente] = useState<number | null>(null);
 
+  // El formulario se viste con el tema de ESTA invitación (2026-11-22) -- mismas definiciones
+  // de colores/tipografía/fondo que usa `generarHTMLFinal` para la invitación real del
+  // invitado, vía `resolverTemaEfectivo` (aplica también los overrides de "A Medida" si esta
+  // invitación los trae). "dorado-clasico" es el respaldo cuando la invitación no tiene tema
+  // guardado todavía (invitación muy vieja) o el id no coincide con ninguno del catálogo --
+  // "crema y dorado genérico de InvitaMX", el respaldo elegante neutro pedido, nunca el gris
+  // administrativo de antes. Se queda en el respaldo mientras `cargando` es true -- no hay
+  // pantalla themeada hasta que el tema real ya se conoce.
+  const temaRespaldo = temas.find(t => t.id === "dorado-clasico") || temas[0];
+  const [temaCliente, setTemaCliente] = useState<TemaConfig>(temaRespaldo);
+  // Foto de fondo propia de esta invitación para SU tema (si el admin le subió una) -- misma
+  // fuente que usa el fondo de la invitación real (`datos.bgImages[tema.id]` en templates.ts).
+  const [bgImageCliente, setBgImageCliente] = useState<string | null>(null);
+
   const [form, setForm] = useState({
     fecha: "",
     mensajeBienvenida: "",
@@ -1805,6 +1825,13 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
         setPedidoInfo({ estado: data.estado || null, precioTotal: data.precio_total ?? null, precioPagado: data.precio_pagado ?? null });
         const dc: Partial<InvitacionDatos> = data.datos_completos || {};
         setTipoEventoCliente((dc.tipoEvento && TEXTOS_POR_EVENTO[dc.tipoEvento]) ? dc.tipoEvento : "xv");
+        // Tema de ESTA invitación (ver comentario de `temaCliente` arriba) -- se resuelve con
+        // la misma función que usa la invitación real del invitado, para que el formulario se
+        // vista exactamente igual (colores/tipografía, y los overrides de "A Medida" si los
+        // trae esta invitación en particular).
+        const temaBase = temas.find(t => t.id === dc.tema) || temaRespaldo;
+        setTemaCliente(resolverTemaEfectivo(dc as InvitacionDatos, temaBase));
+        setBgImageCliente((dc.bgImages && dc.bgImages[temaBase.id]) || null);
         const paqueteDelCliente = (dc.paquete as "basico" | "premium" | "deluxe") || "basico";
         setMaxFotos(paquetes[paqueteDelCliente]?.maxFotos || 4);
         setSeccionesDisponibles(paquetes[paqueteDelCliente]?.secciones || []);
@@ -1869,6 +1896,26 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
     };
     cargarConfirmaciones();
   }, [invitacionId]);
+
+  // Las fuentes del tema (Google Fonts) se piden dinámicamente cuando ya se conoce el tema real
+  // de esta invitación -- misma URL/familias que ya pide `generarHTMLFinal` (construirUrlGoogleFonts),
+  // así el formulario usa EXACTAMENTE la misma tipografía que la invitación real, sin duplicar
+  // la lista de familias. Un <link> fijo por id, reemplazado si el tema cambia (nunca debería
+  // pasar dentro de la misma carga de este formulario, pero cubre el caso por si acaso).
+  useEffect(() => {
+    const idLink = "intake-google-fonts";
+    let link = document.getElementById(idLink) as HTMLLinkElement | null;
+    if (!link) {
+      link = document.createElement("link");
+      link.id = idLink;
+      link.rel = "stylesheet";
+      document.head.appendChild(link);
+    }
+    link.href = construirUrlGoogleFonts(temaCliente);
+    // El <link> se deja en document.head al desmontar (es un recurso compartido, no hay nada
+    // que limpiar que vaya a chocar con otra pantalla -- las demás rutas de esta app no usan
+    // este mismo id).
+  }, [temaCliente]);
 
   const actualizar = (campo: keyof typeof form, valor: any) => setForm(prev => ({ ...prev, [campo]: valor }));
 
@@ -1967,6 +2014,10 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
     if (!invitacionId || !window.supabaseClient) return;
     setEnviando(true);
     setError(null);
+    // Se limpia la confirmación de un guardado anterior mientras este nuevo guardado está en
+    // vuelo -- si falla, el aviso de error (ver abajo) la sustituye; si tiene éxito, vuelve a
+    // aparecer con los datos ya actualizados.
+    setEnviado(false);
     try {
       const { data: actual, error: errLectura } = await window.supabaseClient
         .from("invitaciones")
@@ -2027,8 +2078,26 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
     }
   };
 
-  const inputClass = "w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 outline-none focus:border-indigo-500";
-  const labelClass = "block text-xs font-semibold text-slate-700 mb-1";
+  // `t` = tema efectivo de esta invitación (ver `temaCliente`/`bgImageCliente` arriba) -- todo
+  // el estilo de aquí en adelante sale de sus campos, nunca de clases de color fijas.
+  const t = temaCliente;
+  const inputClass = "intake-input w-full px-3 py-2.5 rounded-lg text-sm outline-none transition";
+  const labelClass = "intake-label block text-xs font-semibold mb-1";
+  const tituloSeccionClass = "intake-heading text-xs font-extrabold uppercase tracking-wide";
+  const dividerClass = "border-t pt-4 intake-divider";
+
+  // Fecha ya guardada, en el encabezado ("Sábado 22 de mayo de 2027") -- misma fuente
+  // (`form.fecha`) que el campo de abajo, solo formateada para lectura.
+  let fechaBonitaHeader = "";
+  if (form.fecha) {
+    try {
+      const d = new Date(form.fecha);
+      if (!isNaN(d.getTime())) {
+        const txt = d.toLocaleDateString("es-MX", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+        fechaBonitaHeader = txt.charAt(0).toUpperCase() + txt.slice(1);
+      }
+    } catch { /* fecha incompleta todavía, sin subtítulo -- no es un error */ }
+  }
 
   if (cargando) {
     return (
@@ -2048,71 +2117,107 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
     );
   }
 
-  if (enviado) {
-    return (
-      <div className="w-screen h-screen fixed inset-0 flex flex-col items-center justify-center bg-slate-50 px-6 text-center gap-2">
-        <span className="text-4xl mb-2">🎉</span>
-        <p className="text-base font-bold text-slate-800">¡Gracias, {nombreQuinceanera}!</p>
-        <p className="text-sm text-slate-500 max-w-xs">Ya recibimos tu información. Nosotros seguimos con el diseño de tu invitación.</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-slate-50 font-sans py-6 px-4">
-      <div className="max-w-xl mx-auto bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
-        <h1 className="text-lg font-extrabold text-slate-900 mb-1">🌸 Datos para tu invitación de XV</h1>
-        <p className="text-xs text-slate-500 mb-2">Hola{nombreQuinceanera ? `, ${nombreQuinceanera}` : ""} — llena lo que tengas listo y súbelo. Puedes volver a este mismo link después si te falta algo.</p>
-        <p className="text-[11px] text-indigo-700 bg-indigo-50/60 border border-indigo-100 rounded-lg px-2.5 py-2 mb-6">💡 Cada sección trae un interruptor <span className="font-bold">Incluida / No incluida</span>. Todas las que ves aquí vienen en lo que compraste — si alguna no te interesa (ej. no quieres poner padrinos), apágala y tu invitación final no la va a mostrar.</p>
+    <div
+      className="min-h-screen py-6 px-4 pb-28 sm:pb-6"
+      style={bgImageCliente
+        ? { backgroundImage: `linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url('${bgImageCliente}')`, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed" }
+        : { background: t.bgGradient }}
+    >
+      {/* Estilos derivados del tema -- mismo patrón que `tema.customStyle` en templates.ts,
+          pero scoped a clases propias de este formulario (intake-*) para no chocar con nada
+          del resto de la app. */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        .intake-heading { font-family: '${t.fontHeading}', serif; color: ${t.colors.accent}; }
+        .intake-label { color: ${t.textDark}; opacity: 0.82; }
+        .intake-divider { border-color: ${t.colors.border}; }
+        .intake-input { font-family: '${t.fontBody}', sans-serif; background: #FFFFFF; border: 1px solid ${t.colors.border}; color: ${t.textDark}; }
+        .intake-input:focus { border-color: ${t.colors.accent}; box-shadow: 0 0 0 3px ${t.colors.accent}26; }
+        .intake-dropzone { border: 2px dashed ${t.colors.border}; color: ${t.colors.accent}; font-family: '${t.fontBody}', sans-serif; }
+        .intake-dropzone:hover { background: ${t.colors.light}; }
+        .intake-btn-accent { background: ${t.colors.accent}; color: ${t.textLight}; font-family: '${t.fontBody}', sans-serif; }
+        .intake-btn-accent:hover:not(:disabled) { filter: brightness(0.93); }
+        .intake-btn-accent:disabled { opacity: 0.5; cursor: default; }
+        .intake-link-accent { color: ${t.colors.accent}; }
+        .intake-link-accent:hover { opacity: 0.8; }
+      ` }} />
+
+      <div
+        className="max-w-xl mx-auto rounded-3xl p-6"
+        style={{ background: t.colors.light, border: `1px solid ${t.colors.border}`, boxShadow: "0 25px 50px rgba(0,0,0,0.18)", fontFamily: `'${t.fontBody}', sans-serif`, color: t.textDark }}
+      >
+        <div className="text-center mb-5">
+          <h1 className="intake-heading text-2xl font-bold" style={{ letterSpacing: "0.02em" }}>
+            {TEXTOS_POR_EVENTO[tipoEventoCliente].prefijoTitulo} {nombreQuinceanera}
+          </h1>
+          {fechaBonitaHeader && (
+            <p className="text-xs mt-1" style={{ color: t.textDark, opacity: 0.75 }}>{fechaBonitaHeader}</p>
+          )}
+          <div className="flex items-center justify-center gap-2 my-3" aria-hidden="true">
+            <span style={{ height: 1, width: 44, background: t.colors.border }} />
+            <span style={{ color: t.colors.accent, fontSize: 14 }}>{t.decorativeEmoji}</span>
+            <span style={{ height: 1, width: 44, background: t.colors.border }} />
+          </div>
+          <p className="text-xs" style={{ opacity: 0.85 }}>Hola{nombreQuinceanera ? `, ${nombreQuinceanera}` : ""} — llena lo que tengas listo y súbelo. Puedes volver a este mismo link después si te falta algo.</p>
+          <p className="text-[11px] rounded-lg px-2.5 py-2 mt-3 text-left" style={{ background: `${t.colors.accent}14`, border: `1px solid ${t.colors.border}`, color: t.textDark }}>
+            💡 Cada sección trae un interruptor <span className="font-bold">Incluida / No incluida</span>. Todas las que ves aquí vienen en lo que compraste — si alguna no te interesa (ej. no quieres poner padrinos), apágala y tu invitación final no la va a mostrar.
+          </p>
+        </div>
 
         {error && (
           <div className="mb-4 p-2.5 bg-rose-50 border border-rose-300 rounded-lg text-[11px] text-rose-700 font-semibold">{error}</div>
+        )}
+
+        {enviado && (
+          <div className="mb-4 p-3 rounded-xl text-[12px] font-semibold text-center" style={{ background: `${t.colors.accent}14`, border: `1px solid ${t.colors.accent}`, color: t.colors.accent }}>
+            ¡Listo! Tu información quedó guardada. Puedes cerrar esta página o seguir editando cuando quieras con este mismo link.
+          </div>
         )}
 
         {pedidoInfo && (pedidoInfo.estado || pedidoInfo.precioTotal) && (() => {
           const estatusLabel = ESTATUS_PEDIDO.find(e => e.id === (pedidoInfo.estado || "cotizacion"))?.label || "🗨️ Cotización";
           const falta = pedidoInfo.precioTotal != null ? pedidoInfo.precioTotal - (pedidoInfo.precioPagado || 0) : null;
           return (
-            <div className="mb-6 p-4 bg-emerald-50/60 border border-emerald-200 rounded-2xl">
-              <h3 className="text-xs font-extrabold text-emerald-900 uppercase tracking-wide mb-1">📌 Estado de tu invitación</h3>
-              <p className="text-[13px] font-bold text-emerald-800 mb-1">{estatusLabel}</p>
+            <div className="mb-6 p-4 rounded-2xl" style={{ background: `${t.colors.accent}10`, border: `1px solid ${t.colors.border}` }}>
+              <h3 className={tituloSeccionClass + " mb-1"}>Estado de tu invitación</h3>
+              <p className="text-[13px] font-bold mb-1" style={{ color: t.textDark }}>{estatusLabel}</p>
               {pedidoInfo.precioTotal != null && (
-                <p className="text-[11px] text-emerald-700 mb-2">
+                <p className="text-[11px] mb-2" style={{ color: t.textDark, opacity: 0.8 }}>
                   Pagado: ${(pedidoInfo.precioPagado || 0).toLocaleString("es-MX")} de ${pedidoInfo.precioTotal.toLocaleString("es-MX")} MXN
                   {falta && falta > 0 ? ` · Falta: $${falta.toLocaleString("es-MX")} MXN` : " · ✅ Pagado por completo"}
                 </p>
               )}
 
               {avisoPagoEnviado ? (
-                <p className="text-[11px] font-bold text-emerald-800 bg-white/70 border border-emerald-200 rounded-lg px-2.5 py-2">✅ ¡Gracias! Ya recibimos tu aviso de pago, lo vamos a revisar.</p>
+                <p className="text-[11px] font-bold rounded-lg px-2.5 py-2" style={{ background: "rgba(255,255,255,0.7)", border: `1px solid ${t.colors.border}`, color: t.textDark }}>✅ ¡Gracias! Ya recibimos tu aviso de pago, lo vamos a revisar.</p>
               ) : !mostrarFormPago ? (
                 <button
                   onClick={() => setMostrarFormPago(true)}
-                  className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 underline"
+                  className="intake-link-accent text-[11px] font-bold underline"
                 >
                   💳 Ya pagué, avisar
                 </button>
               ) : (
-                <div className="bg-white/70 border border-emerald-200 rounded-lg p-3 space-y-2">
+                <div className="rounded-lg p-3 space-y-2" style={{ background: "rgba(255,255,255,0.7)", border: `1px solid ${t.colors.border}` }}>
                   <input
                     type="number"
                     placeholder="¿Cuánto pagaste? (opcional)"
                     value={montoAvisoPago}
                     onChange={(e) => setMontoAvisoPago(e.target.value)}
-                    className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-[11px] outline-none focus:border-emerald-500"
+                    className="intake-input w-full px-2 py-1.5 rounded-lg text-[11px] outline-none"
                   />
                   <input
                     type="text"
                     placeholder="Nota (opcional, ej. 'Pagué por transferencia')"
                     value={notaAvisoPago}
                     onChange={(e) => setNotaAvisoPago(e.target.value)}
-                    className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-[11px] outline-none focus:border-emerald-500"
+                    className="intake-input w-full px-2 py-1.5 rounded-lg text-[11px] outline-none"
                   />
                   {comprobantePagoUrl ? (
-                    <img src={comprobantePagoUrl} alt="Comprobante" className="h-24 rounded-lg border border-slate-200" referrerPolicy="no-referrer" />
+                    <img src={comprobantePagoUrl} alt="Comprobante" className="h-24 rounded-lg" style={{ border: `1px solid ${t.colors.border}` }} referrerPolicy="no-referrer" />
                   ) : (
-                    <label className="flex items-center justify-center gap-2 p-2 border-2 border-dashed border-emerald-300 rounded-lg cursor-pointer hover:bg-emerald-50/60 transition">
-                      <span className="text-[11px] font-bold text-emerald-700">{subiendoComprobante ? "Subiendo..." : "📎 Subir foto de tu comprobante (opcional)"}</span>
+                    <label className="intake-dropzone flex items-center justify-center gap-2 p-2 rounded-lg cursor-pointer transition">
+                      <span className="text-[11px] font-bold">{subiendoComprobante ? "Subiendo..." : "📎 Subir foto de tu comprobante (opcional)"}</span>
                       <input type="file" accept="image/*" className="hidden" onChange={handleSubirComprobante} disabled={subiendoComprobante} />
                     </label>
                   )}
@@ -2126,7 +2231,7 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
                     <button
                       onClick={handleEnviarAvisoPago}
                       disabled={enviandoAvisoPago || subiendoComprobante}
-                      className="flex-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white text-[11px] font-bold rounded-lg transition"
+                      className="intake-btn-accent flex-1 px-3 py-1.5 text-[11px] font-bold rounded-lg transition"
                     >
                       {enviandoAvisoPago ? "Enviando..." : "Enviar aviso de pago"}
                     </button>
@@ -2138,9 +2243,9 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
         })()}
 
         {aperturasCliente !== null && (
-          <div className="mb-6 p-4 bg-emerald-50/60 border border-emerald-200 rounded-2xl">
-            <p className="text-[13px] font-bold text-emerald-800">
-              📊 Tu invitación se ha abierto <span className="text-emerald-900">{aperturasCliente}</span> {aperturasCliente === 1 ? "vez" : "veces"}
+          <div className="mb-6 p-4 rounded-2xl" style={{ background: `${t.colors.accent}10`, border: `1px solid ${t.colors.border}` }}>
+            <p className="text-[13px] font-bold" style={{ color: t.textDark }}>
+              📊 Tu invitación se ha abierto <span style={{ color: t.colors.accent }}>{aperturasCliente}</span> {aperturasCliente === 1 ? "vez" : "veces"}
             </p>
           </div>
         )}
@@ -2158,17 +2263,17 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
             navigator.clipboard.writeText(msg).catch(() => {});
           };
           return (
-            <div className="mb-6 p-4 bg-indigo-50/60 border border-indigo-200 rounded-2xl">
-              <h3 className="text-xs font-extrabold text-indigo-900 uppercase tracking-wide mb-1">👥 Confirmaciones de tus invitados</h3>
+            <div className="mb-6 p-4 rounded-2xl" style={{ background: `${t.colors.accent}10`, border: `1px solid ${t.colors.border}` }}>
+              <h3 className={tituloSeccionClass + " mb-1"}>Confirmaciones de tus invitados</h3>
               {confirmaciones.length > 0 && (
                 <>
-                  <p className="text-[11px] font-bold text-indigo-800 mb-3">
+                  <p className="text-[11px] font-bold mb-3" style={{ color: t.textDark }}>
                     ✅ {siConfirman.length} familia(s) confirmaron ({totalPersonas} personas) · ❌ {confirmaciones.length - siConfirman.length} no van
                   </p>
                   <div className="space-y-1 max-h-48 overflow-y-auto mb-3">
                     {confirmaciones.map(c => (
-                      <div key={c.id} className="flex items-center justify-between text-[11px] bg-white border border-indigo-100 rounded-lg px-2.5 py-1.5">
-                        <span className="font-semibold text-slate-800">{c.nombre_invitado}</span>
+                      <div key={c.id} className="flex items-center justify-between text-[11px] rounded-lg px-2.5 py-1.5" style={{ background: "rgba(255,255,255,0.7)", border: `1px solid ${t.colors.border}` }}>
+                        <span className="font-semibold" style={{ color: t.textDark }}>{c.nombre_invitado}</span>
                         <span className={c.asistencia === "si" ? "text-emerald-600 font-bold" : "text-rose-500 font-bold"}>
                           {c.asistencia === "si" ? `✅ ${c.num_personas} persona(s)` : "❌ No asiste"}
                         </span>
@@ -2178,22 +2283,22 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
                 </>
               )}
               {sinConfirmar.length > 0 && (
-                <div className="border-t border-indigo-200 pt-3">
+                <div className="pt-3" style={{ borderTop: `1px solid ${t.colors.border}` }}>
                   <p className="text-[11px] font-bold text-amber-700 mb-2">⏳ {sinConfirmar.length} familia(s) con pases asignados que aún no responden:</p>
                   <div className="space-y-1 max-h-40 overflow-y-auto">
                     {sinConfirmar.map((inv, i) => (
-                      <div key={i} className="flex items-center justify-between gap-2 text-[11px] bg-white border border-amber-200 rounded-lg px-2.5 py-1.5">
-                        <span className="font-semibold text-slate-800 truncate">{inv.nombre} <span className="text-slate-400 font-normal">({inv.pases} pase(s))</span></span>
+                      <div key={i} className="flex items-center justify-between gap-2 text-[11px] rounded-lg px-2.5 py-1.5" style={{ background: "rgba(255,255,255,0.7)", border: `1px solid ${t.colors.border}` }}>
+                        <span className="font-semibold truncate" style={{ color: t.textDark }}>{inv.nombre} <span className="font-normal" style={{ opacity: 0.6 }}>({inv.pases} pase(s))</span></span>
                         <button
                           onClick={() => copiarRecordatorio(inv.nombre)}
-                          className="shrink-0 text-[10px] font-bold text-indigo-600 hover:text-indigo-800"
+                          className="intake-link-accent shrink-0 text-[10px] font-bold"
                         >
                           📋 Copiar recordatorio
                         </button>
                       </div>
                     ))}
                   </div>
-                  <p className="text-[9px] text-slate-400 mt-1.5">Copia el mensaje y mándaselo por el medio que uses con ellos (WhatsApp, mensaje directo, etc.).</p>
+                  <p className="text-[9px] mt-1.5" style={{ opacity: 0.6 }}>Copia el mensaje y mándaselo por el medio que uses con ellos (WhatsApp, mensaje directo, etc.).</p>
                 </div>
               )}
             </div>
@@ -2207,10 +2312,10 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
           </div>
 
           {seccionDisponible("mensaje") && (
-            <div className="border-t border-slate-100 pt-4">
+            <div className={dividerClass}>
               <div className="flex items-center justify-between mb-2">
-                <label className={labelClass + " mb-0"}>✍️ Mensaje de bienvenida</label>
-                <IntakeSeccionToggle activa={seccionActivaParaCliente("mensaje")} onToggle={() => toggleSeccionCliente("mensaje")} />
+                <label className={labelClass + " mb-0"}>Mensaje de bienvenida</label>
+                <IntakeSeccionToggle activa={seccionActivaParaCliente("mensaje")} onToggle={() => toggleSeccionCliente("mensaje")} colorAcento={t.colors.accent} />
               </div>
               {seccionActivaParaCliente("mensaje") && (
                 <textarea value={form.mensajeBienvenida} onChange={(e) => actualizar("mensajeBienvenida", e.target.value)} rows={2} placeholder="Ej. Hay momentos que son inolvidables..." className={inputClass + " resize-none"} />
@@ -2219,10 +2324,10 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
           )}
 
           {seccionDisponible("ceremonia") && (
-            <div className="border-t border-slate-100 pt-4">
+            <div className={dividerClass}>
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide">💒 Ceremonia</h3>
-                <IntakeSeccionToggle activa={seccionActivaParaCliente("ceremonia")} onToggle={() => toggleSeccionCliente("ceremonia")} />
+                <h3 className={tituloSeccionClass}>Ceremonia</h3>
+                <IntakeSeccionToggle activa={seccionActivaParaCliente("ceremonia")} onToggle={() => toggleSeccionCliente("ceremonia")} colorAcento={t.colors.accent} />
               </div>
               {seccionActivaParaCliente("ceremonia") && (
                 <div className="space-y-2">
@@ -2236,10 +2341,10 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
           )}
 
           {seccionDisponible("recepcion") && (
-            <div className="border-t border-slate-100 pt-4">
+            <div className={dividerClass}>
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide">🎉 Recepción</h3>
-                <IntakeSeccionToggle activa={seccionActivaParaCliente("recepcion")} onToggle={() => toggleSeccionCliente("recepcion")} />
+                <h3 className={tituloSeccionClass}>Recepción</h3>
+                <IntakeSeccionToggle activa={seccionActivaParaCliente("recepcion")} onToggle={() => toggleSeccionCliente("recepcion")} colorAcento={t.colors.accent} />
               </div>
               {seccionActivaParaCliente("recepcion") && (
                 <div className="space-y-2">
@@ -2253,14 +2358,14 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
           )}
 
           {seccionDisponible("itinerario") && (
-            <div className="border-t border-slate-100 pt-4">
+            <div className={dividerClass}>
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide">🗓️ Itinerario</h3>
+                <h3 className={tituloSeccionClass}>Itinerario</h3>
                 <div className="flex items-center gap-2">
                   {seccionActivaParaCliente("itinerario") && (
-                    <button type="button" onClick={agregarItinerario} className="text-[10px] font-bold text-indigo-600">+ Agregar</button>
+                    <button type="button" onClick={agregarItinerario} className="intake-link-accent text-[10px] font-bold">+ Agregar</button>
                   )}
-                  <IntakeSeccionToggle activa={seccionActivaParaCliente("itinerario")} onToggle={() => toggleSeccionCliente("itinerario")} />
+                  <IntakeSeccionToggle activa={seccionActivaParaCliente("itinerario")} onToggle={() => toggleSeccionCliente("itinerario")} colorAcento={t.colors.accent} />
                 </div>
               </div>
               {seccionActivaParaCliente("itinerario") && (
@@ -2272,17 +2377,17 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
                       <button type="button" onClick={() => quitarItinerario(i)} className="text-rose-500 px-2">✕</button>
                     </div>
                   ))}
-                  {form.itinerario.length === 0 && <p className="text-[11px] text-slate-400">Sin actividades todavía.</p>}
+                  {form.itinerario.length === 0 && <p className="text-[11px]" style={{ opacity: 0.6 }}>Sin actividades todavía.</p>}
                 </div>
               )}
             </div>
           )}
 
           {seccionDisponible("vestimenta") && (
-            <div className="border-t border-slate-100 pt-4">
+            <div className={dividerClass}>
               <div className="flex items-center justify-between mb-2">
-                <label className={labelClass + " mb-0"}>👗 Código de vestimenta</label>
-                <IntakeSeccionToggle activa={seccionActivaParaCliente("vestimenta")} onToggle={() => toggleSeccionCliente("vestimenta")} />
+                <label className={labelClass + " mb-0"}>Código de vestimenta</label>
+                <IntakeSeccionToggle activa={seccionActivaParaCliente("vestimenta")} onToggle={() => toggleSeccionCliente("vestimenta")} colorAcento={t.colors.accent} />
               </div>
               {seccionActivaParaCliente("vestimenta") && (
                 <input type="text" value={form.dressCode} onChange={(e) => actualizar("dressCode", e.target.value)} placeholder="Ej. Formal / Etiqueta" className={inputClass} />
@@ -2291,21 +2396,21 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
           )}
 
           {seccionDisponible("familia") && (
-            <div className="border-t border-slate-100 pt-4">
+            <div className={dividerClass}>
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide">👨‍👩‍👧 Padres y Padrinos</h3>
-                <IntakeSeccionToggle activa={seccionActivaParaCliente("familia")} onToggle={() => toggleSeccionCliente("familia")} />
+                <h3 className={tituloSeccionClass}>Padres y Padrinos</h3>
+                <IntakeSeccionToggle activa={seccionActivaParaCliente("familia")} onToggle={() => toggleSeccionCliente("familia")} colorAcento={t.colors.accent} />
               </div>
               {seccionActivaParaCliente("familia") && (
                 <>
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">👪 Padres</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wide mb-1.5" style={{ opacity: 0.6 }}>Padres</p>
                   <div className="space-y-2 mb-4">
                     <input type="text" value={form.padres[0] || ""} onChange={(e) => actualizar("padres", [e.target.value, form.padres[1] || ""])} placeholder="Nombre del papá" className={inputClass} />
                     <input type="text" value={form.padres[1] || ""} onChange={(e) => actualizar("padres", [form.padres[0] || "", e.target.value])} placeholder="Nombre de la mamá" className={inputClass} />
                   </div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">🤵👰 Padrinos</p>
-                    <button type="button" onClick={agregarPadrino} className="text-[10px] font-bold text-indigo-600">+ Agregar</button>
+                    <p className="text-[10px] font-bold uppercase tracking-wide" style={{ opacity: 0.6 }}>Padrinos</p>
+                    <button type="button" onClick={agregarPadrino} className="intake-link-accent text-[10px] font-bold">+ Agregar</button>
                   </div>
                   <div className="space-y-2">
                     {form.padrinos.map((p, i) => (
@@ -2314,7 +2419,7 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
                         <button type="button" onClick={() => quitarPadrino(i)} className="text-rose-500 px-2">✕</button>
                       </div>
                     ))}
-                    {form.padrinos.length === 0 && <p className="text-[11px] text-slate-400">Sin padrinos todavía.</p>}
+                    {form.padrinos.length === 0 && <p className="text-[11px]" style={{ opacity: 0.6 }}>Sin padrinos todavía.</p>}
                   </div>
                 </>
               )}
@@ -2322,10 +2427,10 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
           )}
 
           {seccionDisponible("regalos") && (
-            <div className="border-t border-slate-100 pt-4">
+            <div className={dividerClass}>
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide">🎁 Mesa de Regalos</h3>
-                <IntakeSeccionToggle activa={seccionActivaParaCliente("regalos")} onToggle={() => toggleSeccionCliente("regalos")} />
+                <h3 className={tituloSeccionClass}>Mesa de Regalos</h3>
+                <IntakeSeccionToggle activa={seccionActivaParaCliente("regalos")} onToggle={() => toggleSeccionCliente("regalos")} colorAcento={t.colors.accent} />
               </div>
               {seccionActivaParaCliente("regalos") && (
                 <>
@@ -2338,7 +2443,7 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
             </div>
           )}
 
-          <div className="border-t border-slate-100 pt-4 grid grid-cols-2 gap-3">
+          <div className={dividerClass + " grid grid-cols-2 gap-3"}>
             {seccionDisponible("hashtag") && (
               <div>
                 <label className={labelClass}>Hashtag (opcional)</label>
@@ -2351,14 +2456,14 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
             </div>
           </div>
 
-          <div className="border-t border-slate-100 pt-4">
-            <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide mb-2">📸 Fotos</h3>
+          <div className={dividerClass}>
+            <h3 className={tituloSeccionClass + " mb-2"}>Fotos</h3>
             <label className={labelClass}>Foto de portada</label>
             {form.fotoPortada && (
-              <img src={form.fotoPortada} alt="Portada" className="w-full h-40 object-cover rounded-lg mb-2 border border-slate-200" referrerPolicy="no-referrer" />
+              <img src={form.fotoPortada} alt="Portada" className="w-full h-40 object-cover rounded-lg mb-2" style={{ border: `1px solid ${t.colors.border}` }} referrerPolicy="no-referrer" />
             )}
-            <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed border-indigo-200 rounded-lg cursor-pointer hover:bg-indigo-50/40 transition mb-4">
-              <span className="text-xs font-bold text-indigo-700">{subiendoFoto === "portada" ? "Subiendo..." : "Subir foto de portada"}</span>
+            <label className="intake-dropzone flex items-center justify-center gap-2 p-3 rounded-lg cursor-pointer transition mb-4">
+              <span className="text-xs font-bold">{subiendoFoto === "portada" ? "Subiendo..." : "Subir foto de portada"}</span>
               <input type="file" accept="image/*" className="hidden" onChange={handleSubirPortada} disabled={!!subiendoFoto} />
             </label>
 
@@ -2366,7 +2471,7 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
             {form.fotos.length > 0 && (
               <div className="grid grid-cols-3 gap-2 mb-2">
                 {form.fotos.map((url, i) => (
-                  <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-slate-200">
+                  <div key={i} className="relative aspect-square rounded-lg overflow-hidden" style={{ border: `1px solid ${t.colors.border}` }}>
                     <img src={url} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     <button
                       type="button"
@@ -2378,8 +2483,8 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
               </div>
             )}
             {form.fotos.length < maxFotos && (
-              <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed border-indigo-200 rounded-lg cursor-pointer hover:bg-indigo-50/40 transition">
-                <span className="text-xs font-bold text-indigo-700">{subiendoFoto === "galeria" ? "Subiendo..." : `Subir fotos (hasta ${maxFotos})`}</span>
+              <label className="intake-dropzone flex items-center justify-center gap-2 p-3 rounded-lg cursor-pointer transition">
+                <span className="text-xs font-bold">{subiendoFoto === "galeria" ? "Subiendo..." : `Subir fotos (hasta ${maxFotos})`}</span>
                 <input type="file" accept="image/*" multiple className="hidden" onChange={handleSubirGaleria} disabled={!!subiendoFoto} />
               </label>
             )}
@@ -2390,7 +2495,25 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
           type="button"
           onClick={handleEnviar}
           disabled={enviando || !!subiendoFoto}
-          className="w-full mt-6 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white text-sm font-bold rounded-xl transition"
+          className="intake-btn-accent w-full mt-6 py-3 rounded-xl font-bold text-sm transition"
+        >
+          {enviando ? "Guardando..." : "Guardar mi información"}
+        </button>
+      </div>
+
+      {/* Barra fija de guardar en celular (2026-11-22) -- mismo `handleEnviar` que el botón de
+          arriba, para no bajar 4-5 pantallas de scroll solo para guardar. El padding inferior
+          del contenedor raíz (`pb-28 sm:pb-6`) ya deja el espacio equivalente para que esta
+          barra nunca tape el último campo. Solo visible en anchos de celular (`sm:hidden`). */}
+      <div
+        className="fixed bottom-0 left-0 right-0 p-3 sm:hidden z-40"
+        style={{ background: t.colors.light, borderTop: `1px solid ${t.colors.border}`, boxShadow: "0 -8px 24px rgba(0,0,0,0.15)" }}
+      >
+        <button
+          type="button"
+          onClick={handleEnviar}
+          disabled={enviando || !!subiendoFoto}
+          className="intake-btn-accent w-full py-3 rounded-xl font-bold text-sm transition"
         >
           {enviando ? "Guardando..." : "Guardar mi información"}
         </button>

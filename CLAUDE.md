@@ -2,6 +2,77 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## El formulario de datos (IntakeForm) se viste con el tema de la invitación (2026-11-22)
+
+Pedido explícito: `/datos/<codigo>` (y su equivalente largo `?intake=1&iid=...`) se veía como un
+formulario administrativo genérico (fondo gris azulado, azul oscuro, píldoras verdes, cajas
+lavanda/menta) sin nada del tema que la clienta compró -- la clienta pasaba de su invitación
+espectacular a un formulario de oficina. Cambio puramente de presentación: ningún campo, orden,
+interruptor, botón, texto funcional, lógica de guardado, tabla ni link cambió.
+
+- **`resolverTemaEfectivo(datos, tema)`** (nueva, exportada en `templates.ts`): la lógica de
+  overrides de "A Medida" (tema `personalizado`, o cualquier tema con `datos.personalizacion`)
+  que antes vivía inline al inicio de `generarHTMLFinal` se extrajo a esta función pura, sin
+  cambiar ni una línea de su comportamiento -- `generarHTMLFinal` ahora solo llama
+  `tema = resolverTemaEfectivo(datos, tema)`. Esto es lo que permite que `IntakeForm` (`App.tsx`)
+  calcule el tema EFECTIVO exacto de una invitación (colores/tipografía reales, con overrides
+  si los tiene) sin duplicar esa lógica -- "reutilizando las MISMAS definiciones" es literal,
+  no solo parecido. `construirUrlGoogleFonts(tema)` también se exportó (antes privada de
+  `templates.ts`) para que `IntakeForm` pida exactamente las mismas familias de Google Fonts.
+- **`IntakeForm`**: al cargar la invitación, busca su `tema` en el catálogo (`temas` de
+  `data.ts`), calcula el efectivo con `resolverTemaEfectivo`, y lo guarda en `temaCliente`
+  (estado nuevo) -- con `dorado-clasico` como respaldo elegante neutro ("crema y dorado
+  genérico de InvitaMX", pedido explícito) si la invitación no tiene tema guardado o no coincide
+  con ninguno del catálogo. `bgImageCliente` (nuevo) lee `datos_completos.bgImages[tema.id]` --
+  la MISMA foto de fondo personalizada por tema que ya usa la invitación real (`templates.ts`,
+  `datos.bgImages[tema.id]`), con el degradado del tema (`tema.bgGradient`) como respaldo si no
+  hay foto. Un `useEffect` nuevo inyecta/actualiza un `<link rel="stylesheet">` con
+  `construirUrlGoogleFonts(temaCliente)` en `document.head` en cuanto se conoce el tema real.
+- **Todo el render del formulario** (antes Tailwind fijo: `bg-slate-50`/`text-slate-900`/
+  `bg-indigo-*`/`bg-emerald-*`) ahora usa `style={{...}}` inline con los campos de
+  `temaCliente` (mismo patrón ya establecido en este archivo para las miniaturas de "mini
+  apertura" -- Tailwind no puede generar clases con un color que solo se conoce en tiempo de
+  ejecución) más un `<style dangerouslySetInnerHTML>` con clases `.intake-*` (mismo patrón que
+  `tema.customStyle` de `templates.ts`) para estados como `:focus`/`:hover` que no se pueden
+  expresar con `style` inline. Encabezado nuevo arriba de todo: `{prefijoTitulo} {nombre}` (ej.
+  "XV Años de Sofía", mismo texto exacto que ya arma `generarHTMLFinal` para el `<title>`/
+  calendario) + la fecha ya guardada formateada ("Sábado, 22 de mayo de 2027") + un separador
+  ornamental (líneas + el `decorativeEmoji` del tema). Títulos de sección sin emoji y sin azul
+  oscuro (`Ceremonia`, `Recepción`, `Itinerario`, etc.); la caja de ayuda de interruptores y las
+  3 cajas de estado (cotización/aperturas/confirmaciones) se restilizaron igual, conservando
+  sus botones (`Ya pagué, avisar`, `Copiar recordatorio`) tal cual.
+- **`IntakeSeccionToggle`** ganó un prop `colorAcento` -- el estado "Incluida" (píldora + pista
+  del switch) se pinta con el acento del tema; "No incluida" se queda neutro a propósito (la
+  función prendido/apagado debe leerse igual sin importar el tema).
+- **Barra fija de guardar en celular** (`sm:hidden`, bajo el ancho 640px): mismo `onClick=
+  {handleEnviar}` que el botón final, para no tener que bajar 4-5 pantallas de scroll. El
+  contenedor raíz lleva `pb-28 sm:pb-6` para que esa barra nunca tape el último campo.
+- **Confirmación al guardar, cambio de comportamiento explícito pedido**: antes, guardar con
+  éxito reemplazaba TODO el formulario por una pantalla fija de "¡Gracias!" sin forma de seguir
+  editando sin recargar. Ahora `enviado` ya no causa un `return` aparte -- se muestra un aviso
+  inline con el estilo del tema ("¡Listo! Tu información quedó guardada. Puedes cerrar esta
+  página o seguir editando cuando quieras con este mismo link.") arriba del formulario, que
+  SIGUE completo y editable debajo. `handleEnviar` limpia `enviado` al iniciar un guardado nuevo,
+  así no se queda un aviso de éxito viejo visible mientras un guardado más reciente está en
+  vuelo o si ese nuevo guardado falla (el aviso de error, ya existente, sigue siendo rojo/rosa
+  fijo -- no se tematizó a propósito, es la única excepción: un color de error reconocible
+  universalmente es más seguro que uno que cambie con cada tema).
+- **Verificado en vivo** (servidor local efímero sirviendo `dist/` tras `npm run build`, con la
+  invitación real de Sofía -- `sofia-1fse`, tema Dorado Clásico, con una foto de fondo real
+  ya guardada para ese tema): `/datos/sofia-1fse` se ve exactamente Dorado Clásico (fondo con
+  foto + veladura, tarjeta crema, encabezado "XV Años de Sofía" + "Sábado, 22 de mayo de 2027"
+  en Playfair Display dorado, toggles dorados, sin azul ni verde). Se guardó de verdad (clic
+  real en "Guardar mi información") -- confirmado `intake_actualizado_en` actualizado en
+  Supabase -- y el aviso de confirmación apareció con el formulario todavía completo y editable
+  debajo, tal como pide el encargo. Barra fija de guardar confirmada visible en 390×844
+  (celular) sin tapar el último campo, y correctamente oculta en 1100×700 (escritorio). **Se
+  abrió también, solo en modo lectura (sin guardar nada)**, una invitación real distinta con
+  tema "Vuelo de Mariposas" (`emma-elizabeth-kk3n`) -- se vistió automáticamente de morado/lavanda
+  con su propia tipografía (Cormorant Garamond) y su propio fondo de mariposas, sin tocar ni una
+  línea de código por tema, confirmando que aplica a los 15 temas del catálogo.
+- `npm run build`/`npm run lint` limpios (mismos 6 errores preexistentes de `ImportMeta.env`,
+  cero nuevos). Pendiente: commit y push (ver `git log` si ya se hizo en una entrada posterior).
+
 ## Escáner de QR embebido en el control de acceso + saludo genérico sin marca de puerta (2026-11-22)
 
 Sustituye por completo cualquier intento anterior de este mismo arreglo (sin PIN ni claves --

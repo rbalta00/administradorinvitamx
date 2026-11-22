@@ -221,7 +221,10 @@ const FONT_URL_SEGMENTS: Record<string, string> = {
   "Jost": "Jost:wght@300;400;500;600;700",
 };
 
-const construirUrlGoogleFonts = (tema: TemaConfig): string => {
+// Exportada (2026-11-22) para que el formulario de datos del cliente (IntakeForm en App.tsx)
+// pueda pedir las MISMAS familias de Google Fonts del tema de la invitación -- una sola fuente
+// de verdad para "qué fuentes necesita este tema", en vez de duplicar FONT_URL_SEGMENTS.
+export const construirUrlGoogleFonts = (tema: TemaConfig): string => {
   const familias = new Set<string>();
   [tema.fontHeading, tema.fontBody, tema.fontCursive].forEach(f => {
     if (f) familias.add(f);
@@ -270,21 +273,13 @@ const TEMAS_CON_TEXTURA_PAPEL = [
   "princesa-elegante", "marmol-oro", "coquette-pink", "coquette-luxe", "vino-elegante",
 ];
 
-export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opciones?: { esDemoDeCatalogo?: boolean; esVistaPreviaEditor?: boolean; paraExportarPDF?: boolean }): string {
-  const esDemoDeCatalogo = opciones?.esDemoDeCatalogo === true;
-  const paraExportarPDF = opciones?.paraExportarPDF === true;
-  // El monitor de invitación del propio editor (App.tsx: actualizarVistaPrevia) renderiza este
-  // mismo HTML mientras el admin edita -- no es un invitado real abriendo su link. Se agrupa
-  // con esDemoDeCatalogo abajo (mismo candado, misma razón: sin esto, cada recarga del preview
-  // se auto-scrolleaba a "pases" 1.2s después, arrastrando al admin lejos de donde editaba).
-  const esVistaPreviaEditor = opciones?.esVistaPreviaEditor === true;
-  // Textos visibles por el invitado según el tipo de evento (2026-11-19) -- ver TEXTOS_POR_EVENTO
-  // arriba. Resuelto una sola vez aquí y usado en todos los lugares de este archivo que antes
-  // tenían el texto de XV años fijo.
-  const textosEvento = textosEventoDe(datos.tipoEvento);
-  // Invitaciones 100% a la medida: el tema "personalizado" acepta overrides de tipografía,
-  // paleta de color y tipo de apertura definidos por el admin para ESA invitación en particular.
-  // El resto de temas del catálogo no se ven afectados por esto.
+// Invitaciones 100% a la medida: el tema "personalizado" acepta overrides de tipografía,
+// paleta de color y tipo de apertura definidos por el admin para ESA invitación en particular.
+// El resto de temas del catálogo no se ven afectados por esto. Extraída como función aparte
+// (2026-11-22, antes vivía inline al inicio de generarHTMLFinal) para que el formulario de
+// datos del cliente (IntakeForm en App.tsx) pueda calcular el MISMO tema efectivo -- colores,
+// tipografía, customStyle -- que ve el invitado en su invitación real, sin duplicar esta lógica.
+export function resolverTemaEfectivo(datos: InvitacionDatos, tema: TemaConfig): TemaConfig {
   if (tema.id === "personalizado") {
     const p = datos.personalizacion || {};
     tema = {
@@ -356,6 +351,22 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
     `
     };
   }
+  return tema;
+}
+
+export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opciones?: { esDemoDeCatalogo?: boolean; esVistaPreviaEditor?: boolean; paraExportarPDF?: boolean }): string {
+  const esDemoDeCatalogo = opciones?.esDemoDeCatalogo === true;
+  const paraExportarPDF = opciones?.paraExportarPDF === true;
+  // El monitor de invitación del propio editor (App.tsx: actualizarVistaPrevia) renderiza este
+  // mismo HTML mientras el admin edita -- no es un invitado real abriendo su link. Se agrupa
+  // con esDemoDeCatalogo abajo (mismo candado, misma razón: sin esto, cada recarga del preview
+  // se auto-scrolleaba a "pases" 1.2s después, arrastrando al admin lejos de donde editaba).
+  const esVistaPreviaEditor = opciones?.esVistaPreviaEditor === true;
+  // Textos visibles por el invitado según el tipo de evento (2026-11-19) -- ver TEXTOS_POR_EVENTO
+  // arriba. Resuelto una sola vez aquí y usado en todos los lugares de este archivo que antes
+  // tenían el texto de XV años fijo.
+  const textosEvento = textosEventoDe(datos.tipoEvento);
+  tema = resolverTemaEfectivo(datos, tema);
 
   // Aseguramos que existan fotos válidas, si no, tomamos las ficticias del tema
   const fotosValidas = (datos.fotos || []).filter(f => f && typeof f === "string" && f.trim() !== "");
