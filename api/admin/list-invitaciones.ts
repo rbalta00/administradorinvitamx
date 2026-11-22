@@ -26,7 +26,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const FONDOS_ROW_ID = "00000000-0000-0000-0000-000000000001";
 
-const COLUMNAS_BASE = "id, nombre_quinceanera, fecha_fiesta, tema_elegido, estado, activo_hasta, updated_at, link_invitacion, telefono_whatsapp, precio_total, precio_pagado, pases_pagado, pdf_pagado, notas, link_pago, intake_actualizado_en, bloqueada, motivo_bloqueo, checkin_pagado, creado_por, complementos";
+const COLUMNAS_BASE = "id, nombre_quinceanera, fecha_fiesta, tema_elegido, estado, activo_hasta, updated_at, link_invitacion, telefono_whatsapp, precio_total, precio_pagado, pases_pagado, pdf_pagado, notas, link_pago, intake_actualizado_en, bloqueada, motivo_bloqueo, checkin_pagado, creado_por, complementos, pausada, pausada_en, motivo_pausa";
 
 export default async function handler(req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (req.method !== "GET") {

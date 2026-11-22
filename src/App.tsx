@@ -118,6 +118,15 @@ interface InvitacionGuardadaRow {
   checkin_pagado: boolean;
   creado_por: string | null;
   complementos: ComplementoInvitacion[] | null;
+  // Pausa manual por falta de pago (2026-11-22) -- estado NUEVO e independiente de "bloqueada"
+  // (esa es la vigencia/acceso de siempre, del editor; esta es específicamente la pausa por
+  // saldo pendiente pedida en "Link de revisión y pausa por falta de pago"). Mientras
+  // `pausada` sea true, TODAS las rutas públicas de esta invitación deben mostrar una pantalla
+  // genérica sin ningún dato -- ver pausaCheck en la vista pública y los chequeos propios de
+  // CheckinPage/IntakeForm.
+  pausada: boolean;
+  pausada_en: string | null;
+  motivo_pausa: string | null;
 }
 
 // Estatus del pedido (columna `estado`), en el orden en que normalmente avanza una venta.
@@ -1854,12 +1863,19 @@ function IntakeForm({ invitacionId }: { invitacionId: string | null }) {
       try {
         const { data, error: err } = await window.supabaseClient
           .from("invitaciones")
-          .select("nombre_quinceanera, datos_completos, estado, precio_total, precio_pagado, bloqueada")
+          .select("nombre_quinceanera, datos_completos, estado, precio_total, precio_pagado, bloqueada, pausada")
           .eq("id", invitacionId)
           .maybeSingle();
         if (err) throw err;
         if (!data) {
           setError("No encontramos tu invitación. Pídele el link correcto a quien te lo compartió.");
+          setCargando(false);
+          return;
+        }
+        // Pausa manual por falta de pago (2026-11-22) -- va primero, antes incluso de
+        // `bloqueada`: mientras esté pausada, el formulario no debe mostrar ningún dato.
+        if (data.pausada) {
+          setError("Esta invitación está en pausa.");
           setCargando(false);
           return;
         }
@@ -2775,10 +2791,18 @@ function CheckinPage({ invitacionId, famNombre }: { invitacionId: string | null;
       try {
         const { data, error: err } = await window.supabaseClient
           .from("invitaciones")
-          .select("nombre_quinceanera, datos_completos")
+          .select("nombre_quinceanera, datos_completos, pausada")
           .eq("id", invitacionId)
           .maybeSingle();
         if (err) throw err;
+        // Pausa manual por falta de pago (2026-11-22) -- va primero, antes incluso del chequeo
+        // de controlAccesoQR: mientras esté pausada, el control de acceso no debe mostrar NADA,
+        // ni el nombre de la quinceañera ni la lista de invitados.
+        if (data?.pausada) {
+          setError("Esta invitación está en pausa.");
+          setCargando(false);
+          return;
+        }
         const dc: Partial<InvitacionDatos> = data?.datos_completos || {};
         if (!data || !dc.controlAccesoQR) {
           setError("Esta función no está disponible para esta invitación.");
@@ -3865,6 +3889,9 @@ export default function App() {
   // Motivo elegido en el selector de apagar/encender acceso, por fila -- se lee al momento de
   // apagar (ver MOTIVOS_BLOQUEO / handleActualizarBloqueoInvitacion más arriba).
   const [motivoBloqueoSeleccionado, setMotivoBloqueoSeleccionado] = useState<Record<string, string>>({});
+  // Motivo libre escrito antes de pausar una invitación (2026-11-22, "Pausa por falta de pago")
+  // -- a diferencia de MOTIVOS_BLOQUEO (una lista fija de razones), la pausa es texto libre.
+  const [motivoPausaSeleccionado, setMotivoPausaSeleccionado] = useState<Record<string, string>>({});
   // Teléfono del encargado de acceso (asistente, wedding planner, etc.) para mandarle el link
   // de Control de Acceso QR -- a propósito NO se guarda en la fila como telefono_whatsapp (ese
   // es el del cliente): se escribe cada vez porque suele ser una persona distinta al cliente.
@@ -4644,6 +4671,30 @@ export default function App() {
     }
   };
 
+  // Pausa manual por falta de pago (2026-11-22, regla de negocio "revisión primero, entrega
+  // final al liquidar") -- estado NUEVO, independiente de `bloqueada`/`handleActualizarBloqueoInvitacion`
+  // de arriba (esa sigue siendo la vigencia/acceso de siempre del editor). Mientras `pausada`
+  // sea true, TODAS las rutas públicas de esta invitación (vista, pases por familia, control de
+  // acceso, formulario) muestran una pantalla genérica sin ningún dato -- ver pausaCheck en la
+  // vista pública y los chequeos propios de CheckinPage/IntakeForm. 100% manual y reversible,
+  // nada en la app la activa sola.
+  const handleActualizarPausaInvitacion = async (row: InvitacionGuardadaRow, pausada: boolean, motivo: string) => {
+    if (!window.supabaseClient) return;
+    try {
+      const pausadaEn = pausada ? new Date().toISOString() : null;
+      const motivoAGuardar = pausada ? (motivo.trim() || "Falta de pago") : null;
+      const { error } = await window.supabaseClient
+        .from("invitaciones")
+        .update({ pausada, pausada_en: pausadaEn, motivo_pausa: motivoAGuardar })
+        .eq("id", row.id);
+      if (error) throw error;
+      setListaInvitaciones(prev => prev.map(r => r.id === row.id ? { ...r, pausada, pausada_en: pausadaEn, motivo_pausa: motivoAGuardar } : r));
+      mostrarToast(pausada ? "Invitación pausada" : "Invitación reactivada", "success");
+    } catch (err: any) {
+      mostrarToast("Error al actualizar la pausa: " + err.message, "error");
+    }
+  };
+
   // Actualiza un solo campo de administración de pedido (estatus, precios, pases/PDF pagado,
   // notas, link de pago) de una fila ya guardada, sin tocar el resto de columnas -- separado a
   // propósito de guardarEnSupabase (que guarda el DISEÑO) para que abrir/guardar la invitación
@@ -5254,6 +5305,47 @@ export default function App() {
   const handleAbrirLinkMuestraFila = async (row: InvitacionGuardadaRow) => {
     const url = await resolverLinkMuestraFila(row);
     if (url) abrirLinkClienta(url);
+  };
+
+  // Link de REVISIÓN (2026-11-22, regla de negocio "revisión primero, entrega final al
+  // liquidar"): distinto del de muestra -- este es para la clienta que YA pagó su anticipo y
+  // ya tiene datos completos, para que revise el resultado antes de liquidar. Vigencia más
+  // larga (7 días, la ventana de ajustes) que la muestra (5 días) -- son conceptos separados a
+  // propósito, cada uno con su propia constante. Mismo criterio que el link de muestra corto:
+  // con `codigoCorto` sale corto (`/v/<codigo>?revision=1&exp=...`), sin código cae al formato
+  // largo de siempre como respaldo.
+  const REVISION_DIAS_VIGENCIA = 7;
+  const resolverLinkRevisionFila = async (row: InvitacionGuardadaRow): Promise<string | null> => {
+    const fila = await asegurarDatosCompletos(row);
+    if (!fila.datos_completos) {
+      mostrarToast("Esta invitación se guardó antes de esta función y no tiene el estado completo disponible para generar su link de revisión.", "error");
+      return null;
+    }
+    const exp = Date.now() + REVISION_DIAS_VIGENCIA * 24 * 60 * 60 * 1000;
+    if (fila.datos_completos.codigoCorto) {
+      return `${URL_PUBLICA_INVITAMX}/v/${fila.datos_completos.codigoCorto}?revision=1&exp=${exp}`;
+    }
+    const datosListos = { ...fila.datos_completos, tema: fila.tema_elegido || fila.datos_completos.tema, invitados: [] };
+    return `${URL_PUBLICA_INVITAMX}/?v=1&d=${encodeState(datosListos)}&iid=${encodeURIComponent(fila.id)}&revision=1&exp=${exp}`;
+  };
+  const handleCopiarLinkRevisionFila = async (row: InvitacionGuardadaRow) => {
+    const url = await resolverLinkRevisionFila(row);
+    if (url) copiarLinkClienta(url);
+  };
+  const handleAbrirLinkRevisionFila = async (row: InvitacionGuardadaRow) => {
+    const url = await resolverLinkRevisionFila(row);
+    if (url) abrirLinkClienta(url);
+  };
+  const handleEnviarRevisionWhatsApp = async (row: InvitacionGuardadaRow) => {
+    if (!row.telefono_whatsapp?.trim()) {
+      mostrarToast("Esta invitación no tiene un número de WhatsApp guardado", "error");
+      return;
+    }
+    const url = await resolverLinkRevisionFila(row);
+    if (!url) return;
+    const numeroLimpio = row.telefono_whatsapp.replace(/[^0-9]/g, "");
+    const msg = `¡Hola! 🌸 Ya está lista tu invitación de XV Años de *${row.nombre_quinceanera || "tu evento"}* para que la revises con calma (válida ${REVISION_DIAS_VIGENCIA} días). Échale un ojo y dime si quieres algún ajuste -- en cuanto se liquide tu saldo te mando tu link final, permanente:\n${url}`;
+    window.open(`https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(msg)}`, "_blank");
   };
 
   const handleEnviarMensajePredefinido = (row: InvitacionGuardadaRow, texto: string) => {
@@ -6259,7 +6351,19 @@ export default function App() {
   const paramsMuestra = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
   const muestraExp = paramsMuestra?.get("exp");
   const esVistaDeMuestra = paramsMuestra?.get("muestra") === "1";
-  const muestraExpirada = !!muestraExp && Date.now() > parseInt(muestraExp, 10);
+  // `&& esVistaDeMuestra` agregado 2026-11-22: el link de revisión (ver más abajo) también usa
+  // `exp`, sin `muestra=1` -- sin este chequeo, un link de revisión vencido caía por error en
+  // la pantalla de "esta muestra ya expiró" (bug real encontrado en vivo al probar la expiración
+  // de revisión, antes de que existiera esta guardia).
+  const muestraExpirada = esVistaDeMuestra && !!muestraExp && Date.now() > parseInt(muestraExp, 10);
+
+  // Enlaces de "revisión" (2026-11-22, regla de negocio "revisión primero, entrega final al
+  // liquidar" -- ver resolverLinkRevisionFila/handleEnviarRevisionWhatsApp): mismo mecanismo
+  // exacto que la muestra de arriba (parámetros de URL sueltos, mismo `exp` compartido -- nunca
+  // viajan juntos en un link real, así que no hay colisión), pero la invitación se ve COMPLETA
+  // y SIN marca de agua -- es para la clienta que ya pagó su anticipo, no para un prospecto.
+  const esVistaDeRevision = paramsMuestra?.get("revision") === "1";
+  const revisionExpirada = esVistaDeRevision && !!muestraExp && Date.now() > parseInt(muestraExp, 10);
 
   // Bloqueo manual del admin (ver "Mis Invitaciones" -> Apagar/Encender acceso). A diferencia
   // de la muestra de arriba, esto SÍ necesita una consulta a Supabase: el blob `d` de la URL es
@@ -6268,22 +6372,29 @@ export default function App() {
   // invitación se guardó permite revisar el estado actual en vivo. Links compartidos ANTES de
   // guardar (sin `iid`) no se pueden bloquear por esta vía -- se tratan como no bloqueados.
   const [bloqueoCheck, setBloqueoCheck] = useState<{ listo: boolean; bloqueada: boolean; motivo: string | null }>({ listo: false, bloqueada: false, motivo: null });
+  // Pausa manual por falta de pago (2026-11-22) -- estado NUEVO e independiente del bloqueo de
+  // arriba, resuelto en la MISMA consulta (una sola fila, dos chequeos distintos) por
+  // eficiencia. Mientras `pausada` sea true, ninguna ruta pública debe mostrar ningún dato --
+  // ver el guardia de pausa, que va primero, antes incluso que el de bloqueo.
+  const [pausaCheck, setPausaCheck] = useState<{ listo: boolean; pausada: boolean }>({ listo: false, pausada: false });
   const iidVista = paramsMuestra?.get("iid") || null;
   useEffect(() => {
     if (!isViewMode) return;
     if (!iidVista || !window.supabaseClient) {
       setBloqueoCheck({ listo: true, bloqueada: false, motivo: null });
+      setPausaCheck({ listo: true, pausada: false });
       return;
     }
     let cancelado = false;
     window.supabaseClient
       .from("invitaciones")
-      .select("bloqueada, motivo_bloqueo")
+      .select("bloqueada, motivo_bloqueo, pausada")
       .eq("id", iidVista)
       .maybeSingle()
       .then(({ data, error }: any) => {
         if (cancelado) return;
         setBloqueoCheck({ listo: true, bloqueada: !error && !!data?.bloqueada, motivo: (!error && data?.motivo_bloqueo) || null });
+        setPausaCheck({ listo: true, pausada: !error && !!data?.pausada });
       });
     return () => { cancelado = true; };
   }, [isViewMode, iidVista]);
@@ -6314,7 +6425,7 @@ export default function App() {
       try {
         const { data, error } = await window.supabaseClient
           .from("invitaciones")
-          .select("id, datos_completos, bloqueada, motivo_bloqueo")
+          .select("id, datos_completos, bloqueada, motivo_bloqueo, pausada")
           .eq("datos_completos->>codigoCorto", codigo)
           .maybeSingle();
         if (cancelado) return;
@@ -6347,13 +6458,17 @@ export default function App() {
         // ver templates.ts -- siga funcionando exactamente igual que con un link largo, sin
         // tener que tocar ese archivo. También deja que el chequeo de bloqueo de arriba
         // (iidVista) se vuelva a disparar con el id real en vez de "sin iid todavía".
-        // Preservar `muestra`/`exp` si venían en el link corto original (2026-11-19, parte 2 de
-        // "que el link corto salga siempre") -- sin esto, este replaceState los descartaba en
-        // silencio (solo escribía iid/fam), así que esVistaDeMuestra/muestraExpirada (que leen
-        // window.location.search en vivo, ver más arriba) dejaban de ver el modo muestra justo
-        // después de resolver el código, aunque el link SÍ lo traía al abrirse.
+        // Preservar `muestra`/`revision`/`exp` si venían en el link corto original (2026-11-19,
+        // parte 2 de "que el link corto salga siempre"; `revision` agregado 2026-11-22, mismo
+        // criterio exacto) -- sin esto, este replaceState los descartaba en silencio (solo
+        // escribía iid/fam), así que esVistaDeMuestra/esVistaDeRevision/muestraExpirada/
+        // revisionExpirada (que leen window.location.search en vivo, ver más arriba) dejaban de
+        // ver el modo correspondiente justo después de resolver el código, aunque el link SÍ lo
+        // traía al abrirse. `muestra`/`revision` nunca viajan juntos en un link real (son modos
+        // mutuamente excluyentes), así que no hay riesgo de colisión al preservar ambos.
         const queryOriginal = new URLSearchParams(window.location.search);
         const muestraOriginal = queryOriginal.get("muestra");
+        const revisionOriginal = queryOriginal.get("revision");
         const expOriginal = queryOriginal.get("exp");
         // `famSlug` viaja también para los links largos/`?fam=` de siempre (2026-11-21): así
         // mostrarPaseFijo() en templates.ts puede armar el QR del pase como el link CORTO de
@@ -6363,15 +6478,16 @@ export default function App() {
         const famSlugResuelto = invitadoFam
           ? slugsDeInvitados(dc.invitados || [])[(dc.invitados || []).indexOf(invitadoFam)] || null
           : null;
-        const nuevaQuery = `?iid=${encodeURIComponent(data.id)}${invitadoFam ? `&fam=${encodeURIComponent(invitadoFam.nombre)}` : ""}${famSlugResuelto ? `&famSlug=${encodeURIComponent(famSlugResuelto)}` : ""}${muestraOriginal ? `&muestra=${encodeURIComponent(muestraOriginal)}` : ""}${expOriginal ? `&exp=${encodeURIComponent(expOriginal)}` : ""}`;
+        const nuevaQuery = `?iid=${encodeURIComponent(data.id)}${invitadoFam ? `&fam=${encodeURIComponent(invitadoFam.nombre)}` : ""}${famSlugResuelto ? `&famSlug=${encodeURIComponent(famSlugResuelto)}` : ""}${muestraOriginal ? `&muestra=${encodeURIComponent(muestraOriginal)}` : ""}${revisionOriginal ? `&revision=${encodeURIComponent(revisionOriginal)}` : ""}${expOriginal ? `&exp=${encodeURIComponent(expOriginal)}` : ""}`;
         window.history.replaceState(null, "", window.location.pathname + nuevaQuery);
-        // Se fija aparte del bloqueoCheck genérico de arriba (que de cualquier forma se va a
-        // volver a disparar solo en cuanto `iidVista` cambie con el replaceState de aquí arriba)
-        // para que la primera pintura ya sea la correcta -- sin esto, bloqueoCheck seguiría
-        // en su resolución preliminar de "sin iid todavía = no bloqueada" durante la breve
+        // Se fija aparte del bloqueoCheck/pausaCheck genéricos de arriba (que de cualquier forma
+        // se van a volver a disparar solo en cuanto `iidVista` cambie con el replaceState de
+        // aquí arriba) para que la primera pintura ya sea la correcta -- sin esto, se quedarían
+        // en su resolución preliminar de "sin iid todavía = sin bloqueo/pausa" durante la breve
         // ventana entre este fetch y el re-chequeo automático, y un link corto de una
-        // invitación SÍ bloqueada podría llegar a pintarse antes de que se corrija.
+        // invitación SÍ bloqueada o pausada podría llegar a pintarse antes de que se corrija.
         setBloqueoCheck({ listo: true, bloqueada: !!data.bloqueada, motivo: data.motivo_bloqueo || null });
+        setPausaCheck({ listo: true, pausada: !!data.pausada });
         setLinkCortoEstado("listo");
       } catch {
         if (!cancelado) setLinkCortoEstado("no-encontrado");
@@ -6436,7 +6552,12 @@ export default function App() {
   // Esto elimina las restricciones severas de iframe y sandbox del navegador,
   // permitiendo que el copiado de cuentas de banco, itinerarios, música y mapas funcionen de manera nativa y confiable.
   useEffect(() => {
-    if (isViewMode && !muestraExpirada && bloqueoCheck.listo && !bloqueoCheck.bloqueada && linkCortoEstado !== "cargando" && linkCortoEstado !== "no-encontrado") {
+    if (
+      isViewMode && !muestraExpirada && !revisionExpirada &&
+      bloqueoCheck.listo && !bloqueoCheck.bloqueada &&
+      pausaCheck.listo && !pausaCheck.pausada &&
+      linkCortoEstado !== "cargando" && linkCortoEstado !== "no-encontrado"
+    ) {
       let htmlContent = generarHTMLFinal(datos, temaActual);
 
       if (esVistaDeMuestra) {
@@ -6458,13 +6579,22 @@ export default function App() {
         const watermarkHTML = `
           <div style="position:fixed !important;inset:0 !important;z-index:2147483646 !important;opacity:1 !important;visibility:visible !important;pointer-events:none !important;background-image:url(&quot;data:image/svg+xml,${encodeURIComponent(watermarkSvg)}&quot;);background-repeat:repeat;"></div>`;
         htmlContent = htmlContent.replace(/<body([^>]*)>/i, `<body$1>${bannerHTML}${watermarkHTML}`);
+      } else if (esVistaDeRevision) {
+        // Modo revisión (2026-11-22, "revisión primero, entrega final al liquidar"): invitación
+        // COMPLETA, SIN marca de agua (es clienta que ya pagó anticipo, no un prospecto) -- solo
+        // la franja discreta de arriba, igual de forzada con !important que la de muestra.
+        const bannerRevisionHTML = `
+          <div style="position:fixed !important;top:0 !important;left:0 !important;right:0 !important;z-index:2147483647 !important;opacity:1 !important;visibility:visible !important;background:#0f766e;color:#fff;text-align:center;padding:9px 14px;font-family:system-ui,sans-serif;font-size:12px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.15);">
+            📝 Invitación en revisión — tu link final se libera al liquidar tu saldo.
+          </div>`;
+        htmlContent = htmlContent.replace(/<body([^>]*)>/i, `<body$1>${bannerRevisionHTML}`);
       }
 
       document.open();
       document.write(htmlContent);
       document.close();
     }
-  }, [isViewMode, datos, temaActual, esVistaDeMuestra, muestraExpirada, bloqueoCheck.listo, bloqueoCheck.bloqueada, linkCortoEstado]);
+  }, [isViewMode, datos, temaActual, esVistaDeMuestra, muestraExpirada, esVistaDeRevision, revisionExpirada, bloqueoCheck.listo, bloqueoCheck.bloqueada, pausaCheck.listo, pausaCheck.pausada, linkCortoEstado]);
 
   // Los modos de ruta (vista pública, embed, checkin, recuperación, intake, catálogo) son
   // banderas independientes leídas cada una de su propio query param -- nunca se valida que
@@ -6480,6 +6610,19 @@ export default function App() {
         <span className="text-4xl mb-2">⚠️</span>
         <p className="text-sm font-semibold text-slate-700">Este link no es válido: combina más de un modo a la vez.</p>
         <p className="text-xs text-slate-500 max-w-xs">Pide un link nuevo a quien te lo compartió.</p>
+      </div>
+    );
+  }
+
+  // Pausa manual por falta de pago (2026-11-22) -- va PRIMERO, antes incluso del bloqueo de
+  // acceso de siempre: a diferencia de ese, que al menos distingue "evento ya pasó" de "ya no
+  // disponible", la pausa no debe mostrar NADA -- ni el nombre de la quinceañera, ni ninguna
+  // pista del motivo. Mismo criterio en CheckinPage/IntakeForm (ver sus propios chequeos).
+  if (isViewMode && pausaCheck.listo && pausaCheck.pausada) {
+    return (
+      <div className="w-screen h-screen fixed inset-0 flex flex-col items-center justify-center bg-slate-50 z-50 px-6 text-center">
+        <span className="text-4xl mb-3">⏸️</span>
+        <p className="text-sm font-semibold text-slate-700">Esta invitación está en pausa.</p>
       </div>
     );
   }
@@ -6526,6 +6669,28 @@ export default function App() {
         <p className="text-xs text-slate-500 mb-5 max-w-xs">Contáctanos para continuar con tu invitación personalizada.</p>
         <a
           href={`https://api.whatsapp.com/send?phone=${encodeURIComponent(numeroContacto)}&text=${encodeURIComponent("¡Hola! Vi la muestra de mi invitación y quiero continuar 🌸")}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-full transition"
+        >
+          Contactar por WhatsApp
+        </a>
+      </div>
+    );
+  }
+
+  // "Revisión vencida" (2026-11-22) -- mismo mecanismo que "muestra ya expiró" de arriba, pero
+  // para el link de revisión (clienta que ya pagó anticipo, pidiendo un link nuevo tras los 7
+  // días de vigencia, no un prospecto).
+  if (isViewMode && esVistaDeRevision && revisionExpirada) {
+    const numeroContacto = datos.whatsappConfirmacion || whatsappDestino;
+    return (
+      <div className="w-screen h-screen fixed inset-0 flex flex-col items-center justify-center bg-slate-50 z-50 px-6 text-center">
+        <span className="text-4xl mb-3">🌸</span>
+        <p className="text-sm font-semibold text-slate-700 mb-1">Este link de revisión ya venció</p>
+        <p className="text-xs text-slate-500 mb-5 max-w-xs">Pide un link nuevo para seguir revisando tu invitación.</p>
+        <a
+          href={`https://api.whatsapp.com/send?phone=${encodeURIComponent(numeroContacto)}&text=${encodeURIComponent("¡Hola! Quiero un link nuevo para revisar mi invitación 🌸")}`}
           target="_blank"
           rel="noopener noreferrer"
           className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-full transition"
@@ -10285,6 +10450,13 @@ export default function App() {
                           <button onClick={() => handleEnviarWhatsAppLinkClasicoFila(row)} className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 underline">WhatsApp</button>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] font-semibold text-slate-600 w-24 shrink-0">Revisión</span>
+                          <span className="flex-1 min-w-0 text-[10px] text-slate-400">Link temporal ({REVISION_DIAS_VIGENCIA} días), sin marca de agua -- para que revise antes de liquidar.</span>
+                          <button onClick={() => handleCopiarLinkRevisionFila(row)} className="shrink-0 px-2 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded text-[10px] font-bold transition">Generar y copiar</button>
+                          <button onClick={() => handleAbrirLinkRevisionFila(row)} className="shrink-0 px-2 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded text-[10px] font-bold transition">Generar y abrir</button>
+                          <button onClick={() => handleEnviarRevisionWhatsApp(row)} className="shrink-0 px-2 py-1 bg-[#25D366] hover:bg-[#20ba56] text-white rounded text-[10px] font-bold transition">Enviar a revisión</button>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-[10px] font-semibold text-slate-600 w-24 shrink-0">Formulario</span>
                           <span className="flex-1 min-w-0 text-[10px] text-slate-500 truncate font-mono">{linkFormularioFila}</span>
                           <button onClick={() => copiarLinkClienta(linkFormularioFila)} className="shrink-0 px-2 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded text-[10px] font-bold transition">Copiar</button>
@@ -10383,6 +10555,47 @@ export default function App() {
                               </button>
                             </div>
                           </div>
+                          {(() => {
+                            const saldoPendienteAcceso = calcularSaldoPendiente(row.precio_total, row.precio_pagado);
+                            return (
+                              <div className="pt-3 border-t border-slate-200/60">
+                                <label className="text-[10px] font-bold text-slate-600 block mb-1">⏸️ Pausa por falta de pago (independiente del acceso de arriba -- es la regla "revisión primero, entrega final al liquidar")</label>
+                                {saldoPendienteAcceso > 0 && (
+                                  <p className="text-[11px] font-bold text-amber-700 mb-1.5">Saldo pendiente: ${saldoPendienteAcceso.toLocaleString("es-MX")} MXN</p>
+                                )}
+                                {row.pausada ? (
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-[10px] text-slate-500">
+                                      Pausada{row.pausada_en ? ` el ${new Date(row.pausada_en).toLocaleDateString("es-MX")}` : ""}{row.motivo_pausa ? ` -- ${row.motivo_pausa}` : ""}
+                                    </span>
+                                    <button
+                                      onClick={() => handleActualizarPausaInvitacion(row, false, "")}
+                                      className="text-[10px] font-bold rounded-lg px-2 py-1 transition bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                    >
+                                      ▶️ Reactivar
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <input
+                                      type="text"
+                                      placeholder="Motivo (ej. 'Falta de pago del saldo')"
+                                      value={motivoPausaSeleccionado[row.id] ?? ""}
+                                      onChange={(e) => setMotivoPausaSeleccionado(prev => ({ ...prev, [row.id]: e.target.value }))}
+                                      className="flex-1 min-w-[10rem] px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 outline-none focus:border-indigo-500"
+                                    />
+                                    <button
+                                      onClick={() => handleActualizarPausaInvitacion(row, true, motivoPausaSeleccionado[row.id] ?? "")}
+                                      className="text-[10px] font-bold rounded-lg px-2 py-1 transition bg-rose-50 text-rose-700 hover:bg-rose-100"
+                                    >
+                                      ⏸️ Pausar invitación
+                                    </button>
+                                  </div>
+                                )}
+                                <p className="text-[9px] text-slate-400 mt-1">Pausada: todas las rutas públicas (invitación, pases por familia, control de acceso, formulario) muestran solo "Esta invitación está en pausa", sin ningún dato.</p>
+                              </div>
+                            );
+                          })()}
                         </div>
                       )}
 

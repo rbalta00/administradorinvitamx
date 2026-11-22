@@ -2,6 +2,80 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Link de revisión y pausa por falta de pago (2026-11-22, noche, regla de negocio nueva)
+
+Regla de negocio nueva de Isaac ("revisión primero, entrega final al liquidar"): hoy el panel
+entrega el link permanente en cuanto la invitación está armada, y la liquidación se cobra
+después -- si la clienta no paga el saldo, ya se quedó con su invitación completa igual. Con
+esta regla, la clienta revisa con un link temporal; el permanente (y el PDF) se entregan solo al
+liquidar; y si no paga, su invitación se puede pausar desde el admin hasta que pague.
+
+- **Link de revisión** (`resolverLinkRevisionFila`/`handleEnviarRevisionWhatsApp`/
+  `REVISION_DIAS_VIGENCIA = 7`, junto a `getShareUrlDesdeFila`): mismo mecanismo exacto que el
+  link de muestra (parámetros de URL sueltos fuera del blob `d`, mismo `exp` compartido -- nunca
+  viajan juntos en un link real), pero la invitación se ve COMPLETA y SIN marca de agua (es
+  clienta que ya pagó su anticipo, no un prospecto) -- solo una franja discreta arriba
+  ("📝 Invitación en revisión — tu link final se libera al liquidar tu saldo"). Mismo criterio de
+  "corto si hay `codigoCorto`, largo de respaldo si no" que el link de muestra corto (ver entrada
+  de arriba). Fila nueva "Revisión" en "🔗 Links de la clienta" (entre "Invitación" y
+  "Formulario"), con Generar y copiar / Generar y abrir / Enviar a revisión -- mismo patrón que
+  "Vista previa".
+- **Bug real encontrado y corregido durante la propia verificación en vivo, antes de llegar a
+  producción**: `muestraExpirada` (la que dispara la pantalla "esta muestra ya expiró") se
+  calculaba solo a partir de `exp` sin revisar `esVistaDeMuestra` -- como el link de revisión
+  también usa `exp` (sin `muestra=1`), un link de revisión vencido caía en la pantalla de
+  "muestra expirada" en vez de la de "revisión vencida" nueva. Corregido agregando
+  `esVistaDeMuestra &&`/`esVistaDeRevision &&` a cada chequeo respectivo -- confirmado que
+  ninguno de los dos (muestra y revisión) se confunde entre sí ni se rompió el caso ya existente
+  de muestra expirada/vigente.
+- **Pausa manual por falta de pago** (`pausada`/`pausada_en`/`motivo_pausa`, columnas nuevas --
+  migración `add_pausa_columns_invitaciones` -- y `handleActualizarPausaInvitacion`, mismo patrón
+  que `handleActualizarBloqueoInvitacion` pero **estado completamente separado**, nunca reutiliza
+  `bloqueada`: esa sigue siendo la vigencia/acceso de siempre del editor, la pausa es
+  específicamente por saldo pendiente). Bloque nuevo "⏸️ Pausa por falta de pago" en la pestaña
+  "Vigencia y acceso" de "Administrar cliente", con el saldo pendiente (`calcularSaldoPendiente`)
+  mostrado ahí mismo cuando es mayor a 0, motivo libre, y Pausar/Reactivar.
+- **Nuevo `pausaCheck`** (estado `{listo, pausada}`), mismo patrón arquitectónico que
+  `bloqueoCheck` ya existente: una consulta genérica keyed en `iidVista` (extendida para traer
+  `pausada` en el mismo round-trip que `bloqueada`/`motivo_bloqueo`) y el resolver de
+  `/v/<codigo>` (que también la fija de inmediato, antes de que la consulta genérica se vuelva a
+  disparar, "para que la primera pintura ya sea la correcta" -- mismo comentario ya usado para
+  bloqueoCheck). Pantalla nueva "⏸️ Esta invitación está en pausa." va PRIMERO en la cadena de
+  guardias (antes incluso del bloqueo de acceso), sin mostrar ningún dato -- ni el nombre de la
+  quinceañera. Gatea también el `useEffect` del `document.write`.
+- **`CheckinPage`** (control de acceso, antes SIN ningún chequeo de bloqueo/pausa) y
+  **`IntakeForm`** (que ya tenía su propio chequeo de `bloqueada`) ganaron su propio chequeo de
+  `pausada`, primero que cualquier otro, cada uno con su propia consulta a Supabase (no comparten
+  el `pausaCheck` de la vista pública, que vive en otro componente).
+- **Verificado en vivo, de punta a punta** (build local + servidor estático efímero + Claude in
+  Chrome, mocking solo `/api/admin/list-invitaciones` -- las escrituras reales corrieron contra
+  Supabase real, project `ahwcilcejffgddeeuiux`, sobre una fila de prueba desechable creada con
+  `INSERT ... RETURNING id` y borrada al final con `DELETE ... RETURNING id`, mismo método ya
+  usado para Complementos): `/v/<codigo>?revision=1&exp=<futuro>` muestra la invitación completa
+  con la franja teal y sin marca de agua; el mismo link sin `revision=1` (el permanente) se ve
+  limpio, sin franja; con `exp` vencido muestra "Este link de revisión ya venció" (y, tras el fix
+  de arriba, un link de MUESTRA vencido sigue mostrando "esta muestra ya expiró" -- confirmado
+  que no se cruzan); se pausó la fila de prueba por SQL directo y se confirmó "Esta invitación
+  está en pausa" sin ningún dato en las 3 rutas (`/v/<codigo>`, `/v/<codigo>?fam=...`,
+  `/puerta/<codigo>`, `/datos/<codigo>`); se reactivó y las 3 rutas volvieron a su comportamiento
+  normal (el control de acceso cayó correctamente al siguiente chequeo real, "función no
+  disponible", porque la fila de prueba no tenía `controlAccesoQR` -- no relacionado a este
+  cambio); desde la UI real de "Administrar cliente" (Vigencia y acceso), se pausó con un motivo
+  escrito a mano y se reactivó, confirmando en ambos casos con una consulta directa a Supabase
+  que el campo se escribió/borró de verdad, no solo en el estado local de React. El botón
+  "Enviar a revisión"/"Generar y copiar"/"Generar y abrir" de la fila "Revisión" en "Links de la
+  clienta" se probó sin errores de consola (la lectura del portapapeles y la apertura de pestaña
+  nueva no se pudieron confirmar por limitaciones del navegador automatizado -- ninguna de las
+  dos depende de código nuevo distinto al ya probado por separado con la navegación directa).
+- `npm run build`/`npm run lint` limpios (mismos 6 errores preexistentes de `ImportMeta.env`,
+  cero nuevos).
+- **No se tocó**: el link permanente y su comportamiento sin pausa/revisión, el link de muestra
+  (marca de agua/5 días) ni el check-in en operación normal, el editor y su estado `bloqueada`
+  (definitiva), los montos ni la lógica de "Cobrar anticipo"/"Cobrar liquidación". El catálogo de
+  mensajes de WhatsApp (ya actualizado por el propio Isaac fuera de esta sesión, según indicó) no
+  se tocó desde el código -- los mensajes de "Enviar a revisión"/control de acceso siguen siendo
+  los que ya arma cada handler, no una plantilla nueva del catálogo.
+
 ## Link de muestra corto (2026-11-22, noche, aún más tarde)
 
 Pedido explícito: todos los links de la clienta ya eran cortos (`/v/<codigo>`, `/puerta/<codigo>`,

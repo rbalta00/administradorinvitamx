@@ -39,7 +39,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const supabase = createClient(url, serviceKey);
     const { data, error } = await supabase
       .from("invitaciones")
-      .select("id, nombre_quinceanera, fecha_fiesta, tema_elegido, estado, activo_hasta, updated_at, link_invitacion, datos_completos, telefono_whatsapp, precio_total, precio_pagado, pases_pagado, pdf_pagado, notas, link_pago, intake_actualizado_en, bloqueada, motivo_bloqueo, checkin_pagado, creado_por, complementos")
+      .select("id, nombre_quinceanera, fecha_fiesta, tema_elegido, estado, activo_hasta, updated_at, link_invitacion, datos_completos, telefono_whatsapp, precio_total, precio_pagado, pases_pagado, pdf_pagado, notas, link_pago, intake_actualizado_en, bloqueada, motivo_bloqueo, checkin_pagado, creado_por, complementos, pausada, pausada_en, motivo_pausa")
       .eq("id", id)
       .maybeSingle();
 
