@@ -5843,12 +5843,16 @@ export default function App() {
     // `/v/<codigoCorto>` en vez del blob largo -- `/v/<codigo>/<slug>` reemplaza al viejo
     // `?fam=` para un invitado específico (2026-11-21, ver resolverFamiliaPorSlug/
     // slugsDeInvitados arriba y la resolución del link corto más abajo, que sigue aceptando
-    // `?fam=` también para los links ya compartidos antes de este cambio). Excepción: un
-    // enlace de "muestra" (preview temporal con marca de agua, ver esEnlaceMuestra/
-    // aplicarModoMuestra) sigue siendo el link largo clásico de siempre -- es un mecanismo
-    // aparte, deliberadamente no tocado por este cambio.
+    // `?fam=` también para los links ya compartidos antes de este cambio).
+    // El enlace de "muestra" (preview temporal con marca de agua, ver esEnlaceMuestra/
+    // aplicarModoMuestra) TAMBIÉN usa este mismo link corto cuando hay código (2026-11-22,
+    // "Link de muestra corto" -- antes se excluía aquí a propósito, cuando `/v/<codigo>`
+    // todavía no sabía leer `?muestra=1&exp=...`; ya lo sabe desde la Parte 2 del link corto,
+    // igual que `getShareUrlDesdeFila` en "Mis Invitaciones" ya hacía). `aplicarModoMuestra`
+    // es quien agrega `muestra=1&exp=...` después, aquí no hace falta saber nada de eso -- el
+    // formato largo de abajo se queda solo como respaldo para invitaciones sin código.
     const codigo = codigoCortoOverride || datos.codigoCorto;
-    if (codigo && !esEnlaceMuestra) {
+    if (codigo) {
       const baseCorta = `${URL_PUBLICA_INVITAMX}/v/${codigo}`;
       if (!invitadoObjetivo) return baseCorta;
       const idxSlug = (datos.invitados || []).indexOf(invitadoObjetivo);
@@ -5894,7 +5898,15 @@ export default function App() {
   const aplicarModoMuestra = (url: string): string => {
     if (!esEnlaceMuestra) return url;
     const exp = Date.now() + MUESTRA_DIAS_VIGENCIA * 24 * 60 * 60 * 1000;
-    return `${url}&muestra=1&exp=${exp}`;
+    // Separador correcto (2026-11-22, "Link de muestra corto"): antes `url` SIEMPRE llegaba con
+    // un `?` ya puesto (el blob largo `?v=1&d=...`), porque `getShareUrl` nunca devolvía la
+    // forma corta en modo muestra -- un `&` a secas bastaba. Ahora `getShareUrl` también
+    // devuelve el link corto `/v/<codigo>` (sin ningún `?`) para muestra, así que hay que
+    // detectar si `url` ya trae query string antes de decidir si el primer parámetro empieza
+    // con `?` o con `&` -- un `&` sobre un link corto sin `?` dejaría una URL rota
+    // (`/v/<codigo>&muestra=1...`, sin signo de interrogación).
+    const separador = url.includes("?") ? "&" : "?";
+    return `${url}${separador}muestra=1&exp=${exp}`;
   };
 
   // Compartir datos de la invitación final por WhatsApp

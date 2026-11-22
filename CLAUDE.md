@@ -2,6 +2,51 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Link de muestra corto (2026-11-22, noche, aún más tarde)
+
+Pedido explícito: todos los links de la clienta ya eran cortos (`/v/<codigo>`, `/puerta/<codigo>`,
+`/datos/<codigo>`) menos el de MUESTRA desde el EDITOR -- el botón "Enviar por WhatsApp" con el
+toggle "🎀 Muestra" activo seguía generando el blob largo clásico (`?v=1&d=...&iid=...&muestra=
+1&exp=...`), justo el link que más se comparte (a cada prospecta) y el más largo/frágil de todos.
+
+- **Causa real**: `getShareUrl()` (el que arma el link del editor) ya tenía desde el 2026-11-19
+  la rama de link corto `/v/<codigo>[/<slug>]`, pero con una excepción explícita a propósito:
+  `if (codigo && !esEnlaceMuestra)` -- en ese momento `/v/<codigo>` todavía no sabía leer
+  `?muestra=1&exp=...`, así que se dejó el modo muestra siempre en el blob largo (comentario
+  "deliberadamente no tocado por este cambio"). Esa excepción nunca se quitó cuando, en una
+  sesión posterior (2026-11-19 "parte 2"), `/v/<codigo>` SÍ aprendió a entender `muestra`/`exp`
+  (y `getShareUrlDesdeFila`, el generador de "Mis Invitaciones", SÍ se actualizó para usarlo --
+  por eso ese otro botón de muestra ya salía corto, y el del editor no).
+- **Fix de una línea real**: se quitó el `&& !esEnlaceMuestra` de `getShareUrl()` -- ahora, con
+  código asignado, SIEMPRE devuelve el link corto sin importar el modo, muestra incluida. El
+  formato largo se queda como estaba, solo como respaldo para invitaciones sin `codigoCorto`.
+- **Bug nuevo que este fix habría introducido sin corregir aparte**: `aplicarModoMuestra(url)`
+  (quien agrega `muestra=1&exp=...` DESPUÉS de `getShareUrl()`) asumía que `url` siempre traía ya
+  un `?` puesto (cierto mientras el blob largo era la única forma posible en modo muestra) y
+  pegaba el primer parámetro con `&` a secas -- sobre el link corto nuevo (`/v/<codigo>`, sin
+  ningún `?`) eso habría dejado una URL rota (`/v/<codigo>&muestra=1...`, sin signo de
+  interrogación). Corregido detectando `url.includes("?")` para decidir el separador correcto.
+- **Punto 3 del encargo ("si alguna parte del modo muestra solo corría en la ruta clásica,
+  extenderla"), confirmado por revisión de código que YA NO hacía falta nada más**: la
+  resolución de `/v/<codigo>` (que preserva `muestra`/`exp` al hacer `replaceState` al link
+  largo equivalente) y la lectura de `esVistaDeMuestra`/`muestraExpirada` (siempre desde
+  `window.location.search` en vivo, sin importar por qué ruta se llegó) ya estaban completas
+  desde la sesión de "links cortos, parte 2" -- el único hueco real era la GENERACIÓN del link
+  en el editor, ya cerrado arriba.
+- **No se tocó**: `MUESTRA_DIAS_VIGENCIA` (sigue en 5 días), el texto del mensaje de WhatsApp al
+  enviar la muestra, el link permanente (`esEnlaceMuestra` en `false`, sin cambios), ni la
+  resolución/compatibilidad de links largos ya compartidos (siguen funcionando igual).
+- **Verificado en vivo contra producción real** (`invitaciones.invitamx.app`, solo lectura --
+  se abrió la vista pública, nada se guardó/modificó): en el editor, con la invitación real
+  "Emma Elizabeth" (`emma-elizabeth-8emn`) y el toggle "🎀 Muestra" activo, "Enlace de Invitación
+  Resultante" mostró `https://invitaciones.invitamx.app/v/emma-elizabeth-8emn?muestra=1&exp=...`
+  (corto, sin `d=` ni `iid=`); "Abrir link directo" abrió esa URL real y mostró la invitación con
+  el banner "🎀 Esta es una MUESTRA..." y la marca de agua "VISTA PREVIA" de siempre, idéntica a
+  como se veía con el link largo. Con el toggle en "Normal" el link volvió a su forma corta
+  limpia (`/v/emma-elizabeth-8emn`, sin parámetros), confirmando que el modo permanente no
+  cambió. `npm run build`/`npm run lint` limpios (mismos 6 errores preexistentes de siempre).
+- Commit y push pendientes al momento de escribir esta entrada -- ver `git log` si ya se hizo.
+
 ## Complementos (ventas adicionales) en "Administrar cliente" (2026-11-22, noche, más tarde)
 
 Pedido explícito: `precio_total`/`precio_pagado` se editaban a mano y las casillas `pases_pagado`/
