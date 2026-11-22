@@ -195,6 +195,28 @@ function resolverLinkAnticipo(
   return { link: linksPago.montoAbierto, esLinkAbierto: true };
 }
 
+// Inverso de LINK_ANTICIPO_KEY_POR_PAQUETE -- de qué paquete es cada link de anticipo fijo,
+// para la lista manual de abajo (2026-11-22 v4, "Links de pago -- envío manual (tú eliges)").
+const PAQUETE_POR_LINK_ANTICIPO_KEY: Record<"anticipoBasico" | "anticipoEstandar" | "anticipoPremium", "basico" | "premium" | "deluxe"> = {
+  anticipoBasico: "basico",
+  anticipoEstandar: "premium",
+  anticipoPremium: "deluxe",
+};
+
+// Lista fija de los 4 links de la configuración global, en el orden en que se muestran en
+// "Links de pago -- envío manual (tú eliges)" (pedido explícito: "agrégame ahí los links de
+// Mercado Pago y yo decida cuál enviarle" -- a diferencia de "Enviar link de pago por WhatsApp"
+// arriba, que elige sola, aquí el admin elige el renglón). La etiqueta de cada anticipo lleva
+// su monto (50% del precio base del plan, mismo cálculo que calcularAnticipo) para que el admin
+// no tenga que ir a adivinarlo.
+const LISTA_LINKS_MANUAL: { key: keyof LinksPagoAdmin; etiqueta: string }[] = (
+  ["anticipoBasico", "anticipoEstandar", "anticipoPremium"] as const
+).map((key): { key: keyof LinksPagoAdmin; etiqueta: string } => {
+  const paquete = PAQUETE_POR_LINK_ANTICIPO_KEY[key];
+  const monto = Math.round(PRECIO_BASE_PAQUETE[paquete] * 0.5);
+  return { key, etiqueta: `Anticipo ${paquetes[paquete].nombre} — $${monto.toLocaleString("es-MX")}` };
+}).concat([{ key: "montoAbierto", etiqueta: "Monto abierto (la clienta pone el monto)" }]);
+
 // Motivos del bloqueo manual de acceso (columna `motivo_bloqueo`) -- puramente para que el
 // admin filtre/reporte por qué se cerró cada link; nunca se le muestra el motivo específico
 // al invitado (ver pantallas de bloqueo en isViewMode e IntakeForm más abajo). El bloqueo en
@@ -3971,11 +3993,11 @@ export default function App() {
   const [telefonoCheckinPorInvitacion, setTelefonoCheckinPorInvitacion] = useState<Record<string, string>>({});
   const [montoNuevoAbono, setMontoNuevoAbono] = useState<Record<string, string>>({});
   const [notaNuevoAbono, setNotaNuevoAbono] = useState<Record<string, string>>({});
-  // Sección "Complementos" de "Administrar cliente" → Pagos (2026-11-22): qué fila tiene el
-  // picker de "+ Agregar complemento" abierto, qué complemento del catálogo eligió, y la
-  // cantidad (solo aplica a "Familia extra", el único complemento con cantidad > 1).
-  const [mostrarAgregarComplemento, setMostrarAgregarComplemento] = useState<string | null>(null);
-  const [complementoAAgregar, setComplementoAAgregar] = useState<Record<string, string>>({});
+  // Sección "Complementos" de "Administrar cliente" → Pagos: cantidad elegida para un renglón
+  // del catálogo con cantidad (Familia extra/Ajustes extra) -- llave `${invitacionId}:${clave}`
+  // (2026-11-22 v4, "Complementos en un solo bloque") porque ahora el catálogo completo se
+  // muestra siempre (no un picker con un solo complemento seleccionado a la vez), así que puede
+  // haber más de un renglón con cantidad visible al mismo tiempo para la misma invitación.
   const [cantidadComplemento, setCantidadComplemento] = useState<Record<string, number>>({});
   const [busquedaInvitaciones, setBusquedaInvitaciones] = useState("");
   const [filtroEstatusInvitaciones, setFiltroEstatusInvitaciones] = useState("todos");
@@ -4795,6 +4817,12 @@ export default function App() {
   // corrige "pases" (à la carte en Básico/Premium, incluido en Deluxe) -- antes, cambiar de
   // paquete con contenido real cargado dejaba "pases" en el estado del paquete viejo (hallazgo
   // real: si ya pagó "pases" aparte, aunque baje de Deluxe se respeta, vía pases_pagado).
+  //
+  // 2026-11-22 v4 ("El paquete manda el precio total"): además recalcula `precio_total` --
+  // precio base del paquete nuevo + la suma de los complementos ya agregados a ESTA invitación
+  // (`row.complementos`, sin tocar) -- para que la pestaña "💳 Pagos" nazca con el precio
+  // correcto sin que el admin tenga que calcularlo a mano. Sigue siendo editable después (el
+  // input de "Precio total" no cambia), igual que hoy.
   const handleCambiarPaqueteInvitacion = async (row: InvitacionGuardadaRow, nuevoPaquete: "basico" | "premium" | "deluxe") => {
     if (!window.supabaseClient) return;
     const actual = row.paquete || "basico";
@@ -4802,11 +4830,14 @@ export default function App() {
     try {
       const { data: fila, error: errLectura } = await window.supabaseClient
         .from("invitaciones")
-        .select("datos_completos")
+        .select("datos_completos, complementos")
         .eq("id", row.id)
         .maybeSingle();
       if (errLectura) throw errLectura;
       const base: Partial<InvitacionDatos> = fila?.datos_completos || {};
+      const complementosActuales = (fila?.complementos || []) as ComplementoInvitacion[];
+      const sumaComplementos = complementosActuales.reduce((acc, c) => acc + c.precio * c.cantidad, 0);
+      const nuevoPrecioTotal = PRECIO_BASE_PAQUETE[nuevoPaquete] + sumaComplementos;
       const maxFotosNuevo = paquetes[nuevoPaquete].maxFotos;
       // Igual que en handleCambiarPaquete (editor): cada cambio de paquete recalcula desde cero
       // las secciones condicionadas por nivel (familia/regalos/hashtag/calendario/pases) --
@@ -4836,11 +4867,11 @@ export default function App() {
       };
       const { error: errUpdate } = await window.supabaseClient
         .from("invitaciones")
-        .update({ datos_completos: actualizado })
+        .update({ datos_completos: actualizado, precio_total: nuevoPrecioTotal })
         .eq("id", row.id);
       if (errUpdate) throw errUpdate;
-      setListaInvitaciones(prev => prev.map(r => r.id === row.id ? { ...r, datos_completos: actualizado, paquete: nuevoPaquete } : r));
-      mostrarToast(`Paquete cambiado a ${paquetes[nuevoPaquete].nombre} -- el formulario que le envíes ya refleja las secciones de este paquete.`, "success");
+      setListaInvitaciones(prev => prev.map(r => r.id === row.id ? { ...r, datos_completos: actualizado, paquete: nuevoPaquete, precio_total: nuevoPrecioTotal } : r));
+      mostrarToast(`Paquete cambiado a ${paquetes[nuevoPaquete].nombre} -- precio total: $${nuevoPrecioTotal.toLocaleString("es-MX")}.`, "success");
     } catch (err: any) {
       mostrarToast("Error al cambiar el paquete: " + err.message, "error");
     }
@@ -4885,6 +4916,38 @@ export default function App() {
     }
     items.push({ clave: "ajustes-extra", nombre: "Ajustes extra", precio: PRECIO_AJUSTES_EXTRA });
     return items;
+  };
+
+  // Filas EXTRA de solo presentación para el bloque único "🧩 Complementos" (2026-11-22 v4,
+  // "Complementos: un solo bloque, todos juntos y todos con su precio") -- catalogoComplementosDisponibles
+  // (arriba, SIN tocar, sigue siendo la única fuente de precio/disponibilidad de lo AGREGABLE
+  // ahora mismo) no muestra nada para lo que ya viene incluido sin costo, lo que todavía le
+  // falta un requisito (QR sin pases activo), ni una marca vieja de pagado sin su complemento
+  // registrado (pases_pagado/pdf_pagado/checkin_pagado=true de antes del 2026-11-22, cuando no
+  // existía la columna `complementos`) -- esta función solo agrega esos 3 casos para que el
+  // bloque los muestre también, sin duplicar ninguna decisión de precio/disponibilidad.
+  const filasExtraCatalogoComplementos = (
+    row: InvitacionGuardadaRow
+  ): { clave: string; nombre: string; tipo: "incluido" | "bloqueado" | "legacy"; detalle?: string }[] => {
+    const paquete = row.paquete || "basico";
+    const complementosActuales = row.complementos || [];
+    const tieneClave = (clave: string) => complementosActuales.some(c => c.clave === clave);
+    const pasesActivo = paquete === "deluxe" || row.pases_pagado || tieneClave("pases");
+    const filas: { clave: string; nombre: string; tipo: "incluido" | "bloqueado" | "legacy"; detalle?: string }[] = [];
+
+    if (paquete === "deluxe") {
+      filas.push({ clave: "pases", nombre: "Pases", tipo: "incluido" });
+      filas.push({ clave: "pdf", nombre: "PDF de Regalo", tipo: "incluido" });
+    } else {
+      if (row.pases_pagado && !tieneClave("pases")) filas.push({ clave: "pases", nombre: "Pases", tipo: "legacy" });
+      if (row.pdf_pagado && !tieneClave("pdf")) filas.push({ clave: "pdf", nombre: "PDF de Regalo", tipo: "legacy" });
+    }
+    if (row.checkin_pagado && !tieneClave("checkin")) {
+      filas.push({ clave: "checkin", nombre: "Control de Acceso QR", tipo: "legacy" });
+    } else if (!pasesActivo && !tieneClave("checkin")) {
+      filas.push({ clave: "checkin", nombre: "Control de Acceso QR", tipo: "bloqueado", detalle: `+$${PRECIO_QR_ACCESO} MXN — requiere Pases activo` });
+    }
+    return filas;
   };
 
   // Agrega un complemento de "Administrar cliente" → Complementos: lee precio_total/
@@ -5282,6 +5345,40 @@ export default function App() {
     }
     const numeroLimpio = row.telefono_whatsapp.replace(/[^0-9]/g, "");
     const msg = `Hola ${row.nombre_quinceanera || "tu evento"}, tu invitación ya está lista 🎉 El saldo para liquidar es de $${saldo.toLocaleString("es-MX")}. Puedes pagarlo en este link (ingresa el monto de $${saldo.toLocaleString("es-MX")}): ${linksPago.montoAbierto.trim()}\nEn cuanto se refleje te entrego tu invitación.`;
+    window.open(`https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(msg)}`, "_blank");
+  };
+
+  // Envío MANUAL de un link de pago (2026-11-22 v4, "Links de pago -- envío manual (tú eliges)")
+  // -- a diferencia de handleCobrarAnticipo/handleCobrarLiquidacion (que ELIGEN solos cuál link
+  // mandar con resolverLinkAnticipo), aquí el admin elige directo cuál de los 4 links de la
+  // configuración global enviar. Nunca cambia ningún estado de cobro (no marca pagos/abonos, no
+  // toca pases_pagado/etc.): solo abre WhatsApp con ese link puesto, igual que los handlers
+  // automáticos -- misma mecánica, mismo `window.open`, sin lógica de negocio nueva.
+  const handleEnviarLinkManual = (row: InvitacionGuardadaRow, key: keyof LinksPagoAdmin) => {
+    if (!row.telefono_whatsapp?.trim()) {
+      mostrarToast("Esta invitación no tiene un número de WhatsApp guardado", "error");
+      return;
+    }
+    const link = linksPago[key];
+    if (!link?.trim()) {
+      mostrarToast('Ese link no está configurado todavía ("💳 Links de pago" en la cabecera)', "error");
+      return;
+    }
+    const numeroLimpio = row.telefono_whatsapp.replace(/[^0-9]/g, "");
+    let msg: string;
+    if (key === "montoAbierto") {
+      // El monto a escribir es su saldo pendiente; si ya no debe saldo (o nunca se capturó un
+      // precio_total), se ofrece el anticipo de su total como alternativa razonable -- mismo
+      // criterio pedido explícitamente en el punto 6 del encargo.
+      const saldo = calcularSaldoPendiente(row.precio_total, row.precio_pagado);
+      const monto = saldo > 0 ? saldo : calcularAnticipo(row.precio_total);
+      msg = `Hola ${row.nombre_quinceanera || "tu evento"}, soy de InvitaMX 💌 Te comparto tu link de pago (ingresa el monto de $${monto.toLocaleString("es-MX")}): ${link.trim()}\nEn cuanto se refleje seguimos con tu invitación. ¡Gracias!`;
+    } else {
+      const paqueteDelLink = PAQUETE_POR_LINK_ANTICIPO_KEY[key];
+      const nombrePlan = paquetes[paqueteDelLink].nombre;
+      const monto = Math.round(PRECIO_BASE_PAQUETE[paqueteDelLink] * 0.5);
+      msg = `Hola ${row.nombre_quinceanera || "tu evento"}, soy de InvitaMX 💌 Te comparto el link para el anticipo del paquete ${nombrePlan} por $${monto.toLocaleString("es-MX")}: ${link.trim()}\nCon tu anticipo queda apartada la fecha de tu evento. ¡Gracias!`;
+    }
     window.open(`https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(msg)}`, "_blank");
   };
 
@@ -10839,26 +10936,35 @@ export default function App() {
                                 const nombrePlanPreview = row.paquete ? paquetes[row.paquete].nombre : "tu plan";
                                 const faltaLinkLiquidacion = !linksPago.montoAbierto?.trim();
                                 const telefonoPreview = row.telefono_whatsapp?.trim() || "— sin teléfono guardado";
+                                // Pedido explícito v4 (punto 4): si ya no hay nada que cobrar, decirlo
+                                // en una línea en vez de dejar los dos botones apagados sin contexto.
+                                const yaPagadaPorCompleto = !!row.precio_total && anticipoCobrado && falta <= 0;
                                 return (
                                   <>
                                     <div className="space-y-1 mb-2">
-                                      {!!row.precio_total && !anticipoCobrado && (
-                                        faltaLinkAnticipo ? (
-                                          <p className="text-[10px] font-bold text-rose-600">⚠️ Falta configurar el link de {anticipoEsAbierto ? "monto abierto" : `anticipo ${nombrePlanPreview}`} en "💳 Links de pago".</p>
-                                        ) : (
-                                          <p className="text-[10px] text-slate-500">
-                                            {anticipoEsAbierto
-                                              ? `Se enviará el link de monto abierto por $${anticipo.toLocaleString("es-MX")} — su total trae complementos — a ${telefonoPreview}.`
-                                              : `Se enviará el link de anticipo del paquete ${nombrePlanPreview} ($${anticipo.toLocaleString("es-MX")}) a ${telefonoPreview}.`}
-                                          </p>
-                                        )
-                                      )}
-                                      {falta > 0 && (
-                                        faltaLinkLiquidacion ? (
-                                          <p className="text-[10px] font-bold text-rose-600">⚠️ Falta configurar el link de monto abierto en "💳 Links de pago".</p>
-                                        ) : (
-                                          <p className="text-[10px] text-slate-500">Se enviará el link de monto abierto por ${falta.toLocaleString("es-MX")} a {telefonoPreview}.</p>
-                                        )
+                                      {yaPagadaPorCompleto ? (
+                                        <p className="text-[10px] font-bold text-emerald-700">✅ Esta invitación ya está pagada por completo — no hay link por enviar.</p>
+                                      ) : (
+                                        <>
+                                          {!!row.precio_total && !anticipoCobrado && (
+                                            faltaLinkAnticipo ? (
+                                              <p className="text-[10px] font-bold text-rose-600">⚠️ Falta configurar el link de {anticipoEsAbierto ? "monto abierto" : `anticipo ${nombrePlanPreview}`} en "💳 Links de pago".</p>
+                                            ) : (
+                                              <p className="text-[10px] text-slate-500">
+                                                {anticipoEsAbierto
+                                                  ? `Se enviará el link de monto abierto por $${anticipo.toLocaleString("es-MX")} — su total trae complementos — a ${telefonoPreview}.`
+                                                  : `Se enviará el link de anticipo del paquete ${nombrePlanPreview} ($${anticipo.toLocaleString("es-MX")}) a ${telefonoPreview}.`}
+                                              </p>
+                                            )
+                                          )}
+                                          {falta > 0 && (
+                                            faltaLinkLiquidacion ? (
+                                              <p className="text-[10px] font-bold text-rose-600">⚠️ Falta configurar el link de monto abierto en "💳 Links de pago".</p>
+                                            ) : (
+                                              <p className="text-[10px] text-slate-500">Se enviará el link de monto abierto por ${falta.toLocaleString("es-MX")} a {telefonoPreview}.</p>
+                                            )
+                                          )}
+                                        </>
                                       )}
                                     </div>
                                     <div className="flex gap-1.5 flex-wrap">
@@ -10884,22 +10990,66 @@ export default function App() {
                               })()}
                             </div>
 
+                            {/* "Links de pago -- envío manual (tú eliges)" (2026-11-22 v4, punto 6
+                                del encargo: "agrégame ahí los links de Mercado Pago y yo decida cuál
+                                enviarle") -- a diferencia del bloque automático de arriba (que elige
+                                solo), aquí se listan los 4 links de la configuración global tal cual,
+                                con su URL visible, y el admin decide cuál mandar. Nunca marca pagos ni
+                                abonos -- solo abre WhatsApp, igual que los botones automáticos. */}
+                            <div className="pt-2 border-t border-slate-200/60">
+                              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">📋 Links de pago — envío manual (tú eliges)</p>
+                              <div className="space-y-1">
+                                {LISTA_LINKS_MANUAL.map(item => {
+                                  const link = linksPago[item.key];
+                                  const faltaLink = !link?.trim();
+                                  return (
+                                    <div key={item.key} className="flex items-center justify-between gap-2 bg-white border border-slate-200 rounded-lg px-2 py-1.5">
+                                      <div className="min-w-0 flex-1">
+                                        <p className="text-[11px] font-semibold text-slate-700 truncate">{item.etiqueta}</p>
+                                        <p className={`text-[10px] truncate ${faltaLink ? "text-rose-600 font-bold" : "text-slate-400"}`}>{faltaLink ? "No configurado" : link}</p>
+                                      </div>
+                                      <button
+                                        onClick={() => handleEnviarLinkManual(row, item.key)}
+                                        disabled={faltaLink}
+                                        title={faltaLink ? "Configura este link en \"💳 Links de pago\"" : `Abre WhatsApp con este link puesto`}
+                                        className="px-2.5 py-1.5 bg-[#25D366] hover:bg-[#20ba56] disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white rounded-lg text-[10px] font-bold transition shrink-0"
+                                      >
+                                        💬 Enviar por WhatsApp
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* "Complementos" en UN SOLO bloque (2026-11-22 v4, punto 7 del encargo)
+                                -- reúne lo agregado (igual que antes), lo incluido sin costo / lo
+                                bloqueado por falta de un requisito / lo marcado como pagado desde
+                                antes de este catálogo (filasExtraCatalogoComplementos, arriba, SIN
+                                tocar la decisión real de precio/disponibilidad), Y el catálogo
+                                completo de lo que todavía se puede agregar (catalogoComplementosDisponibles,
+                                SIN tocar) -- cada renglón con su precio a la vista, como pidió el
+                                encargo, en vez del picker de un solo complemento a la vez de antes.
+                                Las 3 casillas sueltas "Á la carte ... pagado" que vivían al final de
+                                esta pestaña YA NO existen como elementos aparte -- su mismo dato
+                                (pases_pagado/pdf_pagado/checkin_pagado) se administra desde aquí. */}
                             {(() => {
                               const complementosLista = row.complementos || [];
-                              const catalogo = catalogoComplementosDisponibles(row);
-                              const claveSeleccionada = complementoAAgregar[row.id] || (catalogo[0]?.clave || "");
-                              const itemSeleccionado = catalogo.find(c => c.clave === claveSeleccionada);
-                              const esFamiliaExtra = claveSeleccionada === "familia-extra";
-                              const cantidadActual = cantidadComplemento[row.id] || 1;
+                              const catalogoDisponible = catalogoComplementosDisponibles(row);
+                              const filasExtra = filasExtraCatalogoComplementos(row);
+                              const paqueteKey = row.paquete || "basico";
+                              const basePaquete = PRECIO_BASE_PAQUETE[paqueteKey];
+                              const sumaComplementos = complementosLista.reduce((acc, c) => acc + c.precio * c.cantidad, 0);
+                              const totalOperacion = basePaquete + sumaComplementos;
                               return (
                                 <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
-                                  <p className="text-[10px] font-bold text-slate-600">🧩 Complementos (ventas adicionales)</p>
-                                  {complementosLista.length === 0 ? (
+                                  <p className="text-[10px] font-bold text-slate-600">🧩 Complementos</p>
+                                  {complementosLista.length === 0 && filasExtra.length === 0 ? (
                                     <p className="text-[11px] text-slate-400">Sin complementos agregados todavía.</p>
                                   ) : (
                                     <div className="space-y-1">
                                       {complementosLista.map((c, i) => (
-                                        <div key={i} className="flex items-center justify-between gap-2 text-[11px] bg-white border border-slate-200 rounded px-2 py-1">
+                                        <div key={`agregado-${i}`} className="flex items-center justify-between gap-2 text-[11px] bg-white border border-slate-200 rounded px-2 py-1">
                                           <span className="font-semibold text-slate-700 truncate">{c.nombre} <span className="text-slate-400 font-normal">· {new Date(c.fecha).toLocaleDateString("es-MX")}</span></span>
                                           <div className="flex items-center gap-2 shrink-0">
                                             <span className="font-bold text-emerald-700">${(c.precio * c.cantidad).toLocaleString("es-MX")}</span>
@@ -10907,48 +11057,68 @@ export default function App() {
                                           </div>
                                         </div>
                                       ))}
+                                      {filasExtra.map(f => (
+                                        <div key={`extra-${f.tipo}-${f.clave}`} className="flex items-center justify-between gap-2 text-[11px] bg-white border border-slate-200 rounded px-2 py-1">
+                                          <span className="font-semibold text-slate-700 truncate">{f.nombre}</span>
+                                          {f.tipo === "incluido" && <span className="text-[10px] font-bold text-emerald-700 shrink-0">Incluido</span>}
+                                          {f.tipo === "bloqueado" && <span className="text-[10px] text-slate-400 shrink-0">{f.detalle}</span>}
+                                          {f.tipo === "legacy" && (
+                                            <div className="flex items-center gap-2 shrink-0">
+                                              <span className="text-[10px] text-amber-700">Marcado como pagado</span>
+                                              <button
+                                                onClick={() => handleActualizarCampoInvitacion(
+                                                  row,
+                                                  f.clave === "pases" ? "pases_pagado" : f.clave === "pdf" ? "pdf_pagado" : "checkin_pagado",
+                                                  false
+                                                )}
+                                                className="text-rose-500 hover:text-rose-700 font-bold"
+                                              >
+                                                Quitar marca
+                                              </button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))}
                                     </div>
                                   )}
-                                  {mostrarAgregarComplemento === row.id ? (
-                                    catalogo.length === 0 ? (
-                                      <p className="text-[11px] text-slate-400">No hay más complementos que ofrecer para esta invitación en este momento.</p>
-                                    ) : (
-                                      <div className="flex items-center gap-1.5 flex-wrap">
-                                        <select
-                                          value={claveSeleccionada}
-                                          onChange={(e) => setComplementoAAgregar(prev => ({ ...prev, [row.id]: e.target.value }))}
-                                          className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 outline-none focus:border-indigo-500"
-                                        >
-                                          {catalogo.map(c => <option key={c.clave} value={c.clave}>{c.nombre} — ${c.precio.toLocaleString("es-MX")}</option>)}
-                                        </select>
-                                        {esFamiliaExtra && (
-                                          <input
-                                            type="number"
-                                            min={1}
-                                            value={cantidadActual}
-                                            onChange={(e) => setCantidadComplemento(prev => ({ ...prev, [row.id]: Math.max(1, parseInt(e.target.value, 10) || 1) }))}
-                                            className="w-16 px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 outline-none focus:border-indigo-500"
-                                          />
-                                        )}
-                                        <button
-                                          onClick={async () => {
-                                            if (!itemSeleccionado) return;
-                                            await handleAgregarComplemento(row, itemSeleccionado, esFamiliaExtra ? cantidadActual : 1);
-                                            setMostrarAgregarComplemento(null);
-                                            setCantidadComplemento(prev => ({ ...prev, [row.id]: 1 }));
-                                          }}
-                                          className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded-lg transition"
-                                        >
-                                          Agregar
-                                        </button>
-                                        <button onClick={() => setMostrarAgregarComplemento(null)} className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold rounded-lg transition">Cancelar</button>
-                                      </div>
-                                    )
-                                  ) : (
-                                    <button onClick={() => setMostrarAgregarComplemento(row.id)} className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800">
-                                      + Agregar complemento
-                                    </button>
+                                  {catalogoDisponible.length > 0 && (
+                                    <div className="space-y-1 pt-1 border-t border-slate-200/60">
+                                      <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Catálogo disponible</p>
+                                      {catalogoDisponible.map(item => {
+                                        const esCantidad = item.clave === "familia-extra" || item.clave === "ajustes-extra";
+                                        const llaveCantidad = `${row.id}:${item.clave}`;
+                                        const cantidadActual = cantidadComplemento[llaveCantidad] || 1;
+                                        return (
+                                          <div key={item.clave} className="flex items-center justify-between gap-2 text-[11px] bg-white border border-slate-200 rounded px-2 py-1">
+                                            <span className="font-semibold text-slate-700 truncate">{item.nombre} <span className="text-slate-400 font-normal">· +${item.precio.toLocaleString("es-MX")}{esCantidad ? " c/u" : ""}</span></span>
+                                            <div className="flex items-center gap-1.5 shrink-0">
+                                              {esCantidad && (
+                                                <input
+                                                  type="number"
+                                                  min={1}
+                                                  value={cantidadActual}
+                                                  onChange={(e) => setCantidadComplemento(prev => ({ ...prev, [llaveCantidad]: Math.max(1, parseInt(e.target.value, 10) || 1) }))}
+                                                  className="w-14 px-1.5 py-1 bg-white border border-slate-200 rounded text-[11px] text-slate-700 outline-none focus:border-indigo-500"
+                                                />
+                                              )}
+                                              <button
+                                                onClick={async () => {
+                                                  await handleAgregarComplemento(row, item, esCantidad ? cantidadActual : 1);
+                                                  if (esCantidad) setCantidadComplemento(prev => ({ ...prev, [llaveCantidad]: 1 }));
+                                                }}
+                                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded-lg transition whitespace-nowrap"
+                                              >
+                                                + Agregar
+                                              </button>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
                                   )}
+                                  <p className="text-[11px] font-bold text-slate-700 pt-1 border-t border-slate-200/60">
+                                    Paquete {paquetes[paqueteKey].nombre}: ${basePaquete.toLocaleString("es-MX")} + Complementos: ${sumaComplementos.toLocaleString("es-MX")} = Precio total: ${totalOperacion.toLocaleString("es-MX")}
+                                  </p>
                                 </div>
                               );
                             })()}
@@ -11004,33 +11174,6 @@ export default function App() {
                                   </div>
                                 )
                               )}
-                            </div>
-
-                            <div className="flex items-center gap-4">
-                              <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-700 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={row.pases_pagado}
-                                  onChange={(e) => handleActualizarCampoInvitacion(row, "pases_pagado", e.target.checked)}
-                                />
-                                Á la carte "pases" pagado
-                              </label>
-                              <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-700 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={row.pdf_pagado}
-                                  onChange={(e) => handleActualizarCampoInvitacion(row, "pdf_pagado", e.target.checked)}
-                                />
-                                Á la carte "PDF" pagado
-                              </label>
-                              <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-700 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={row.checkin_pagado}
-                                  onChange={(e) => handleActualizarCampoInvitacion(row, "checkin_pagado", e.target.checked)}
-                                />
-                                Á la carte "Control de Acceso QR" pagado
-                              </label>
                             </div>
 
                             {/* El link de control de acceso (Copiar/Abrir/WhatsApp a la clienta) ya
