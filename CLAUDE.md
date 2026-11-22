@@ -2,6 +2,78 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Complementos (ventas adicionales) en "Administrar cliente" (2026-11-22, noche, más tarde)
+
+Pedido explícito: `precio_total`/`precio_pagado` se editaban a mano y las casillas `pases_pagado`/
+`pdf_pagado`/`checkin_pagado` solo prendían/apagaban la FUNCIÓN -- no sumaban nada al total, no
+había catálogo, cantidades ni registro de qué se vendió aparte del paquete.
+
+- **Columna nueva `complementos`** (jsonb, migración `add_complementos_column_invitaciones`
+  aplicada al proyecto real "invita"): arreglo de `{clave, nombre, precio, cantidad, fecha}` por
+  invitación. Agregada a `api/admin/list-invitaciones.ts` (`COLUMNAS_BASE`) y
+  `api/admin/get-invitacion.ts`, y al tipo `InvitacionGuardadaRow`/`ComplementoInvitacion` nuevo.
+- **Catálogo oficial con números reales** (antes solo existían como texto informativo
+  `POLITICA_PASES`/`PRECIO_CONTROL_ACCESO_QR` -- se separaron en constantes numéricas
+  `PRECIO_PASES_POR_PAQUETE`/`PRECIO_QR_ACCESO` de las que ahora derivan esos mismos textos, una
+  sola fuente): Pases (Básico $150 / Estándar $180 / Premium incluido, no se ofrece), Control de
+  Acceso QR ($150 plano, solo si pases ya está activo), PDF de Regalo ($99, Premium ya lo
+  incluye), Familia extra ($20 c/u, con cantidad), Sección suelta ($99 c/u, solo Básico, una por
+  cada sección de `SECCIONES_EXCLUSIVAS_PREMIUM` -- "familia"/"regalos" -- que todavía no esté
+  desbloqueada), Ajustes extra ($99). `catalogoComplementosDisponibles(row)` recalcula qué
+  ofrecer cada vez que se abre "+ Agregar complemento", para nunca re-ofrecer algo ya activo.
+- **`handleAgregarComplemento`/`handleQuitarComplemento`**: mismo patrón "lee fresco de Supabase
+  justo antes de escribir" que ya usa `handleRegistrarAbono` (para no pisar un cambio reciente
+  desde otro lado) -- suman/restan precio×cantidad a `precio_total`, agregan/quitan el registro
+  de `complementos`, y prenden/apagan el flag de cobro gemelo (`pases_pagado`/`checkin_pagado`/
+  `pdf_pagado`) cuando el complemento tiene uno.
+- **Hallazgo real durante la propia verificación en vivo** (no estaba en el diseño original):
+  marcar solo el flag de cobro (como ya hacían las casillas de siempre) NO desbloqueaba la
+  función real -- "pases"/"checkin" tienen su propio interruptor aparte DENTRO de
+  `datos_completos` (`seccionesExcluidas`/`controlAccesoQR`) que es lo que de verdad decide si la
+  sección se ve activa al abrir la invitación en el editor; antes de este hallazgo, agregar el
+  complemento "Pases" prendía la casilla pero la sección seguía apagada hasta que el admin la
+  prendiera a mano adentro del editor -- justo lo que el encargo pedía evitar ("la sección pases
+  está desbloqueada" en la verificación). Se agregó `datosCompletosConFuncionDeComplemento()`
+  (nueva, compartida por agregar/quitar) que además activa/desactiva esos interruptores reales
+  para "pases"/"checkin"/"seccion-suelta:<id>" -- "pdf"/"familia-extra"/"ajustes-extra" no
+  necesitan nada ahí (PDF nunca estuvo bloqueado por paquete/flag, es puramente informativo).
+- **Guarda explícita del encargo**: no se puede quitar "Pases" mientras "Control de Acceso QR"
+  siga activo -- revisa el FLAG (`row.checkin_pagado`), no solo si hay un registro de complemento
+  "checkin" en la lista, para cubrir también el caso de un QR activado a mano con la casilla
+  antes de este cambio.
+- **Compatibilidad con lo que ya existe, por construcción, sin código extra**: una invitación con
+  un flag prendido a mano SIN registro de complemento sigue viéndose activada (el catálogo nunca
+  vuelve a ofrecer "Pases"/"PDF"/"Control de Acceso QR" si su flag ya está en `true`, los revisa
+  directo) y su `precio_total` nunca se toca (el total solo cambia por una suma/resta explícita
+  de agregar/quitar un complemento, nunca se recalcula desde cero a partir de los flags). Las
+  casillas de siempre (`handleActualizarCampoInvitacion`) se dejaron intactas, siguen siendo
+  editables a mano para corrección manual si hace falta.
+- **El bug real que SÍ se encontró y arregló de paso, no relacionado al diseño de Complementos**:
+  el input "Precio total ($ MXN)" es `defaultValue` (no controlado, para no pelear con lo que el
+  admin esté tecleando) -- antes de este cambio, `precio_total` solo cambiaba por lo que el admin
+  tecleaba ahí mismo, así que nunca hizo falta que se refrescara solo; con Complementos, el total
+  también cambia DESDE AFUERA (agregar/quitar), y sin un `key` que fuerce el remount (mismo
+  patrón que ya tenía "Pagado hasta ahora" al lado) el cuadro se quedaba mostrando el número
+  viejo aunque "Falta pagar"/"Cobrar anticipo"/"Cobrar liquidación" ya reflejaran el correcto --
+  encontrado al probar en vivo, corregido con el mismo `key={row.precio_total ?? "vacio"}`.
+- **Verificado en vivo de punta a punta, con una fila de prueba REAL desechable** (creada por
+  SQL directo -- `INSERT` en `invitaciones`, id `f9f1e824-...`, nombre "TEST COMPLEMENTOS
+  BORRAR" -- en vez de una fila mockeada con id falso, porque la primera pasada con id falso no
+  podía probar la ACUMULACIÓN real: cada "Agregar" leía "fresco" de una fila que no existe de
+  verdad en Supabase, así que cada complemento nuevo pisaba al anterior en vez de sumarse --
+  confirma que el patrón de lectura-fresca-antes-de-escribir solo se puede probar bien contra una
+  fila real, nunca contra un id inventado): Básico $299 + Pases → $449 y sección "pases"
+  desbloqueada en Supabase; + Control de Acceso QR → $599, `controlAccesoQR:true` en Supabase, el
+  aviso de "activa el toggle" desaparece y aparece el campo de teléfono real; intentar quitar
+  Pases con el QR puesto → bloqueado, nada cambia; quitar QR → $449, `controlAccesoQR:false`;
+  quitar Pases → $299, `seccionesExcluidas` vuelve a traer "pases", ambos flags apagados;
+  agregar Familia extra ×3 → +$60, línea "Familia extra ×3 — $60"; agregar Sección suelta:
+  Padres y Padrinos → +$99, `seccionesExcluidas` ya no trae "familia". Fila de prueba eliminada
+  de Supabase al terminar (`DELETE... returning id`, confirmado).
+- `npm run build`/`npm run lint` limpios (mismos 6 errores preexistentes de siempre, cero
+  nuevos). Commit y push pendientes al momento de escribir esta entrada -- ver `git log` si ya
+  se hizo.
+
 ## Consolidado: Links de la clienta (Copiar/Abrir/WhatsApp) + limpieza de botones repetidos (2026-11-22, noche)
 
 Prompt consolidado que SUSTITUYE a los dos anteriores de la misma sesión (cobro por WhatsApp y

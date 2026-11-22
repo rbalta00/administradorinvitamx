@@ -75,6 +75,21 @@ const FONDOS_ROW_ID = "00000000-0000-0000-0000-000000000001";
 // invitación guardada antes de que existiera esta columna). `paquete` sí viaja siempre en la
 // carga ligera (extraído server-side de `datos_completos->>paquete`) porque la lista lo
 // necesita para mostrarlo sin tener que pedir el jsonb entero.
+// Un complemento à la carte agregado desde "Administrar cliente" (2026-11-22) -- ver
+// `catalogoComplementosDisponibles`/`handleAgregarComplemento`/`handleQuitarComplemento` más
+// abajo. `clave` identifica DE QUÉ complemento se trata ("pases"/"checkin"/"pdf"/
+// "familia-extra"/"seccion-suelta:<id>"/"ajustes-extra") -- las primeras tres tienen un flag
+// booleano gemelo en la fila (pases_pagado/checkin_pagado/pdf_pagado) que se prende/apaga junto
+// con este registro; las otras tres son puramente financieras (familia-extra/ajustes-extra) o
+// desbloquean una sección puntual (seccion-suelta), sin ningún flag booleano propio.
+interface ComplementoInvitacion {
+  clave: string;
+  nombre: string;
+  precio: number;
+  cantidad: number;
+  fecha: string;
+}
+
 interface InvitacionGuardadaRow {
   id: string;
   nombre_quinceanera: string | null;
@@ -102,6 +117,7 @@ interface InvitacionGuardadaRow {
   motivo_bloqueo: string | null;
   checkin_pagado: boolean;
   creado_por: string | null;
+  complementos: ComplementoInvitacion[] | null;
 }
 
 // Estatus del pedido (columna `estado`), en el orden en que normalmente avanza una venta.
@@ -1414,10 +1430,18 @@ const PALETAS_ANIMACION: { id: string; nombre: string; simbolos: string[] }[] = 
 // cuando cambia un estado de la app no relacionado (ej. abrir un modal).
 // Política de precios de "pases" por paquete (ver CLAUDE.md, sección "Pases personalizados").
 // Premium (llave interna "deluxe") lo incluye sin costo extra; en Básico/Estándar es a la
-// carte con su propio precio.
+// carte con su propio precio. Números separados del texto (2026-11-22, antes solo vivían
+// embebidos en el string de abajo) para que el catálogo de "Complementos" de "Administrar
+// cliente" los pueda sumar al precio_total -- una sola fuente, nunca puede desalinearse el
+// monto mostrado aquí del que de verdad se cobra ahí.
+const PRECIO_PASES_POR_PAQUETE: Record<"basico" | "premium" | "deluxe", number | null> = {
+  basico: 150,
+  premium: 180,
+  deluxe: null, // incluido sin costo, no se ofrece como complemento
+};
 const POLITICA_PASES: Record<"basico" | "premium" | "deluxe", string> = {
-  basico: "A la carte +$150 MXN",
-  premium: "A la carte +$180 MXN",
+  basico: `A la carte +$${PRECIO_PASES_POR_PAQUETE.basico} MXN`,
+  premium: `A la carte +$${PRECIO_PASES_POR_PAQUETE.premium} MXN`,
   deluxe: "Incluido sin costo"
 };
 
@@ -1465,7 +1489,30 @@ function recalcularSeccionesPorPaquete(excluidasActuales: string[] | undefined, 
 // resto del link (no hay trabajo manual extra por familia), así que no se escalona por
 // paquete. Requiere que el cliente ya tenga pases activo -- sin una lista de familias no hay
 // nada contra qué controlar el acceso.
-const PRECIO_CONTROL_ACCESO_QR = "A la carte +$150 MXN";
+const PRECIO_QR_ACCESO = 150;
+const PRECIO_CONTROL_ACCESO_QR = `A la carte +$${PRECIO_QR_ACCESO} MXN`;
+
+// Resto del catálogo de complementos à la carte (2026-11-22, ver "Business/pricing policy" en
+// CLAUDE.md) -- números oficiales ya documentados ahí, ahora con una constante real para poder
+// sumarlos al precio_total desde "Administrar cliente" → Complementos:
+// - PDF de regalo: +$99, incluido sin costo solo en Premium (llave interna "deluxe").
+// - Familia extra: +$20 cada una, por encima del tope de familias que ya trae cada paquete.
+// - Sección suelta: +$99 cada una, solo ofrecible en Básico, para desbloquear una sección
+//   exclusiva de Estándar/Premium (`SECCIONES_EXCLUSIVAS_PREMIUM`, ver abajo) una por una.
+// - Ajustes extra: +$99 (mismo monto que un PDF o una sección suelta por coincidencia de
+//   política de precios, pero es un concepto distinto -- una ronda de ajuste pagada fuera de
+//   las 2 gratis de siempre, no desbloquea nada ni prende ningún flag).
+const PRECIO_PDF_REGALO = 99;
+const PRECIO_FAMILIA_EXTRA = 20;
+const PRECIO_SECCION_SUELTA = 99;
+const PRECIO_AJUSTES_EXTRA = 99;
+// Nombre corto para mostrar cada sección ofrecible como "sección suelta" -- deliberadamente
+// propio (no reusa NOMBRES_SECCIONES, que trae emoji pensado para la lista de toggles del
+// editor) para que el renglón del catálogo de complementos se lea limpio.
+const NOMBRE_CORTO_SECCION_SUELTA: Record<string, string> = {
+  familia: "Padres y Padrinos",
+  regalos: "Mesa de Regalos",
+};
 
 // Banco de mensajes predeterminados por cliente (pedido 2026-11-02: "mensajes predeterminados
 // listos para WhatsApp... poderlos mandar desde acá"). Mismo patrón ya probado que
@@ -3824,6 +3871,12 @@ export default function App() {
   const [telefonoCheckinPorInvitacion, setTelefonoCheckinPorInvitacion] = useState<Record<string, string>>({});
   const [montoNuevoAbono, setMontoNuevoAbono] = useState<Record<string, string>>({});
   const [notaNuevoAbono, setNotaNuevoAbono] = useState<Record<string, string>>({});
+  // Sección "Complementos" de "Administrar cliente" → Pagos (2026-11-22): qué fila tiene el
+  // picker de "+ Agregar complemento" abierto, qué complemento del catálogo eligió, y la
+  // cantidad (solo aplica a "Familia extra", el único complemento con cantidad > 1).
+  const [mostrarAgregarComplemento, setMostrarAgregarComplemento] = useState<string | null>(null);
+  const [complementoAAgregar, setComplementoAAgregar] = useState<Record<string, string>>({});
+  const [cantidadComplemento, setCantidadComplemento] = useState<Record<string, number>>({});
   const [busquedaInvitaciones, setBusquedaInvitaciones] = useState("");
   const [filtroEstatusInvitaciones, setFiltroEstatusInvitaciones] = useState("todos");
   // Pestañas de la lista (reemplazan los chips sueltos de "urgentes/pendientes/próximos" de
@@ -4666,6 +4719,202 @@ export default function App() {
       mostrarToast(`Paquete cambiado a ${paquetes[nuevoPaquete].nombre} -- el formulario que le envíes ya refleja las secciones de este paquete.`, "success");
     } catch (err: any) {
       mostrarToast("Error al cambiar el paquete: " + err.message, "error");
+    }
+  };
+
+  // Catálogo de complementos ofrecibles AHORA MISMO para esta invitación en particular
+  // (2026-11-22, "Administrar cliente" → Complementos) -- se recalcula cada vez que se abre
+  // "+ Agregar complemento" para no ofrecer algo que ya está activo (ya lo incluye el paquete,
+  // ya se agregó antes, o todavía no aplica -- ej. Control de Acceso QR sin pases activo).
+  // Nunca decide el precio por su cuenta: toma los mismos números que ya usa el resto del panel
+  // (PRECIO_PASES_POR_PAQUETE/PRECIO_QR_ACCESO/etc., arriba).
+  const catalogoComplementosDisponibles = (row: InvitacionGuardadaRow): { clave: string; nombre: string; precio: number }[] => {
+    const paquete = row.paquete || "basico";
+    const complementosActuales = row.complementos || [];
+    const tieneClave = (clave: string) => complementosActuales.some(c => c.clave === clave);
+    const pasesActivo = paquete === "deluxe" || row.pases_pagado || tieneClave("pases");
+    const items: { clave: string; nombre: string; precio: number }[] = [];
+
+    if (!pasesActivo) {
+      const precioPases = PRECIO_PASES_POR_PAQUETE[paquete];
+      if (precioPases != null) items.push({ clave: "pases", nombre: `Pases (${paquetes[paquete].nombre})`, precio: precioPases });
+    }
+    if (pasesActivo && !row.checkin_pagado && !tieneClave("checkin")) {
+      items.push({ clave: "checkin", nombre: "Control de Acceso QR", precio: PRECIO_QR_ACCESO });
+    }
+    if (paquete !== "deluxe" && !row.pdf_pagado && !tieneClave("pdf")) {
+      items.push({ clave: "pdf", nombre: "PDF de Regalo", precio: PRECIO_PDF_REGALO });
+    }
+    // Familia extra solo tiene sentido con pases activo (son familias de MÁS, arriba del tope
+    // que ya trae el plan/complemento de pases) -- no se ofrece suelta sin eso.
+    if (pasesActivo) {
+      items.push({ clave: "familia-extra", nombre: "Familia extra", precio: PRECIO_FAMILIA_EXTRA });
+    }
+    if (paquete === "basico") {
+      const excluidas = row.datos_completos?.seccionesExcluidas || [];
+      SECCIONES_EXCLUSIVAS_PREMIUM.forEach(seccionId => {
+        const yaDesbloqueada = !excluidas.includes(seccionId) || tieneClave(`seccion-suelta:${seccionId}`);
+        if (!yaDesbloqueada) {
+          items.push({ clave: `seccion-suelta:${seccionId}`, nombre: `Sección suelta: ${NOMBRE_CORTO_SECCION_SUELTA[seccionId] || seccionId}`, precio: PRECIO_SECCION_SUELTA });
+        }
+      });
+    }
+    items.push({ clave: "ajustes-extra", nombre: "Ajustes extra", precio: PRECIO_AJUSTES_EXTRA });
+    return items;
+  };
+
+  // Agrega un complemento de "Administrar cliente" → Complementos: lee precio_total/
+  // complementos/datos_completos FRESCOS justo antes de escribir (mismo criterio que
+  // handleRegistrarAbono, para no pisar un cambio reciente desde otro lado), suma
+  // precio×cantidad al total, agrega el registro, y prende el flag gemelo si lo tiene
+  // (pases_pagado/checkin_pagado/pdf_pagado) -- el mismo mecanismo con el que ya se respetan
+  // esos flags al abrir la invitación en el editor, sin duplicar esa lógica. "Sección suelta"
+  // además quita esa sección de datos_completos.seccionesExcluidas (misma fila ya cargada por
+  // togglePagosInvitacion al abrir esta pestaña).
+  // Calcula el `datos_completos` resultante de (des)activar la FUNCIÓN real de un complemento
+  // en particular -- no solo su flag de cobro. "pases" y "checkin" tienen su propio interruptor
+  // dentro de `datos_completos` (`seccionesExcluidas`/`controlAccesoQR`) que es justo lo que
+  // decide si la sección aparece activa al abrir la invitación en el editor -- marcar solo
+  // pases_pagado/checkin_pagado (como ya hacían las casillas de siempre) deja el flag prendido
+  // pero la función seguía apagada hasta que el admin la prendiera a mano adentro del editor.
+  // "sección suelta" ya era así desde el diseño original de este encargo; "pdf" no necesita
+  // nada aquí -- el botón de descarga nunca estuvo bloqueado por paquete/flag, pdf_pagado es
+  // puramente informativo (confirma que ya se cobró).
+  const datosCompletosConFuncionDeComplemento = (
+    base: Partial<InvitacionDatos>,
+    clave: string,
+    activar: boolean
+  ): InvitacionDatos | null => {
+    if (clave === "pases") {
+      const excluidas = base.seccionesExcluidas || [];
+      return {
+        ...base,
+        seccionesExcluidas: activar ? excluidas.filter(s => s !== "pases") : Array.from(new Set([...excluidas, "pases"]))
+      } as InvitacionDatos;
+    }
+    if (clave === "checkin") {
+      return { ...base, controlAccesoQR: activar } as InvitacionDatos;
+    }
+    if (clave.startsWith("seccion-suelta:")) {
+      const seccionId = clave.slice("seccion-suelta:".length);
+      const excluidas = base.seccionesExcluidas || [];
+      return {
+        ...base,
+        seccionesExcluidas: activar ? excluidas.filter(s => s !== seccionId) : Array.from(new Set([...excluidas, seccionId]))
+      } as InvitacionDatos;
+    }
+    return null;
+  };
+
+  // Agrega un complemento de "Administrar cliente" → Complementos: lee precio_total/
+  // complementos/datos_completos FRESCOS justo antes de escribir (mismo criterio que
+  // handleRegistrarAbono, para no pisar un cambio reciente desde otro lado), suma
+  // precio×cantidad al total, agrega el registro, prende el flag de cobro gemelo si lo tiene
+  // (pases_pagado/checkin_pagado/pdf_pagado) Y, si el complemento tiene una función real que
+  // activar (ver datosCompletosConFuncionDeComplemento), la activa ahí mismo -- así "abrirla en
+  // el editor: la sección queda desbloqueada" sin que el admin tenga que ir a prenderla aparte.
+  const handleAgregarComplemento = async (row: InvitacionGuardadaRow, item: { clave: string; nombre: string; precio: number }, cantidad: number) => {
+    if (!window.supabaseClient) return;
+    if (!cantidad || cantidad <= 0) {
+      mostrarToast("La cantidad debe ser al menos 1", "error");
+      return;
+    }
+    try {
+      const { data: actual, error: errLectura } = await window.supabaseClient
+        .from("invitaciones")
+        .select("precio_total, complementos, datos_completos")
+        .eq("id", row.id)
+        .maybeSingle();
+      if (errLectura) throw errLectura;
+      const monto = item.precio * cantidad;
+      const nuevoTotal = (actual?.precio_total || 0) + monto;
+      const nuevoComplemento: ComplementoInvitacion = {
+        clave: item.clave,
+        nombre: cantidad > 1 ? `${item.nombre} ×${cantidad}` : item.nombre,
+        precio: item.precio,
+        cantidad,
+        fecha: new Date().toISOString()
+      };
+      const complementosNuevos = [...((actual?.complementos || []) as ComplementoInvitacion[]), nuevoComplemento];
+
+      const update: { precio_total: number; complementos: ComplementoInvitacion[]; pases_pagado?: boolean; checkin_pagado?: boolean; pdf_pagado?: boolean; datos_completos?: InvitacionDatos } =
+        { precio_total: nuevoTotal, complementos: complementosNuevos };
+      if (item.clave === "pases") update.pases_pagado = true;
+      if (item.clave === "checkin") update.checkin_pagado = true;
+      if (item.clave === "pdf") update.pdf_pagado = true;
+      const datosCompletosNuevos = datosCompletosConFuncionDeComplemento(actual?.datos_completos || {}, item.clave, true);
+      if (datosCompletosNuevos) update.datos_completos = datosCompletosNuevos;
+
+      const { error: errUpdate } = await window.supabaseClient.from("invitaciones").update(update).eq("id", row.id);
+      if (errUpdate) throw errUpdate;
+
+      setListaInvitaciones(prev => prev.map(r => r.id === row.id ? {
+        ...r,
+        precio_total: nuevoTotal,
+        complementos: complementosNuevos,
+        ...(item.clave === "pases" ? { pases_pagado: true } : {}),
+        ...(item.clave === "checkin" ? { checkin_pagado: true } : {}),
+        ...(item.clave === "pdf" ? { pdf_pagado: true } : {}),
+        ...(datosCompletosNuevos ? { datos_completos: datosCompletosNuevos } : {})
+      } : r));
+      mostrarToast(`${nuevoComplemento.nombre} agregado -- +$${monto.toLocaleString("es-MX")} MXN`, "success");
+    } catch (err: any) {
+      mostrarToast("Error al agregar el complemento: " + err.message, "error");
+    }
+  };
+
+  // Quita un complemento ya agregado: resta su monto del precio_total, apaga su flag de cobro
+  // gemelo si lo tiene, Y apaga la función real que esa activó (contraparte de
+  // datosCompletosConFuncionDeComplemento arriba). Guarda explícita del encargo: no se puede
+  // quitar "Pases" mientras "Control de Acceso QR" siga activo -- sin pases no hay nada contra
+  // qué controlar el acceso (revisa el FLAG, no solo si hay un registro de complemento "checkin"
+  // en la lista, para cubrir también el caso de un QR activado a mano con la casilla, sin
+  // complemento registrado).
+  const handleQuitarComplemento = async (row: InvitacionGuardadaRow, index: number) => {
+    if (!window.supabaseClient) return;
+    const complemento = (row.complementos || [])[index];
+    if (!complemento) return;
+    if (complemento.clave === "pases" && row.checkin_pagado) {
+      mostrarToast('Primero quita "Control de Acceso QR" -- no puede seguir activo sin pases.', "error");
+      return;
+    }
+    try {
+      const { data: actual, error: errLectura } = await window.supabaseClient
+        .from("invitaciones")
+        .select("precio_total, complementos, datos_completos")
+        .eq("id", row.id)
+        .maybeSingle();
+      if (errLectura) throw errLectura;
+      const complementosFrescos = (actual?.complementos || []) as ComplementoInvitacion[];
+      const idxFresco = complementosFrescos.findIndex(c => c.clave === complemento.clave && c.fecha === complemento.fecha);
+      const complementoFresco = idxFresco >= 0 ? complementosFrescos[idxFresco] : complemento;
+      const monto = complementoFresco.precio * complementoFresco.cantidad;
+      const nuevoTotal = Math.max(0, (actual?.precio_total || 0) - monto);
+      const complementosNuevos = idxFresco >= 0 ? complementosFrescos.filter((_, i) => i !== idxFresco) : complementosFrescos;
+
+      const update: { precio_total: number; complementos: ComplementoInvitacion[]; pases_pagado?: boolean; checkin_pagado?: boolean; pdf_pagado?: boolean; datos_completos?: InvitacionDatos } =
+        { precio_total: nuevoTotal, complementos: complementosNuevos };
+      if (complemento.clave === "pases") update.pases_pagado = false;
+      if (complemento.clave === "checkin") update.checkin_pagado = false;
+      if (complemento.clave === "pdf") update.pdf_pagado = false;
+      const datosCompletosNuevos = datosCompletosConFuncionDeComplemento(actual?.datos_completos || {}, complemento.clave, false);
+      if (datosCompletosNuevos) update.datos_completos = datosCompletosNuevos;
+
+      const { error: errUpdate } = await window.supabaseClient.from("invitaciones").update(update).eq("id", row.id);
+      if (errUpdate) throw errUpdate;
+
+      setListaInvitaciones(prev => prev.map(r => r.id === row.id ? {
+        ...r,
+        precio_total: nuevoTotal,
+        complementos: complementosNuevos,
+        ...(complemento.clave === "pases" ? { pases_pagado: false } : {}),
+        ...(complemento.clave === "checkin" ? { checkin_pagado: false } : {}),
+        ...(complemento.clave === "pdf" ? { pdf_pagado: false } : {}),
+        ...(datosCompletosNuevos ? { datos_completos: datosCompletosNuevos } : {})
+      } : r));
+      mostrarToast(`${complementoFresco.nombre} quitado -- -$${monto.toLocaleString("es-MX")} MXN`, "success");
+    } catch (err: any) {
+      mostrarToast("Error al quitar el complemento: " + err.message, "error");
     }
   };
 
@@ -10191,6 +10440,13 @@ export default function App() {
                               <div>
                                 <label className="text-[10px] font-bold text-slate-600 block mb-1">Precio total ($ MXN)</label>
                                 <input
+                                  // `key` (2026-11-22, mismo patrón ya usado en "Pagado hasta ahora" de al
+                                  // lado): antes de los complementos, precio_total solo cambiaba por lo
+                                  // que el admin tecleaba AQUÍ MISMO -- ahora también cambia desde afuera
+                                  // (agregar/quitar un complemento), y sin este `key` el input, al ser
+                                  // `defaultValue` (no controlado), se quedaba mostrando el número viejo
+                                  // hasta que algo más forzara un remount.
+                                  key={row.precio_total ?? "vacio"}
                                   type="number"
                                   defaultValue={row.precio_total ?? ""}
                                   placeholder={precioSugerido}
@@ -10239,6 +10495,75 @@ export default function App() {
                                 {falta <= 0 ? "Liquidada" : "💬 Cobrar liquidación"}
                               </button>
                             </div>
+
+                            {(() => {
+                              const complementosLista = row.complementos || [];
+                              const catalogo = catalogoComplementosDisponibles(row);
+                              const claveSeleccionada = complementoAAgregar[row.id] || (catalogo[0]?.clave || "");
+                              const itemSeleccionado = catalogo.find(c => c.clave === claveSeleccionada);
+                              const esFamiliaExtra = claveSeleccionada === "familia-extra";
+                              const cantidadActual = cantidadComplemento[row.id] || 1;
+                              return (
+                                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
+                                  <p className="text-[10px] font-bold text-slate-600">🧩 Complementos (ventas adicionales)</p>
+                                  {complementosLista.length === 0 ? (
+                                    <p className="text-[11px] text-slate-400">Sin complementos agregados todavía.</p>
+                                  ) : (
+                                    <div className="space-y-1">
+                                      {complementosLista.map((c, i) => (
+                                        <div key={i} className="flex items-center justify-between gap-2 text-[11px] bg-white border border-slate-200 rounded px-2 py-1">
+                                          <span className="font-semibold text-slate-700 truncate">{c.nombre} <span className="text-slate-400 font-normal">· {new Date(c.fecha).toLocaleDateString("es-MX")}</span></span>
+                                          <div className="flex items-center gap-2 shrink-0">
+                                            <span className="font-bold text-emerald-700">${(c.precio * c.cantidad).toLocaleString("es-MX")}</span>
+                                            <button onClick={() => handleQuitarComplemento(row, i)} className="text-rose-500 hover:text-rose-700 font-bold">Quitar</button>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {mostrarAgregarComplemento === row.id ? (
+                                    catalogo.length === 0 ? (
+                                      <p className="text-[11px] text-slate-400">No hay más complementos que ofrecer para esta invitación en este momento.</p>
+                                    ) : (
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <select
+                                          value={claveSeleccionada}
+                                          onChange={(e) => setComplementoAAgregar(prev => ({ ...prev, [row.id]: e.target.value }))}
+                                          className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 outline-none focus:border-indigo-500"
+                                        >
+                                          {catalogo.map(c => <option key={c.clave} value={c.clave}>{c.nombre} — ${c.precio.toLocaleString("es-MX")}</option>)}
+                                        </select>
+                                        {esFamiliaExtra && (
+                                          <input
+                                            type="number"
+                                            min={1}
+                                            value={cantidadActual}
+                                            onChange={(e) => setCantidadComplemento(prev => ({ ...prev, [row.id]: Math.max(1, parseInt(e.target.value, 10) || 1) }))}
+                                            className="w-16 px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 outline-none focus:border-indigo-500"
+                                          />
+                                        )}
+                                        <button
+                                          onClick={async () => {
+                                            if (!itemSeleccionado) return;
+                                            await handleAgregarComplemento(row, itemSeleccionado, esFamiliaExtra ? cantidadActual : 1);
+                                            setMostrarAgregarComplemento(null);
+                                            setCantidadComplemento(prev => ({ ...prev, [row.id]: 1 }));
+                                          }}
+                                          className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded-lg transition"
+                                        >
+                                          Agregar
+                                        </button>
+                                        <button onClick={() => setMostrarAgregarComplemento(null)} className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold rounded-lg transition">Cancelar</button>
+                                      </div>
+                                    )
+                                  ) : (
+                                    <button onClick={() => setMostrarAgregarComplemento(row.id)} className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800">
+                                      + Agregar complemento
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })()}
 
                             <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
                               <p className="text-[10px] font-bold text-slate-600">💵 Registrar abono (queda en el historial, además de sumarse a "Pagado hasta ahora")</p>
