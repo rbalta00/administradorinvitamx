@@ -41,6 +41,7 @@ import { InvitacionDatos, TemaConfig } from "./types";
 import { temas, paquetes, datosDefault, getFotosPorTema, getOrdenSeccionesEfectivo, PALETAS_COLOR_PERSONALIZADO } from "./data";
 import { generarHTMLFinal, TipoEvento, TEXTOS_POR_EVENTO, resolverTemaEfectivo, construirUrlGoogleFonts } from "./templates";
 import { fondosListosPorEvento } from "./fondosListos";
+import { fotosListasPorEvento, FotoLista } from "./fotosListas";
 
 // Inicializar cliente de Supabase a partir de variables de entorno (Vite las inyecta en build time)
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -6484,6 +6485,85 @@ export default function App() {
     });
   };
 
+  // Fotos "listas" de álbum por evento (2026-11-22, ver fotosListas.ts) -- espejo de
+  // handleAplicarFondoGaleria/handleQuitarFondoGaleria pero SIN campo propio: las URLs quedan
+  // escritas directo en datos.fotoPortada/datos.fotos, como si se hubieran subido a mano, así
+  // que a partir de ahí son fotos normales (se quitan/reemplazan con los controles de siempre,
+  // PARTE 3) y cambiar de tipo de evento nunca las borra ni las recuerda.
+  const handleInsertarFotoLista = (url: string) => {
+    const fotosActuales = datos.fotos || [];
+    if (fotosActuales.includes(url)) return; // ya está -- la miniatura ya se ve marcada ✓, no duplica
+    const maxFotosPermitidas = paquetes[datos.paquete].maxFotos;
+    if (fotosActuales.length >= maxFotosPermitidas) {
+      mostrarToast(`Límite alcanzado: El paquete ${datos.paquete.toUpperCase()} solo permite un máximo de ${maxFotosPermitidas} fotos.`, "error");
+      return;
+    }
+    setDatos(prev => ({ ...prev, fotos: [...(prev.fotos || []), url] }));
+  };
+
+  const handleInsertarSetFotosCompleto = () => {
+    const tipoActual: TipoEvento = (datos.tipoEvento && TEXTOS_POR_EVENTO[datos.tipoEvento]) ? datos.tipoEvento : "xv";
+    const setDelEvento = fotosListasPorEvento(tipoActual);
+    if (setDelEvento.length === 0) return;
+
+    const maxFotosPermitidas = paquetes[datos.paquete].maxFotos;
+    const nuevasFotos = [...(datos.fotos || [])];
+    const yaPresentes = new Set(nuevasFotos);
+    let insertadas = 0;
+    let descartadasPorLimite = 0;
+
+    for (const foto of setDelEvento) {
+      if (yaPresentes.has(foto.url)) continue;
+      if (nuevasFotos.length >= maxFotosPermitidas) {
+        descartadasPorLimite++;
+        continue;
+      }
+      nuevasFotos.push(foto.url);
+      yaPresentes.add(foto.url);
+      insertadas++;
+    }
+
+    const fotoDePortada = setDelEvento.find(f => f.esPortada);
+    let nuevaPortada = datos.fotoPortada;
+    let portadaPuesta = false;
+    let portadaYaExistia = false;
+    if (fotoDePortada) {
+      if (!datos.fotoPortada) {
+        nuevaPortada = fotoDePortada.url;
+        portadaPuesta = true;
+      } else {
+        portadaYaExistia = true;
+      }
+    }
+
+    setDatos(prev => ({
+      ...prev,
+      fotos: nuevasFotos,
+      fotoPortada: nuevaPortada
+    }));
+
+    const evento = TIPOS_EVENTO.find(t => t.id === tipoActual)?.label || "Evento";
+    const clausulas: string[] = [];
+    if (portadaPuesta) clausulas.push("portada lista");
+    else if (portadaYaExistia) clausulas.push("la portada ya existía y no se cambió");
+
+    if (insertadas > 0) {
+      clausulas.push(
+        descartadasPorLimite > 0
+          ? `${insertadas} foto${insertadas === 1 ? "" : "s"} en la galería (el paquete ${paquetes[datos.paquete].nombre} solo admite ${maxFotosPermitidas})`
+          : `${insertadas} foto${insertadas === 1 ? "" : "s"} en la galería`
+      );
+    } else if (descartadasPorLimite > 0) {
+      clausulas.push(`no se pudo agregar ninguna foto nueva a la galería -- el paquete ${paquetes[datos.paquete].nombre} ya está en su límite de ${maxFotosPermitidas}`);
+    }
+
+    if (clausulas.length === 0) {
+      mostrarToast(`El set de ${evento} ya estaba insertado por completo -- nada que agregar`, "info");
+    } else {
+      mostrarToast(`Set de ${evento} insertado: ${clausulas.join(" y ")}`, "success");
+    }
+  };
+
   // Itinerario: Agregar evento
   const handleAgregarItinerario = () => {
     if (!nuevoItinHora || !nuevoItinEvento) {
@@ -9608,6 +9688,73 @@ export default function App() {
                     💡 <span className="font-bold">Consejo:</span> El sistema adapta dinámicamente tu galería de fotos interactiva. Al subir tus fotos a cada casilla se guardan y cargan de forma inmediata en las nubes de Cloudinary para que tu invitación cargue a máxima velocidad.
                   </p>
                 </div>
+
+                {/* PARTE 3b: FOTOS LISTAS DE ÁLBUM, POR TIPO DE EVENTO (2026-11-22, v2) -- espejo
+                    de PARTE 1b (Fondos listos): inserta fotos de MUESTRA (relleno para vestir
+                    una invitación de muestra, nunca contenido real de clienta) de
+                    fotosListas.ts en datos.fotoPortada/datos.fotos con un clic, sin subir nada --
+                    a partir de ahí son fotos normales de la invitación (ver
+                    handleInsertarFotoLista/handleInsertarSetFotosCompleto), nunca se guarda nada
+                    por evento. */}
+                {(() => {
+                  const tipoActual: TipoEvento = (datos.tipoEvento && TEXTOS_POR_EVENTO[datos.tipoEvento]) ? datos.tipoEvento : "xv";
+                  const setDelEvento = fotosListasPorEvento(tipoActual);
+                  const fotosActuales = datos.fotos || [];
+
+                  return (
+                    <div className="p-4 bg-fuchsia-50/40 rounded-xl border border-fuchsia-100 shadow-sm space-y-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">📸</span>
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest">
+                            Fotos listas ({TIPOS_EVENTO.find(t => t.id === tipoActual)?.label || "Evento"})
+                          </h4>
+                          {setDelEvento.length > 0 && (
+                            <p className="text-[10px] text-slate-500">
+                              Fotos de MUESTRA para vestir esta invitación -- se reemplazan por las fotos reales de la clienta.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {setDelEvento.length === 0 ? (
+                        <p className="text-[11px] text-slate-500 italic p-2.5 bg-white/60 rounded-lg border border-slate-150">
+                          Aún no hay fotos listas para este evento.
+                        </p>
+                      ) : (
+                        <>
+                          <div className="grid grid-cols-3 gap-2">
+                            {setDelEvento.map((f: FotoLista) => {
+                              const insertada = fotosActuales.includes(f.url);
+                              return (
+                                <button
+                                  key={f.url}
+                                  type="button"
+                                  onClick={() => handleInsertarFotoLista(f.url)}
+                                  title={`Insertar "${f.nombre}" en el álbum`}
+                                  className={`relative rounded-lg overflow-hidden border-2 transition text-left cursor-pointer ${insertada ? "border-fuchsia-500 ring-2 ring-fuchsia-200" : "border-slate-200 hover:border-fuchsia-300"}`}
+                                >
+                                  <img src={f.url} alt={f.nombre} className="w-full h-16 object-cover" referrerPolicy="no-referrer" />
+                                  <span className="block px-1.5 py-1 text-[9px] font-bold text-slate-700 bg-white/90 truncate">{f.nombre}</span>
+                                  {insertada && (
+                                    <span className="absolute top-1 right-1 bg-fuchsia-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold shadow">✓</span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleInsertarSetFotosCompleto}
+                            className="w-full px-3 py-2 bg-fuchsia-600 hover:bg-fuchsia-700 text-white text-[11px] font-bold rounded-lg transition cursor-pointer"
+                          >
+                            Insertar el set completo
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
 
               </div>
             )}

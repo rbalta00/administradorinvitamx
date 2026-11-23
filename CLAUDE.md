@@ -2,6 +2,63 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Fotos listas por evento en el editor (2026-11-22, noche, v2 -- hermana de Fondos listos)
+
+Prompt v2 del dueño (sustituye la v1 del mismo día, mecánica/URLs/límites idénticos -- v2 solo
+deja escrito el PROPÓSITO): el set de 8 fotos de boda (misma pareja: portada/jardín/novia/novio/
+anillos/baile/celebración/romántica) ya estaba generado y subido a Cloudinary, pero quedó
+atrapado solo dentro de la invitación muestra ("Valeria & Diego", sofia-16x9) -- no había
+catálogo reutilizable, cada invitación nueva de Boda nacía con el álbum vacío. Mecánica hermana
+de Fondos listos (commits `76e026d`/`65d4313`), misma forma de catálogo por evento, pero **sin**
+campo nuevo en `types.ts` -- diferencia clave pedida explícitamente en el prompt.
+
+**Propósito (v2, explícito)**: estas son fotos de **MUESTRA** (relleno, una pareja ficticia),
+nunca contenido de una invitación final de clienta real -- en la muestra gratis la prospecta
+solo manda nombre/fecha/tema por WhatsApp, sin fotos, y el set viste la muestra en segundos para
+que se vea lo más parecida posible a la final. Cuando se vuelve clienta y llegan sus fotos
+reales, la invitación se arma con esas y el set de muestra deja de usarse -- no cambia nada del
+mecanismo de link de muestra (`?muestra=1&exp=`), que ya existía. El comentario de cabecera de
+`fotosListas.ts`, el bloque del editor (línea de ayuda "Fotos de MUESTRA para vestir esta
+invitación -- se reemplazan por las fotos reales de la clienta") y la documentación (guía/manual)
+dejan esto explícito; la mecánica de inserción es idéntica a la v1.
+
+- **`src/fotosListas.ts`** (nuevo, espejo de `fondosListos.ts`): catálogo fijo `FOTOS_LISTAS:
+  {nombre, evento, url, esPortada?}[]` -- hoy 8 fotos de boda (la primera con `esPortada: true`).
+  `fotosListasPorEvento(evento)` filtra por tipo de evento.
+- **`handleInsertarFotoLista(url)`** (`src/App.tsx`, junto a `handleEliminarFoto`): inserta UNA
+  foto en el siguiente casillero libre de `datos.fotos` -- no duplica si la URL ya está (mismo
+  criterio que "ya marcada ✓"), respeta `paquetes[datos.paquete].maxFotos` con el mismo toast de
+  límite que ya usa la carga manual.
+- **`handleInsertarSetFotosCompleto()`**: inserta el set completo del evento actual en orden,
+  saltando URLs ya presentes, hasta llenar el máximo del paquete (cuenta cuántas entraron y
+  cuántas quedaron fuera por el límite); si `datos.fotoPortada` está vacía, también pone la foto
+  marcada `esPortada: true` del set -- si ya hay portada, NO la pisa. Toast final construido con
+  lo que de verdad pasó (cuántas entraron, si hubo límite, si la portada se puso o ya existía).
+- **Bloque nuevo "PARTE 3b: FOTOS LISTAS"** en la pestaña Álbum, justo debajo de la galería
+  (PARTE 3) -- mismo estilo visual que Fondos listos (caja fucsia 🎀→📸), miniaturas marcadas ✓
+  cuando la URL ya está en `datos.fotos`, botón "Insertar el set completo", y el mismo criterio
+  de "Aún no hay fotos listas para este evento" cuando el evento no tiene set (hoy: todos menos
+  Boda).
+- **Sin campo nuevo en `datos`**: a diferencia de `fondosGaleriaPorEvento`, las URLs insertadas
+  quedan escritas directo en `datos.fotoPortada`/`datos.fotos` -- EXACTAMENTE como si se hubieran
+  subido a mano. No se recuerda nada por evento: cambiar el Tipo de Evento nunca borra ni
+  reinserta fotos ya puestas.
+- **Verificado en vivo** (build local + servidor estático + Claude in Chrome, invitación
+  placeholder/demo sin datos reales cargados -- nunca se tocó Supabase ni se pulsó "Guardar en
+  Supabase"): paquete Estándar (máx. 8) → "Insertar el set completo" deja portada puesta y
+  8/8 en la galería, las 8 miniaturas marcadas ✓; paquete Básico (máx. 4), galería reiniciada →
+  el mismo botón deja exactamente 4/4 (portada + jardín + novia + novio, en orden), las otras 4
+  miniaturas sin marcar; clic individual en una miniatura YA insertada no duplica (mismo conteo);
+  clic en una miniatura NO insertada con la galería ya llena no inserta nada (respeta el límite);
+  quitar una foto insertada con el botón "Remover" de siempre baja el contador (3/4) -- confirma
+  que son fotos normales, no un mecanismo aparte; cambiar el Tipo de Evento a XV Años deja el
+  bloque en "Aún no hay fotos listas para este evento." sin tocar las fotos ya insertadas antes.
+- `npm run build`/`npm run lint` limpios (mismos 6 errores preexistentes de siempre, cero
+  nuevos). `docs/guia-de-uso.md`/`public/manual.html` actualizados. No se tocó
+  `paquetes`/`maxFotos`, `handleCargarFotoGaleriaIndex`/`handleEstablecerFotoUrlIndex`/
+  `handleEliminarFoto`, las PARTES 1/1b/2/3 de Álbum, Fondos listos, tipos de evento, ni la
+  invitación muestra "Valeria & Diego" -- tal como pedía el prompt.
+
 ## Fondos listos: también junto al selector de Tipo de Evento (2026-11-22, noche, v1 de un prompt nuevo)
 
 Prompt v1 del dueño, construido sobre el commit `76e026d` de la entrada de abajo (ésta queda
