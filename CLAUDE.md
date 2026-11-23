@@ -2,6 +2,44 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Fondos listos: también junto al selector de Tipo de Evento (2026-11-22, noche, v1 de un prompt nuevo)
+
+Prompt v1 del dueño, construido sobre el commit `76e026d` de la entrada de abajo (ésta queda
+intacta en su lógica/datos -- es solo una mejora de UBICACIÓN de la vista). El problema real:
+el bloque "Fondos listos" solo vivía en la pestaña Álbum (Gestión de Imágenes), pero el Tipo de
+Evento se elige en la pestaña Quinceañera (Información Esencial) -- el admin ponía Boda ahí y
+no veía la galería hasta cambiar de pestaña.
+
+- **`BloqueFondosListos`** (`src/App.tsx`, componente nuevo, justo antes de `export default
+  function App()`): extrae el bloque que antes vivía solo inline en PARTE 1b a un componente
+  reutilizable -- recibe `datos`/`onAplicar`/`onQuitar` (mismos `handleAplicarFondoGaleria`/
+  `handleQuitarFondoGaleria` de siempre, sin cambios) más dos props de presentación:
+  `mostrarVacio` (si se debe mostrar la caja con "Aún no hay fondos listos para este evento"
+  cuando el evento no tiene fondos, o no renderizar nada) y `ayudaExtra` (texto de ayuda a
+  mostrar en vez del genérico).
+- **Renderizado en DOS lugares, mismo estado/handlers** (seleccionar en uno se refleja en el
+  otro de inmediato, porque ambos leen/escriben `datos.fondosGaleriaPorEvento`): (a) su lugar de
+  siempre en Álbum/PARTE 1b, sin cambios de comportamiento (`mostrarVacio` default `true`); (b)
+  **nuevo**, justo debajo del selector "Tipo de Evento" en Información Esencial, con
+  `mostrarVacio={false}` (si el evento no tiene fondos -- hoy todos menos Boda -- no se muestra
+  nada ahí, ni caja vacía ni texto) y `ayudaExtra="Elige el fondo de la invitación para este
+  evento -- también está en Gestión de Imágenes."`.
+- **Verificado en vivo** (build local + servidor estático + Claude in Chrome, invitación de
+  prueba desechable -- en este caso el propio placeholder/demo que trae el proyecto sin datos
+  reales cargados, nunca se tocó Supabase ni se pulsó "Guardar en Supabase"): con XV Años no
+  aparece nada bajo el selector; al elegir Boda aparece ahí mismo "Fondos listos (Boda)" con las
+  6 miniaturas; aplicar una la marca ✓ y la vista previa real (iframe) la muestra con la regla
+  CSS exacta; la pestaña Álbum muestra la misma selección (mismo estado); "Quitar" desde Álbum
+  se refleja también en Información Esencial; cambiar a Cumpleaños hace desaparecer el bloque
+  de Información Esencial por completo; volver a Boda restaura sola la elección anterior.
+- `npm run build`/`npm run lint` limpios (mismos 6 errores preexistentes de siempre, cero
+  nuevos). `docs/guia-de-uso.md`/`public/manual.html` actualizados para mencionar el segundo
+  lugar. No se tocó `src/fondosListos.ts`, `src/types.ts`, `src/templates.ts`
+  (`resolverFondoEfectivo` y su prioridad), ni la configuración global/temas -- tal como pedía
+  el prompt.
+- Sin commitear ni pushear todavía -- el usuario no lo ha pedido en este prompt (a diferencia
+  del v2 de abajo, que sí terminaba con "Commit y push a main").
+
 ## Fondos listos por evento en el editor (2026-11-22, noche, v2)
 
 Prompt v2 del dueño (sustituye una v1 nunca ejecutada, `prompt-fondos-boda-en-editor.md`): ya

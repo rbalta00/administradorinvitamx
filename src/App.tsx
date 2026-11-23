@@ -3320,6 +3320,92 @@ function RecoveryPage() {
   );
 }
 
+// Componente «Fondos listos» (2026-11-22, v1 de este mismo prompt) -- extraído del bloque que
+// antes vivía solo en PARTE 1b (Gestión de Imágenes) para poder renderizarlo TAMBIÉN junto al
+// selector de Tipo de Evento (pestaña Información Esencial), compartiendo el mismo estado
+// (`datos.fondosGaleriaPorEvento`) y los mismos handlers -- elegir en un lugar se refleja en el
+// otro de inmediato, no son dos copias independientes.
+function BloqueFondosListos({
+  datos,
+  onAplicar,
+  onQuitar,
+  mostrarVacio = true,
+  ayudaExtra
+}: {
+  datos: InvitacionDatos;
+  onAplicar: (url: string) => void;
+  onQuitar: () => void;
+  mostrarVacio?: boolean;
+  ayudaExtra?: string;
+}) {
+  const tipoActual: TipoEvento = (datos.tipoEvento && TEXTOS_POR_EVENTO[datos.tipoEvento]) ? datos.tipoEvento : "xv";
+  const fondosDelEvento = fondosListosPorEvento(tipoActual);
+  const fondoGaleriaActual = datos.fondosGaleriaPorEvento?.[tipoActual];
+
+  if (fondosDelEvento.length === 0 && !mostrarVacio) {
+    return null;
+  }
+
+  return (
+    <div className="p-4 bg-fuchsia-50/40 rounded-xl border border-fuchsia-100 shadow-sm space-y-3">
+      <div className="flex items-center gap-2">
+        <span className="text-lg">🎀</span>
+        <div>
+          <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest">
+            Fondos listos ({TIPOS_EVENTO.find(t => t.id === tipoActual)?.label || "Evento"})
+          </h4>
+          <p className="text-[10px] text-slate-500">
+            {ayudaExtra || "Elige un fondo prediseñado para el evento de esta invitación, con un clic -- sin subir nada. Se recuerda uno distinto por cada tipo de evento que esta invitación use."}
+          </p>
+        </div>
+      </div>
+
+      {fondosDelEvento.length === 0 ? (
+        <p className="text-[11px] text-slate-500 italic p-2.5 bg-white/60 rounded-lg border border-slate-150">
+          Aún no hay fondos listos para este evento.
+        </p>
+      ) : (
+        <>
+          {fondoGaleriaActual && (
+            <div className="p-2 rounded-lg bg-fuchsia-100 border border-fuchsia-200 text-fuchsia-800 text-[10px] font-semibold flex items-center gap-1.5">
+              ✨ Este fondo de galería se está usando ahora en la vista previa y en el link público (tiene prioridad sobre un fondo subido a mano, si hubiera uno).
+            </div>
+          )}
+          <div className="grid grid-cols-3 gap-2">
+            {fondosDelEvento.map(f => {
+              const seleccionado = fondoGaleriaActual === f.url;
+              return (
+                <button
+                  key={f.url}
+                  type="button"
+                  onClick={() => onAplicar(f.url)}
+                  title={`Usar "${f.nombre}" como fondo de esta invitación`}
+                  className={`relative rounded-lg overflow-hidden border-2 transition text-left cursor-pointer ${seleccionado ? "border-fuchsia-500 ring-2 ring-fuchsia-200" : "border-slate-200 hover:border-fuchsia-300"}`}
+                >
+                  <img src={f.url} alt={f.nombre} className="w-full h-16 object-cover" referrerPolicy="no-referrer" />
+                  <span className="block px-1.5 py-1 text-[9px] font-bold text-slate-700 bg-white/90 truncate">{f.nombre}</span>
+                  {seleccionado && (
+                    <span className="absolute top-1 right-1 bg-fuchsia-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold shadow">✓</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          {fondoGaleriaActual && (
+            <button
+              type="button"
+              onClick={onQuitar}
+              className="w-full px-3 py-2 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 text-[11px] font-bold rounded-lg transition cursor-pointer"
+            >
+              Quitar fondo de galería de este evento
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   // Cargar estado inicial desde la URL si existe o desde localStorage, o el editor precargado
   const getInitialState = (): { initialDatos: InvitacionDatos; initialTemaId: string; isView: boolean; isCatalog: boolean; initialCatalogTemaId: string | null; isEmbed: boolean } => {
@@ -8663,6 +8749,19 @@ export default function App() {
                   <p className="text-[10px] text-slate-500 mt-1">Solo cambia las palabras que ve el invitado (portada, apertura, etc.) -- el tema, el paquete y las secciones siguen siendo los mismos para cualquier tipo de evento.</p>
                 </div>
 
+                {/* NUEVO (2026-11-22, v1 de este mismo prompt): el mismo bloque «Fondos listos»
+                    de Gestión de Imágenes, repetido aquí junto al selector de evento -- mismo
+                    estado/handlers (BloqueFondosListos), nunca dos copias independientes. Solo
+                    se muestra si el evento elegido ya tiene fondos (hoy: solo Boda) -- si no,
+                    no se renderiza nada, ni una caja vacía ni texto. */}
+                <BloqueFondosListos
+                  datos={datos}
+                  onAplicar={handleAplicarFondoGaleria}
+                  onQuitar={handleQuitarFondoGaleria}
+                  mostrarVacio={false}
+                  ayudaExtra="Elige el fondo de la invitación para este evento -- también está en Gestión de Imágenes."
+                />
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">{ETIQUETA_NOMBRE_POR_EVENTO[datos.tipoEvento || "xv"]} *</label>
                   <input
@@ -9332,77 +9431,18 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* PARTE 1b: FONDOS LISTOS DE GALERÍA, POR TIPO DE EVENTO (2026-11-22) -- a
-                    diferencia del bloque de arriba (fondo subido a mano, por TEMA), aquí se
-                    elige con un clic uno de los fondos predefinidos de fondosListos.ts, atado
-                    al EVENTO actual de esta invitación (ver handleAplicarFondoGaleria/
-                    handleQuitarFondoGaleria y resolverFondoEfectivo en templates.ts). */}
-                <div className="p-4 bg-fuchsia-50/40 rounded-xl border border-fuchsia-100 shadow-sm space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">🎀</span>
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest">
-                        Fondos listos ({TIPOS_EVENTO.find(t => t.id === (datos.tipoEvento || "xv"))?.label || "Evento"})
-                      </h4>
-                      <p className="text-[10px] text-slate-500">
-                        Elige un fondo prediseñado para el evento de esta invitación, con un clic -- sin subir nada. Se recuerda uno distinto por cada tipo de evento que esta invitación use.
-                      </p>
-                    </div>
-                  </div>
-
-                  {(() => {
-                    const tipoActual: TipoEvento = (datos.tipoEvento && TEXTOS_POR_EVENTO[datos.tipoEvento]) ? datos.tipoEvento : "xv";
-                    const fondosDelEvento = fondosListosPorEvento(tipoActual);
-                    const fondoGaleriaActual = datos.fondosGaleriaPorEvento?.[tipoActual];
-
-                    if (fondosDelEvento.length === 0) {
-                      return (
-                        <p className="text-[11px] text-slate-500 italic p-2.5 bg-white/60 rounded-lg border border-slate-150">
-                          Aún no hay fondos listos para este evento.
-                        </p>
-                      );
-                    }
-
-                    return (
-                      <>
-                        {fondoGaleriaActual && (
-                          <div className="p-2 rounded-lg bg-fuchsia-100 border border-fuchsia-200 text-fuchsia-800 text-[10px] font-semibold flex items-center gap-1.5">
-                            ✨ Este fondo de galería se está usando ahora en la vista previa y en el link público (tiene prioridad sobre un fondo subido a mano, si hubiera uno).
-                          </div>
-                        )}
-                        <div className="grid grid-cols-3 gap-2">
-                          {fondosDelEvento.map(f => {
-                            const seleccionado = fondoGaleriaActual === f.url;
-                            return (
-                              <button
-                                key={f.url}
-                                type="button"
-                                onClick={() => handleAplicarFondoGaleria(f.url)}
-                                title={`Usar "${f.nombre}" como fondo de esta invitación`}
-                                className={`relative rounded-lg overflow-hidden border-2 transition text-left cursor-pointer ${seleccionado ? "border-fuchsia-500 ring-2 ring-fuchsia-200" : "border-slate-200 hover:border-fuchsia-300"}`}
-                              >
-                                <img src={f.url} alt={f.nombre} className="w-full h-16 object-cover" referrerPolicy="no-referrer" />
-                                <span className="block px-1.5 py-1 text-[9px] font-bold text-slate-700 bg-white/90 truncate">{f.nombre}</span>
-                                {seleccionado && (
-                                  <span className="absolute top-1 right-1 bg-fuchsia-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold shadow">✓</span>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        {fondoGaleriaActual && (
-                          <button
-                            type="button"
-                            onClick={handleQuitarFondoGaleria}
-                            className="w-full px-3 py-2 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 text-[11px] font-bold rounded-lg transition cursor-pointer"
-                          >
-                            Quitar fondo de galería de este evento
-                          </button>
-                        )}
-                      </>
-                    );
-                  })()}
-                </div>
+                {/* PARTE 1b: FONDOS LISTOS DE GALERÍA, POR TIPO DE EVENTO (2026-11-22, v1:
+                    componente compartido también en la pestaña Información Esencial, ver
+                    BloqueFondosListos arriba del componente App). A diferencia del bloque de
+                    arriba (fondo subido a mano, por TEMA), aquí se elige con un clic uno de los
+                    fondos predefinidos de fondosListos.ts, atado al EVENTO actual de esta
+                    invitación (ver handleAplicarFondoGaleria/handleQuitarFondoGaleria y
+                    resolverFondoEfectivo en templates.ts). */}
+                <BloqueFondosListos
+                  datos={datos}
+                  onAplicar={handleAplicarFondoGaleria}
+                  onQuitar={handleQuitarFondoGaleria}
+                />
 
                 {/* PARTE 2: FOTO DE PORTADA O DE LA QUINCEAÑERA */}
                 <div className="p-4 bg-pink-50/40 rounded-xl border border-pink-100 shadow-sm space-y-4">
