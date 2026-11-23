@@ -2,6 +2,28 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Fotos listas: agregado el set de XV años (2026-11-22, noche, v3)
+
+Prompt v3 del dueño, continúa la v2 de abajo (ya aplicada y verificada) -- cambio acotado a un
+solo archivo, `src/fotosListas.ts`: se agregaron las 12 entradas del set de XV (`evento: "xv"`),
+después de las 8 de boda (intactas). Son las MISMAS 12 fotos ficticias de la quinceañera que ya
+usaba `fotosFicticiasDefault`/`getFotosPorTema` en `data.ts` como respaldo automático -- aquí se
+reutilizan tal cual, solo para que también sean elegibles a mano desde "Fotos listas". El bloque
+"PARTE 3b" ya filtraba por evento (`fotosListasPorEvento`), así que no hizo falta tocar `App.tsx`
+-- el set de XV aparece solo con ese evento, sin más cambios.
+- **Verificado en vivo** (build local + servidor estático + Claude in Chrome, invitación
+  placeholder sin datos reales -- nunca se tocó Supabase): XV + Estándar (máx. 8) → "Insertar el
+  set completo" deja portada puesta y 8/8 (las primeras 8 del set de 12); XV + Premium (máx. 14)
+  → 12/12 (el set completo, sin inventar las 2 que faltan para llegar a 14); XV + Básico (máx.
+  4) → 4/4 (las primeras 4: Portada/Retrato de estudio/Detalle zapatilla/Con mamá); Cumpleaños
+  → "Aún no hay fotos listas para este evento."; Boda → sus 8 miniaturas siguen igual, sin
+  marcar, sin mezclarse con las fotos de XV ya insertadas en la galería (cambiar de evento nunca
+  toca `datos.fotos`, confirmado).
+- `npm run build`/`npm run lint` limpios (mismos 6 errores preexistentes). `docs/guia-de-uso.md`/
+  `public/manual.html` actualizados para mencionar los dos sets (Boda 8 / XV 12). No se tocó
+  `fotosFicticiasDefault`/`getFotosPorTema` en `data.ts`, la lógica de inserción de la v2, Fondos
+  listos, paquetes/maxFotos, ni la demo "Valeria & Diego".
+
 ## Fotos listas por evento en el editor (2026-11-22, noche, v2 -- hermana de Fondos listos)
 
 Prompt v2 del dueño (sustituye la v1 del mismo día, mecánica/URLs/límites idénticos -- v2 solo

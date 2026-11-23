@@ -61,6 +61,70 @@ export const FOTOS_LISTAS: FotoLista[] = [
     nombre: "Boda · Romántica",
     evento: "boda",
     url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795389617/idzhmhzfrbe5eunl0v6i.webp"
+  },
+  // Set de XV años (2026-11-22, v3) -- mismas 12 fotos ficticias de la quinceañera que ya usa
+  // `fotosFicticiasDefault`/`getFotosPorTema` en data.ts como respaldo automático; aquí se
+  // reutilizan tal cual, solo para que también sean elegibles a mano desde "Fotos listas".
+  {
+    nombre: "XV · Portada",
+    evento: "xv",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238790/yfl5jblsbo3v8g89ypah.webp",
+    esPortada: true
+  },
+  {
+    nombre: "XV · Retrato de estudio",
+    evento: "xv",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238798/pxp4yrnr5ieqlfdlxwcr.webp"
+  },
+  {
+    nombre: "XV · Detalle zapatilla",
+    evento: "xv",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238799/joyl3txv8jbqlowg2k88.webp"
+  },
+  {
+    nombre: "XV · Con mamá",
+    evento: "xv",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238800/kaio442qnly8kzrkdmfo.webp"
+  },
+  {
+    nombre: "XV · Jardín entre rosas",
+    evento: "xv",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238801/v5gcmfyiyw30qlddlnhb.webp"
+  },
+  {
+    nombre: "XV · Fiesta con amigos",
+    evento: "xv",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238803/iw4seyifvdbdeyktizpn.webp"
+  },
+  {
+    nombre: "XV · Vals",
+    evento: "xv",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238805/cuqrbnq3hil0xvdazds3.webp"
+  },
+  {
+    nombre: "XV · Baile con papá",
+    evento: "xv",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238806/v553t8kwufvqtqpx9bie.webp"
+  },
+  {
+    nombre: "XV · Salón",
+    evento: "xv",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238807/gkwtvgbtnibotxdop4yw.webp"
+  },
+  {
+    nombre: "XV · Pastel",
+    evento: "xv",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238808/qwerh0s8b7bljorset1o.webp"
+  },
+  {
+    nombre: "XV · Detalle tiara y ramo",
+    evento: "xv",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238810/wmjpxuf3yy7l6e4s5v2i.webp"
+  },
+  {
+    nombre: "XV · Vestido",
+    evento: "xv",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238811/qoxwwnnrhkkhtgp1vwlg.webp"
   }
 ];
 
