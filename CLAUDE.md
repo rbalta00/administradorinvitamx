@@ -2,6 +2,44 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Fotos listas: set de Cumpleaños, con dos sub-sets (niña/niño) (2026-11-24)
+
+Prompt en 2 versiones del dueño, construidas en la misma pasada: v1 agregaba 8 fotos de
+Cumpleaños sin distinguir; v2 (la aplicada, SUSTITUYE a v1) reemplaza ese set único por DOS sets
+ficticios distintos -- niña (vestido rosa pastel, diadema de flores) y niño (tema espacial azul),
+8 fotos cada uno -- porque el festejado de un cumpleaños puede ser cualquiera de los dos, y
+mezclarlos en un solo botón habría puesto la portada equivocada la mitad de las veces.
+
+- **Campo nuevo `grupo?: string`** en la interfaz `FotoLista` (`src/fotosListas.ts`): sin grupo =
+  set único del evento (comportamiento de siempre, boda/XV sin cambios); con grupo, las fotos de
+  ese evento se parten y se muestran/insertan por separado. Las 16 entradas de Cumpleaños
+  (`evento: "cumpleanos"`) llevan `grupo: "niña"`/`grupo: "niño"`, cada una con su propia foto
+  `esPortada`.
+- **`handleInsertarSetFotosCompleto(grupo?: string)`** (`src/App.tsx`): ahora filtra el set del
+  evento por `grupo` ANTES de insertar -- el resto del handler (límite por paquete, no duplicar,
+  portada solo si estaba vacía, toast con el conteo real) no cambió, solo opera sobre la lista ya
+  filtrada, así que la portada que busca es la del grupo insertado, nunca la del otro.
+- **Bloque "Fotos listas" (Álbum)**: cuando el evento tiene grupos, se parte en sub-bloques
+  (`grupos`, conservando el orden de aparición) -- cada uno con su propio subtítulo "Set {Grupo}"
+  (p. ej. "Set Niña"/"Set Niño"), su propia cuadrícula de miniaturas (mismo componente/mismo
+  marcado ✓ de siempre) y su propio botón "Insertar el set completo ({Grupo})". Un evento sin
+  grupos (boda, XV) se sigue viendo exactamente igual que antes -- una sola cuadrícula, un solo
+  botón "Insertar el set completo" sin sufijo.
+- **Verificado en vivo** (build local + servidor estático efímero + Claude in Chrome, invitación
+  de prueba desechable -- la real "Emma Elizabeth", cacheada en `localStorage` de este navegador
+  en más de un puerto por sesiones anteriores, se respaldó y restauró en cada origen tocado):
+  Cumpleaños + Estándar muestra "Set Niña" y "Set Niño" con 8 miniaturas cada uno; "Insertar el
+  set completo (Niña)" deja 8/8 con la portada de niña, repetir el clic no duplica; limpiar álbum
+  + "Insertar el set completo (Niño)" deja 8/8 con la portada de niño (la espacial), sin mezclar
+  ninguna foto de niña; en Básico cada set se detiene en 4/4; Boda sigue con una sola cuadrícula,
+  un solo botón sin sufijo, 8/8 y la portada de boda correctas; Bautizo sigue mostrando "Aún no
+  hay fotos listas para este evento."
+- `npm run build`/`npm run lint` limpios (mismos 6 errores preexistentes de siempre, cero
+  nuevos). `docs/guia-de-uso.md`/`public/manual.html` actualizados para mencionar el set de
+  Cumpleaños y sus dos sub-sets -- **no se pudo actualizar** `D:\InvitaMX\invitamx-manual-usuario.html`
+  (ya desactualizada desde antes, ver nota de la entrada de "Fondos listos" del 2026-11-22).
+- Sin commitear ni pushear todavía -- ver si ya se hizo en una entrada posterior o `git log`.
+
 ## Fotos listas: agregado el set de XV años (2026-11-22, noche, v3)
 
 Prompt v3 del dueño, continúa la v2 de abajo (ya aplicada y verificada) -- cambio acotado a un

@@ -18,6 +18,7 @@ export interface FotoLista {
   evento: TipoEvento;
   url: string;
   esPortada?: boolean; // la foto sugerida como portada del set
+  grupo?: string; // set dentro del evento cuando hay más de uno (p. ej. "niña" / "niño" en cumpleaños); sin grupo = set único del evento
 }
 
 export const FOTOS_LISTAS: FotoLista[] = [
@@ -125,6 +126,109 @@ export const FOTOS_LISTAS: FotoLista[] = [
     nombre: "XV · Vestido",
     evento: "xv",
     url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795238811/qoxwwnnrhkkhtgp1vwlg.webp"
+  },
+  // Set de Cumpleaños (2026-11-24, v2) -- DOS sets ficticios distintos, niña (vestido rosa
+  // pastel, diadema de flores) y niño (tema espacial azul), distinguidos por `grupo` -- el
+  // festejado puede ser cualquiera de los dos, así que el bloque "Fotos listas" los muestra y
+  // los inserta por separado (ver botonesFotosListasPorEvento/handleInsertarSetFotosCompleto en
+  // App.tsx), nunca mezclados en una sola cuadrícula/botón.
+  {
+    nombre: "Cumpleaños niña · Portada",
+    evento: "cumpleanos",
+    grupo: "niña",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795525912/emldpcc99tubtlvvzk4w.webp",
+    esPortada: true
+  },
+  {
+    nombre: "Cumpleaños niña · Pastel",
+    evento: "cumpleanos",
+    grupo: "niña",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795525914/rrb2plmwqw9kcv9j8mde.webp"
+  },
+  {
+    nombre: "Cumpleaños niña · Con sus papás",
+    evento: "cumpleanos",
+    grupo: "niña",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795525915/rzp3b24ce6cmbkp0lnoy.webp"
+  },
+  {
+    nombre: "Cumpleaños niña · Piñata",
+    evento: "cumpleanos",
+    grupo: "niña",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795525917/tl3mlp1eta09hthsocoq.webp"
+  },
+  {
+    nombre: "Cumpleaños niña · Amigos",
+    evento: "cumpleanos",
+    grupo: "niña",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795525918/ejn3978x83vpoy6pipja.webp"
+  },
+  {
+    nombre: "Cumpleaños niña · Mesa de dulces",
+    evento: "cumpleanos",
+    grupo: "niña",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795525920/umullwh7u95lzudp8u3f.webp"
+  },
+  {
+    nombre: "Cumpleaños niña · Regalos",
+    evento: "cumpleanos",
+    grupo: "niña",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795525921/l2fslcbngyxru2ch3gt3.webp"
+  },
+  {
+    nombre: "Cumpleaños niña · Retrato",
+    evento: "cumpleanos",
+    grupo: "niña",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795525922/kcbfwawdtw1u7ntgqdz6.webp"
+  },
+  {
+    nombre: "Cumpleaños niño · Portada",
+    evento: "cumpleanos",
+    grupo: "niño",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795526157/beq6eliv8bjxpuv0loax.webp",
+    esPortada: true
+  },
+  {
+    nombre: "Cumpleaños niño · Pastel",
+    evento: "cumpleanos",
+    grupo: "niño",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795526158/o6ydohr0sykl1xx4es3x.webp"
+  },
+  {
+    nombre: "Cumpleaños niño · Con sus papás",
+    evento: "cumpleanos",
+    grupo: "niño",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795526159/rfy1rzyavaxlw761aszz.webp"
+  },
+  {
+    nombre: "Cumpleaños niño · Piñata",
+    evento: "cumpleanos",
+    grupo: "niño",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795526161/xlic9y88wppq6vxlosa6.webp"
+  },
+  {
+    nombre: "Cumpleaños niño · Amigos",
+    evento: "cumpleanos",
+    grupo: "niño",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795526162/mtmkzbxtab1p34g3ujar.webp"
+  },
+  {
+    nombre: "Cumpleaños niño · Mesa de dulces",
+    evento: "cumpleanos",
+    grupo: "niño",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795526163/gashfrckeb78glwnvkgf.webp"
+  },
+  {
+    nombre: "Cumpleaños niño · Regalos",
+    evento: "cumpleanos",
+    grupo: "niño",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795526164/ctoteczy2irehbibw8ek.webp"
+  },
+  {
+    nombre: "Cumpleaños niño · Retrato",
+    evento: "cumpleanos",
+    grupo: "niño",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795526165/zq2qkiahjazpk4xa80ms.webp"
   }
 ];
 

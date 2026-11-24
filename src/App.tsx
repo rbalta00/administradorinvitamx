@@ -6501,9 +6501,9 @@ export default function App() {
     setDatos(prev => ({ ...prev, fotos: [...(prev.fotos || []), url] }));
   };
 
-  const handleInsertarSetFotosCompleto = () => {
+  const handleInsertarSetFotosCompleto = (grupo?: string) => {
     const tipoActual: TipoEvento = (datos.tipoEvento && TEXTOS_POR_EVENTO[datos.tipoEvento]) ? datos.tipoEvento : "xv";
-    const setDelEvento = fotosListasPorEvento(tipoActual);
+    const setDelEvento = fotosListasPorEvento(tipoActual).filter(f => !grupo || f.grupo === grupo);
     if (setDelEvento.length === 0) return;
 
     const maxFotosPermitidas = paquetes[datos.paquete].maxFotos;
@@ -9722,35 +9722,56 @@ export default function App() {
                           Aún no hay fotos listas para este evento.
                         </p>
                       ) : (
-                        <>
-                          <div className="grid grid-cols-3 gap-2">
-                            {setDelEvento.map((f: FotoLista) => {
-                              const insertada = fotosActuales.includes(f.url);
-                              return (
-                                <button
-                                  key={f.url}
-                                  type="button"
-                                  onClick={() => handleInsertarFotoLista(f.url)}
-                                  title={`Insertar "${f.nombre}" en el álbum`}
-                                  className={`relative rounded-lg overflow-hidden border-2 transition text-left cursor-pointer ${insertada ? "border-fuchsia-500 ring-2 ring-fuchsia-200" : "border-slate-200 hover:border-fuchsia-300"}`}
-                                >
-                                  <img src={f.url} alt={f.nombre} className="w-full h-16 object-cover" referrerPolicy="no-referrer" />
-                                  <span className="block px-1.5 py-1 text-[9px] font-bold text-slate-700 bg-white/90 truncate">{f.nombre}</span>
-                                  {insertada && (
-                                    <span className="absolute top-1 right-1 bg-fuchsia-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold shadow">✓</span>
-                                  )}
-                                </button>
-                              );
-                            })}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={handleInsertarSetFotosCompleto}
-                            className="w-full px-3 py-2 bg-fuchsia-600 hover:bg-fuchsia-700 text-white text-[11px] font-bold rounded-lg transition cursor-pointer"
-                          >
-                            Insertar el set completo
-                          </button>
-                        </>
+                        (() => {
+                          // Partir en grupos (p. ej. "niña"/"niño" en cumpleaños) conservando el
+                          // orden de aparición -- sin grupo (null) es el set único de siempre,
+                          // mismo comportamiento que antes de que existiera este campo.
+                          const grupos: { grupo: string | null; fotos: FotoLista[] }[] = [];
+                          for (const f of setDelEvento) {
+                            const g = f.grupo ?? null;
+                            let entrada = grupos.find(e => e.grupo === g);
+                            if (!entrada) { entrada = { grupo: g, fotos: [] }; grupos.push(entrada); }
+                            entrada.fotos.push(f);
+                          }
+                          return grupos.map((entrada, gi) => (
+                            <div key={entrada.grupo ?? "unico"} className={gi > 0 ? "pt-3 border-t border-fuchsia-100/80 space-y-3" : "space-y-3"}>
+                              {entrada.grupo !== null && (
+                                <p className="text-[10px] font-bold text-fuchsia-700 uppercase tracking-wide">
+                                  Set {entrada.grupo.charAt(0).toUpperCase() + entrada.grupo.slice(1)}
+                                </p>
+                              )}
+                              <div className="grid grid-cols-3 gap-2">
+                                {entrada.fotos.map((f: FotoLista) => {
+                                  const insertada = fotosActuales.includes(f.url);
+                                  return (
+                                    <button
+                                      key={f.url}
+                                      type="button"
+                                      onClick={() => handleInsertarFotoLista(f.url)}
+                                      title={`Insertar "${f.nombre}" en el álbum`}
+                                      className={`relative rounded-lg overflow-hidden border-2 transition text-left cursor-pointer ${insertada ? "border-fuchsia-500 ring-2 ring-fuchsia-200" : "border-slate-200 hover:border-fuchsia-300"}`}
+                                    >
+                                      <img src={f.url} alt={f.nombre} className="w-full h-16 object-cover" referrerPolicy="no-referrer" />
+                                      <span className="block px-1.5 py-1 text-[9px] font-bold text-slate-700 bg-white/90 truncate">{f.nombre}</span>
+                                      {insertada && (
+                                        <span className="absolute top-1 right-1 bg-fuchsia-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold shadow">✓</span>
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleInsertarSetFotosCompleto(entrada.grupo ?? undefined)}
+                                className="w-full px-3 py-2 bg-fuchsia-600 hover:bg-fuchsia-700 text-white text-[11px] font-bold rounded-lg transition cursor-pointer"
+                              >
+                                {entrada.grupo !== null
+                                  ? `Insertar el set completo (${entrada.grupo.charAt(0).toUpperCase() + entrada.grupo.slice(1)})`
+                                  : "Insertar el set completo"}
+                              </button>
+                            </div>
+                          ));
+                        })()
                       )}
                     </div>
                   );
