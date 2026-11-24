@@ -2,6 +2,33 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Fondos listos: set de Cumpleaños (2026-11-24, v1)
+
+Prompt del dueño ("Prompt Fondos Listos — CUMPLEAÑOS v1"), alcance explícitamente acotado a un
+solo archivo, espejo del set de fondos de Boda (`src/fondosListos.ts`, construido 2026-11-22).
+
+- **6 entradas nuevas** agregadas a `FONDOS_LISTOS` con `evento: "cumpleanos"` (Rosa pastel,
+  Espacial, Globos de colores, Jardín, Arcoíris pastel, Dorado fiesta), después de las 6 de Boda —
+  sin tocar ninguna entrada existente. Las 6 URLs de Cloudinary verificadas HTTP 200 antes y
+  después del cambio. Comentario del encabezado actualizado ("ya hay fondos de boda y de
+  cumpleaños" en vez de "hoy solo hay fondos de boda").
+- **Cero cambios de lógica**: `FondoListo`, `fondosListosPorEvento()`, `App.tsx`, `templates.ts`,
+  `data.ts` y el resto del mecanismo de `fondosGaleriaPorEvento` (construido el 2026-11-22) se
+  quedaron intactos — el catálogo nuevo se conecta solo porque ese mecanismo ya filtra
+  genéricamente por `TipoEvento`.
+- **Verificado en vivo** (build real servido estático, invitación real "Emma Elizabeth"
+  respaldada en `localStorage` antes de tocar nada y restaurada al terminar, nunca se guardó en
+  Supabase): al elegir Cumpleaños aparece "🎀 FONDOS LISTOS (CUMPLEAÑOS)" con las 6 miniaturas
+  reales (no placeholders); aplicar "Espacial" lo guarda en
+  `datos.fondosGaleriaPorEvento.cumpleanos` y lo embebe en la vista previa generada; cambiar a XV
+  no contamina ni agrega ninguna clave de XV a ese objeto (sigue solo con `cumpleanos`); volver a
+  Cumpleaños recuerda "Espacial" sola; "Quitar fondo de galería de este evento" lo limpia sin
+  errores de consola; Boda sigue mostrando exactamente sus 6 fondos originales, sin cambios.
+- `npm run build`/`npm run lint` limpios (mismos 6 errores preexistentes de siempre, cero nuevos).
+  `docs/guia-de-uso.md` y `public/manual.html` actualizados (las menciones de "hoy solo hay fondos
+  de Boda" pasaron a "hoy hay fondos de Boda y de Cumpleaños") — `D:\InvitaMX\invitamx-manual-usuario.html`
+  deliberadamente no tocado, mismo precedente ya documentado varias veces en este archivo.
+
 ## Fotos listas: set de Cumpleaños, con dos sub-sets (niña/niño) (2026-11-24)
 
 Prompt en 2 versiones del dueño, construidas en la misma pasada: v1 agregaba 8 fotos de
