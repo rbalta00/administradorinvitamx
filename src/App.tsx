@@ -870,47 +870,91 @@ const getColorSugeridoPorTema = (temaId: string, tColors: any): string[] => {
   return [tColors.primary, tColors.secondary, "#FFFFFF"];
 };
 
+// Nombre de pareja/festejado ficticio para la demo del catálogo cuando se pide un evento
+// distinto a XV (?catalog=true&evento=boda) -- hoy solo boda, reutiliza la misma pareja
+// ficticia del set de fotos de muestra de boda (FOTOS_LISTAS, "Boda · Portada" etc. en
+// fotosListas.ts) para que el nombre coincida con las caras que se ven en la demo. Sin
+// entrada para un evento, el nombre real del tier (datosDefault.deluxe.nombre, "Luna
+// Isabella") se queda igual -- la demo de catálogo nunca dejó de ser XV por default.
+const NOMBRE_DEMO_CATALOGO_POR_EVENTO: Partial<Record<TipoEvento, string>> = {
+  boda: "Valeria & Diego"
+};
+
+// Itinerario de ejemplo para la demo de catálogo por evento -- reusa ITINERARIO_BODA_POR_PAQUETE
+// (ya existe para capturar invitaciones nuevas de boda) con el tier deluxe, el mismo que usa
+// toda demo de catálogo. Sin entrada para un evento, se deja el itinerario XV del default.
+const ITINERARIO_DEMO_CATALOGO_POR_EVENTO: Partial<Record<TipoEvento, { hora: string; evento: string }[]>> = {
+  boda: ITINERARIO_BODA_POR_PAQUETE.deluxe
+};
+
 // Genera un objeto de datos personalizado para el catálogo que garantiza que se muestren las características exactas del tema
-const getDatosCatalogTema = (baseDatos: any, t: any): any => {
+// `evento` (2026-11-25): cuando el catálogo se pide en modo boda (?catalog=true&evento=boda,
+// ver `?evento=` en getInitialState) cada demo se renderiza con tipoEvento:"boda" -- los
+// textos que ve el invitado (apertura/portada/mensaje/RSVP) ya cambian solos vía
+// textosEventoDe() en templates.ts con solo fijar ese campo; aquí solo hace falta pisar lo que
+// SÍ sigue siendo "de fábrica XV" en el dato mismo: el nombre, el mensaje de bienvenida, el
+// itinerario, y las fotos (las fotos por tema son de una quinceañera, nunca sirven para boda).
+const getDatosCatalogTema = (baseDatos: any, t: any, evento: TipoEvento = "xv"): any => {
   const base = baseDatos || datosDefault.premium;
-  // Obtener fotos del tema y seleccionar una aleatoria como portada
-  const fotosTema = getFotosPorTema(t.id);
+  const esXv = evento === "xv" || !TEXTOS_POR_EVENTO[evento];
+  // Pool de fotos: para XV, las fotos reales del TEMA (como siempre); para otro evento, las
+  // fotos de muestra de ESE evento (fotosListas.ts) -- el tema sigue siendo el mismo (colores/
+  // tipografía), solo cambian las fotos para no mostrar a una quinceañera en una demo de boda.
+  const fotosEventoCatalogo = esXv ? [] : fotosListasPorEvento(evento).map(f => f.url);
+  const fotosTema = fotosEventoCatalogo.length ? fotosEventoCatalogo : getFotosPorTema(t.id);
   const fotoPortadaAleatoria = fotosTema[Math.floor(Math.random() * fotosTema.length)];
 
   return {
     ...base,
     tema: t.id,
-    fotos: [], // Vaciamos para que use las hermosas fotos temáticas del tema
-    fotoPortada: fotoPortadaAleatoria, // Foto aleatoria de quinceañera como portada
+    tipoEvento: evento,
+    ...(esXv ? {} : {
+      nombre: NOMBRE_DEMO_CATALOGO_POR_EVENTO[evento] || base.nombre,
+      mensajeBienvenida: MENSAJE_BIENVENIDA_POR_EVENTO[evento] || base.mensajeBienvenida,
+      itinerario: ITINERARIO_DEMO_CATALOGO_POR_EVENTO[evento] || base.itinerario
+    }),
+    // Para XV se deja vacío (como siempre) -- generarHTMLFinal cae sola a getFotosPorTema(tema)
+    // cuando `fotos` está vacío, que es justo el fallback de fotos de quinceañera por tema que
+    // SÍ queremos para XV. Para otro evento, ese mismo fallback seguiría trayendo fotos de
+    // quinceañera (no sabe nada de tipoEvento) -- por eso aquí se llena `fotos` a mano con el
+    // pool del evento, para que ese fallback nunca se dispare en modo boda.
+    fotos: esXv ? [] : fotosTema,
+    fotoPortada: fotoPortadaAleatoria,
     colorSugerido: getColorSugeridoPorTema(t.id, t.colors)
   };
 };
 
 // Obtiene los datos del catálogo dando prioridad a diseños guardados por el usuario para cada tema específico
-const getDatosVisualizacionCatalog = (t: any, currentDatos?: any): any => {
-  try {
-    const saved = localStorage.getItem(`xv_diseño_guardado_tema_${t.id}`);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed && typeof parsed === "object") {
-        return {
-          ...parsed,
-          tema: t.id,
-          bgImages: {
-            ...(parsed.bgImages || {}),
-            ...(currentDatos?.bgImages || {})
-          }
-        };
+// `evento`: ver getDatosCatalogTema -- con un evento distinto a XV, el diseño guardado a mano
+// por el admin para ese tema (localStorage, siempre pensado/guardado en contexto XV) se
+// ignora a propósito, para que la demo de boda nunca se contamine con un nombre/foto de XV
+// que el admin haya guardado ahí en otra sesión.
+const getDatosVisualizacionCatalog = (t: any, currentDatos?: any, evento: TipoEvento = "xv"): any => {
+  if (evento === "xv") {
+    try {
+      const saved = localStorage.getItem(`xv_diseño_guardado_tema_${t.id}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === "object") {
+          return {
+            ...parsed,
+            tema: t.id,
+            bgImages: {
+              ...(parsed.bgImages || {}),
+              ...(currentDatos?.bgImages || {})
+            }
+          };
+        }
       }
+    } catch (err) {
+      console.error("Error al cargar diseño guardado del catálogo:", err);
     }
-  } catch (err) {
-    console.error("Error al cargar diseño guardado del catálogo:", err);
   }
 
   // Usamos el tier Deluxe como base para las demos del catálogo (en vez de Premium) para que
   // se vean TODAS las secciones posibles, incluida "Pases de Entrada" (exclusiva de Deluxe) —
   // así un cliente puede ver esa función antes de decidir qué paquete comprar.
-  const baseData = getDatosCatalogTema(datosDefault.deluxe, t);
+  const baseData = getDatosCatalogTema(datosDefault.deluxe, t, evento);
 
   // Asegurar que los bgImages del usuario se incluyan siempre en el catálogo
   const allBgImages = {
@@ -973,7 +1017,7 @@ function liberarTurnoPreviewCatalogo() {
   }
 }
 
-const LazyIframe = memo(({ t, index, datos }: { t: any; index: number; datos: any }) => {
+const LazyIframe = memo(({ t, index, datos, evento = "xv" }: { t: any; index: number; datos: any; evento?: TipoEvento }) => {
   const [shouldRender, setShouldRender] = useState(false);
   const turnoActivo = useRef(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -1032,8 +1076,8 @@ const LazyIframe = memo(({ t, index, datos }: { t: any; index: number; datos: an
 
   const srcDoc = useMemo(() => {
     if (!shouldRender) return "";
-    return generarHTMLFinal({ ...getDatosVisualizacionCatalog(t, datos), seccionesExcluidas: [...(getDatosVisualizacionCatalog(t, datos).seccionesExcluidas || []), "apertura"] }, t, { esDemoDeCatalogo: true });
-  }, [shouldRender, t, datos]);
+    return generarHTMLFinal({ ...getDatosVisualizacionCatalog(t, datos, evento), seccionesExcluidas: [...(getDatosVisualizacionCatalog(t, datos, evento).seccionesExcluidas || []), "apertura"] }, t, { esDemoDeCatalogo: true });
+  }, [shouldRender, t, datos, evento]);
 
   if (!shouldRender) {
     return (
@@ -3409,7 +3453,7 @@ function BloqueFondosListos({
 
 export default function App() {
   // Cargar estado inicial desde la URL si existe o desde localStorage, o el editor precargado
-  const getInitialState = (): { initialDatos: InvitacionDatos; initialTemaId: string; isView: boolean; isCatalog: boolean; initialCatalogTemaId: string | null; isEmbed: boolean } => {
+  const getInitialState = (): { initialDatos: InvitacionDatos; initialTemaId: string; isView: boolean; isCatalog: boolean; initialCatalogTemaId: string | null; initialCatalogEvento: TipoEvento; isEmbed: boolean } => {
     try {
       const params = new URLSearchParams(window.location.search);
       // Link corto /v/<codigoCorto> (2026-11-19): se trata como un modo vista más -- reusa
@@ -3423,6 +3467,12 @@ export default function App() {
       const isCatalog = params.get("catalog") === "true" || params.get("catalogo") === "true";
       const isEmbed = params.get("embed") === "true";
       const initialCatalogTemaId = params.get("tema") || null;
+      // Modo catálogo por evento (2026-11-25, prompt "/bodas"): ?catalog=true&evento=boda --
+      // sin este parámetro, o con cualquier valor que no sea un TipoEvento real, el catálogo
+      // se comporta exactamente como siempre (demos de XV). No afecta ningún otro modo (vista
+      // real de invitado, panel, embed) -- solo lo lee isCatalogMode más abajo.
+      const eventoParam = params.get("evento");
+      const initialCatalogEvento: TipoEvento = (eventoParam && TEXTOS_POR_EVENTO[eventoParam as TipoEvento]) ? (eventoParam as TipoEvento) : "xv";
       let targetTema = params.get("tema") || "mariposas";
 
       // Intentar cargar fondos persistentes locales
@@ -3452,6 +3502,7 @@ export default function App() {
             isView,
             isCatalog,
             initialCatalogTemaId,
+            initialCatalogEvento,
             isEmbed
           };
         }
@@ -3475,6 +3526,7 @@ export default function App() {
               isView,
               isCatalog,
               initialCatalogTemaId,
+              initialCatalogEvento,
               isEmbed
             };
           }
@@ -3494,6 +3546,7 @@ export default function App() {
         isView,
         isCatalog,
         initialCatalogTemaId,
+        initialCatalogEvento,
         isEmbed
       };
     } catch (e) {
@@ -3513,12 +3566,13 @@ export default function App() {
         isView: false,
         isCatalog: false,
         initialCatalogTemaId: null,
+        initialCatalogEvento: "xv",
         isEmbed: false
       };
     }
   };
 
-  const { initialDatos, initialTemaId, isView: isViewMode, isCatalog: isCatalogInitial, initialCatalogTemaId, isEmbed: isEmbedMode } = getInitialState();
+  const { initialDatos, initialTemaId, isView: isViewMode, isCatalog: isCatalogInitial, initialCatalogTemaId, initialCatalogEvento, isEmbed: isEmbedMode } = getInitialState();
 
   const queryParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
 
@@ -7236,7 +7290,7 @@ export default function App() {
                de cajón para poder combinar este tema con cualquiera de las 3 opciones */
             (() => {
               const temaDemoSel = temas.find(t => t.id === selectedCatalogTemaId) || temas[0];
-              const datosDemoBase = getDatosVisualizacionCatalog(temaDemoSel, datos);
+              const datosDemoBase = getDatosVisualizacionCatalog(temaDemoSel, datos, initialCatalogEvento);
               // Secciones a la carta que NO vienen incluidas según el paquete elegido -- misma
               // política real usada en Nuevo Cliente/paquetes.ts, para que la demo no le haga
               // creer al visitante que todo viene incluido sin importar qué compre.
@@ -7427,7 +7481,7 @@ export default function App() {
 
                             {/* Iframe minificado cargando el HTML final y ajustado exactamente al tamaño de la pantalla */}
                             <div className="w-full h-full overflow-hidden absolute inset-0 bg-white">
-                              <LazyIframe t={t} index={idx} datos={datos} />
+                              <LazyIframe t={t} index={idx} datos={datos} evento={initialCatalogEvento} />
                             </div>
                           </div>
                         </div>
