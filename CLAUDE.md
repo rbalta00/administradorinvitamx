@@ -2,6 +2,45 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Cierre: la frase de despedida no se lee en temas de fondo oscuro (2026-11-24, v1)
+
+Prompt del dueño (reporte real de la invitación de Luna Isabella, tema Celestial): en la sección
+16 (CIERRE Y DESPEDIDA, `src/templates.ts`), la frase «¡Te espero para celebrar de mi soñado
+día!» se pinta con `text-dark` (el color oscuro del tema) directo sobre `tema.bgGradient` (el
+degradado oscuro del mismo tema, vía `style` inline del `<footer>`) -- oscuro sobre oscuro, no se
+lee. El nombre (dorado, `text-accent`) y la línea final (`text-gray-400`, remapeada por el
+bloque de contraste existente) sí se veían.
+
+- **`TEMAS_DEGRADADO_OSCURO = ["celestial", "neon", "aurora-boreal"]`** (constante nueva, junto a
+  `TEMAS_CON_TEXTURA_PAPEL`): única fuente de "qué temas tienen degradado oscuro de base" --
+  reemplaza el chequeo manual `tema.id === "celestial" || tema.id === "neon"` que vivía repetido
+  en 4 lugares del bloque "Soporte de accesibilidad y alto contraste para Temas Oscuros" (velo,
+  tarjetas translúcidas, remapeo de grises) -- **aurora-boreal nunca entraba ahí**, aunque el
+  propio comentario de `TEMAS_CON_TEXTURA_PAPEL` ya lo reconocía como oscuro desde antes. Con el
+  fix, Aurora Boreal también recibe el remapeo de grises/velo/tarjetas cuando tiene foto de fondo
+  personalizada (antes solo Celestial/Neón). Glam Rose (degradado claro) deliberadamente no entra.
+- **Regla nueva, independiente del bloque anterior**: `[data-section="cierre"] .text-dark {
+  color: #f1f5f9 !important; }`, acotada SOLO a esa sección, SIN depender de `fondoEfectivo` (a
+  diferencia del bloque de arriba) -- el footer de cierre pinta su fondo con `tema.bgGradient`
+  siempre, con o sin foto de fondo subida, así que el problema (y el fix) aplican sobre todo en
+  el caso SIN foto, el más común. Los encabezados `.text-dark` de las demás secciones (van sobre
+  tarjetas claras) no se tocaron -- el selector nunca los alcanza.
+- **Errata corregida de paso**: «INIVTACIÓN DIGITAL PRIVADA • EXCLUSIVA» → «INVITACIÓN DIGITAL
+  PRIVADA • EXCLUSIVA», misma línea del cierre.
+- **Verificado en vivo** (`npm run dev`, importando `src/templates.ts`/`src/data.ts` directo
+  desde la consola del navegador y renderizando `generarHTMLFinal` en iframes reales, sin tocar
+  Supabase): Celestial/Neón/Aurora Boreal, SIN foto de fondo (el caso base) -- la frase del
+  cierre pasó de color oscuro del tema a `rgb(241,245,249)` sobre el degradado oscuro real de
+  cada uno, confirmado con `getComputedStyle`; Dorado Clásico y Glam Rose (control) sin cambio
+  (`rgb(42,36,21)`/`rgb(59,34,38)`, oscuro sobre su degradado claro, como siempre); los 8
+  encabezados `.text-dark` de otras secciones (Ceremonia/Recepción/Itinerario/etc.) confirmados
+  sin cambio (`rgb(8,12,20)`, el oscuro del tema); con foto de fondo personalizada en Aurora
+  Boreal, confirmado que ahora también hereda el remapeo de grises (`text-gray-400` →
+  `rgb(203,213,225)`) que antes solo tenían Celestial/Neón. Cero errores de consola.
+- `npm run lint`/`npm run build` limpios (mismos 6 errores preexistentes de `ImportMeta.env`,
+  cero nuevos).
+- **Sin commitear ni pushear** -- el prompt no lo pedía explícitamente.
+
 ## Fondos listos: set de Cumpleaños (2026-11-24, v1)
 
 Prompt del dueño ("Prompt Fondos Listos — CUMPLEAÑOS v1"), alcance explícitamente acotado a un

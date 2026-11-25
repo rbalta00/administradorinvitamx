@@ -273,6 +273,16 @@ const TEMAS_CON_TEXTURA_PAPEL = [
   "princesa-elegante", "marmol-oro", "coquette-pink", "coquette-luxe", "vino-elegante",
 ];
 
+// Temas de degradado OSCURO (fondo oscuro de base, sin foto -- celestial #070B19→#111B30, neon
+// #05050B→#150E28, aurora-boreal #050f2d→#1a0a3f). Única fuente de esta clasificación -- antes
+// el bloque "Soporte de accesibilidad y alto contraste para Temas Oscuros" (más abajo) revisaba
+// `tema.id === "celestial" || tema.id === "neon"` a mano en 3 lugares distintos y aurora-boreal
+// nunca entraba ahí, aunque el comentario de `TEMAS_CON_TEXTURA_PAPEL` arriba ya lo reconocía
+// como oscuro. Encontrado y corregido 2026-11-24 (ver prompt "Cierre: la frase de despedida no
+// se lee en temas de fondo oscuro"): glam-rose NO entra aquí a propósito -- su degradado
+// (`#FAF3F4→#F5E3E6`) es claro, no necesita este remapeo.
+const TEMAS_DEGRADADO_OSCURO = ["celestial", "neon", "aurora-boreal"];
+
 // Invitaciones 100% a la medida: el tema "personalizado" acepta overrides de tipografía,
 // paleta de color y tipo de apertura definidos por el admin para ESA invitación en particular.
 // El resto de temas del catálogo no se ven afectados por esto. Extraída como función aparte
@@ -1998,7 +2008,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       position: fixed;
       inset: 0;
       background: ${(() => {
-        const esOscuro = tema.id === "celestial" || tema.id === "neon";
+        const esOscuro = TEMAS_DEGRADADO_OSCURO.includes(tema.id);
         const opacidad = datos.fondoVeloOpacidad ?? (esOscuro ? 0.65 : 0.55);
         return esOscuro ? `rgba(8, 6, 16, ${opacidad})` : `rgba(255, 255, 255, ${opacidad})`;
       })()};
@@ -2016,15 +2026,15 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
     .theme-container .gold-card,
     .theme-container [data-section] > .bg-white,
     .theme-container [data-section] > .rounded-3xl {
-      background-color: ${tema.id === "celestial" || tema.id === "neon" ? "rgba(15, 23, 42, 0.90)" : "rgba(255, 255, 255, 0.93)"} !important;
+      background-color: ${TEMAS_DEGRADADO_OSCURO.includes(tema.id) ? "rgba(15, 23, 42, 0.90)" : "rgba(255, 255, 255, 0.93)"} !important;
       backdrop-filter: blur(12px) !important;
       -webkit-backdrop-filter: blur(12px) !important;
-      border: 1px solid ${tema.id === "celestial" || tema.id === "neon" ? "rgba(255,255,255,0.18)" : "rgba(255, 255, 255, 0.65)"} !important;
+      border: 1px solid ${TEMAS_DEGRADADO_OSCURO.includes(tema.id) ? "rgba(255,255,255,0.18)" : "rgba(255, 255, 255, 0.65)"} !important;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08) !important;
     }
 
     /* Soporte de accesibilidad y alto contraste para Temas Oscuros en textos grises */
-    ${tema.id === "celestial" || tema.id === "neon" ? `
+    ${TEMAS_DEGRADADO_OSCURO.includes(tema.id) ? `
     .theme-container {
       color: #f1f5f9 !important;
     }
@@ -2038,6 +2048,20 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
     .theme-container input, .theme-container select { background-color: rgba(30, 41, 59, 0.6) !important; color: #ffffff !important; border-color: rgba(255,255,255,0.2) !important; }
     .theme-container input::placeholder { color: #94a3b8 !important; }
     ` : ""}
+    ` : ""}
+
+    /* Contraste del cierre en temas de degradado oscuro (2026-11-24, ver prompt "Cierre: la frase
+       de despedida no se lee en temas de fondo oscuro"): a diferencia del bloque de arriba, esta
+       regla NO depende de 'fondoEfectivo' -- el footer de cierre pinta su fondo directo con
+       'tema.bgGradient' (style inline, sin pasar por el sistema de velo/fondo global) sin importar
+       si la invitación tiene o no una foto de fondo subida, así que el problema (texto oscuro de
+       '.text-dark' sobre el degradado oscuro del mismo tema) ocurre también -- de hecho sobre todo
+       -- cuando NO hay foto de fondo, el caso más común. Acotada a [data-section="cierre"] para
+       no tocar los encabezados '.text-dark' de ninguna otra sección (van sobre tarjetas/fondos
+       claros y se leen bien). Los temas claros (incluido Glam Rose, degradado claro) nunca entran
+       aquí -- su cierre se sigue viendo oscuro sobre degradado claro, como siempre. */
+    ${TEMAS_DEGRADADO_OSCURO.includes(tema.id) ? `
+    [data-section="cierre"] .text-dark { color: #f1f5f9 !important; }
     ` : ""}
 
     /* Ocultar/Apagar cajas del fondo de los textos de las secciones si el cliente lo prefiere */
@@ -2237,7 +2261,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       <p class="font-serif text-xl tracking-tight text-dark">¡Te espero para celebrar de mi soñado día!</p>
       
       <div class="w-12 h-1px bg-borderTheme/50 mx-auto mt-6 mb-2"></div>
-      <p class="text-[9px] font-mono tracking-widest text-gray-400">INIVTACIÓN DIGITAL PRIVADA • EXCLUSIVA</p>
+      <p class="text-[9px] font-mono tracking-widest text-gray-400">INVITACIÓN DIGITAL PRIVADA • EXCLUSIVA</p>
     </footer>
     ` : ""}
 
