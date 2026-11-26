@@ -1976,6 +1976,27 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       background-blend-mode: multiply;
     }` : ""}
 
+    ${soloPortada ? `
+    /* Previa del catálogo sin bandas blancas (2026-11-26, v5 -- punto B del prompt). Antes solo
+       el <section> de la portada llevaba el fondo/gradiente del tema; cualquier diferencia de
+       ancho entre ese <section> y <body> (el overlay de apertura oculto detrás, redondeo del
+       JIT de Tailwind, etc.) dejaba ver el blanco de <body> a los lados en los temas sin foto
+       de fondo completa (Dorado Clásico, Mármol & Oro, Floral Acuarela, Boho Chic...). Se fuerza
+       aquí a sangre completa, sin depender de ese <section>: si el tema usa el estilo "fondo"
+       (foto cubriendo toda la portada), se usa la misma foto como fondo de <body>; si no, el
+       degradado del tema. Nunca toca invitaciones reales ni "Ver Demo en Vivo" (ninguno de los
+       dos pasa soloPortada). */
+    html, body {
+      width: 100% !important;
+      margin: 0 !important;
+    }
+    body {
+      /* Punto C.2 del prompt: en la previa del catálogo NUNCA debe verse barra de scroll --
+         el alto real ya se mide en App.tsx (scrollHeight) para escalar la maqueta completa. */
+      overflow: hidden !important;
+      background: ${estiloPortadaEfectivo === "fondo" ? `url('${urlFotoPrincipalPortada}') center 20% / cover no-repeat, ${tema.bgGradient}` : tema.bgGradient} !important;
+    }
+    ` : ""}
     ${fondoEfectivo ? `
     /* Imagen de fondo de esta invitación (solo se muestra al abrir el sobre) -- ya sea subida a
        mano por tema, o un fondo "listo" de galería elegido para el evento actual (2026-11-22,
@@ -2273,7 +2294,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
   ` : ""}
 
   <!-- CONTENEDOR PRINCIPAL -->
-  <main class="max-w-[480px] mx-auto min-h-screen bg-white/10 shadow-2xl relative overflow-x-hidden flex flex-col pb-12">
+  <main class="${soloPortada ? "w-full" : "max-w-[480px] mx-auto"} min-h-screen bg-white/10 shadow-2xl relative overflow-x-hidden flex flex-col pb-12">
 
     ${contenidoSeccionesHTML}
     <!-- ==============================================

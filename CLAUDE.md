@@ -2,6 +2,66 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Vista previa y demo en vivo con forma de celular real (2026-11-26, v5 del catálogo)
+
+- Seguimiento directo de la v4 (2026-11-25, commit `4066a3d`): esa versión ya corrigió la proporción
+  del marco de la tarjeta (210×456) y la escala de la portada por el lado que más aprieta, pero
+  verificando en vivo contra el sitio real quedaron 2 defectos reales sin cerrar, diagnosticados
+  por el propio usuario antes de escribir el prompt: (1) dentro de la tarjeta, la portada no
+  llenaba el ancho del marco en los temas SIN foto de fondo completa (Dorado Clásico, Mármol &
+  Oro, Floral Acuarela, Boho Chic...) -- quedaban bandas blancas verticales a los lados, y
+  además la portada se recortaba por abajo con una barra de scroll interna (la altura se medía
+  una sola vez, demasiado pronto: cuando `readyState` dejaba de ser `"loading"`, antes de que
+  Tailwind/fuentes/foto terminaran de acomodar el documento). (2) "Ver Demo en Vivo" seguía
+  cargando la invitación completa dentro de un iframe ANCHO de escritorio (~1,240px) -- la
+  invitación quedaba como una columna angosta de ~490px flotando en medio de fondo vacío, nada
+  parecido a cómo la vería la clienta real en su celular.
+- **Punto B -- portada sin bandas blancas (`src/templates.ts`, SOLO dentro de `soloPortada`)**:
+  antes solo el `<section data-section="portada">` llevaba el fondo/gradiente del tema -- `body`
+  se quedaba blanco por default para cualquier tema que no usara el estilo "fondo" (foto de fondo
+  completa). Se agregó un bloque CSS nuevo, activo solo cuando `soloPortada` es `true`, que fuerza
+  `html,body{width:100%}` y pone en `body` el mismo fondo que tendría la portada (la foto principal
+  con `cover`/`center 20%` para el estilo "fondo", o `tema.bgGradient` para el resto) -- a sangre
+  completa, sin depender de que el `<section>` coincida exactamente con el ancho real del iframe.
+  De paso, `<main>` deja de llevar `max-w-[480px] mx-auto` en este modo (pasa a `w-full`): la
+  columna de contenido ya no puede quedar más angosta que el viewport virtual de 354px. Ninguno
+  de los dos cambios toca el HTML cuando `soloPortada` es `false` (invitaciones reales, "Ver Demo
+  en Vivo", exportar PDF) -- confirmado que `max-w-[480px] mx-auto` sigue intacto ahí.
+- **Punto C -- medición del alto real, sin corte ni scroll (`src/App.tsx`, `LazyIframe`)**: la
+  medición de `altoPortada` se separó en su propio efecto, disparado por el evento `load` del
+  iframe (no por polling de `readyState`) -- al cargar, mide, espera `document.fonts.ready` del
+  documento del iframe y vuelve a medir, y mide otra vez a los 300ms y a los 900ms; se conserva
+  siempre la medición MAYOR de todas (el contenido de un tema solo puede crecer al terminar de
+  acomodarse, nunca achicarse). El efecto que libera el turno de la cola de compilación de
+  Tailwind se dejó intacto, sin esperar a fuentes/imagen (seguiría bloqueando la cola de las
+  demás tarjetas sin necesidad). El `<iframe>` de la previa ahora lleva `scrolling="no"` y
+  `overflow:hidden` en su propio estilo, y el `<body>` del HTML `soloPortada` lleva
+  `overflow:hidden` -- nunca debe verse una barra de scroll dentro de la previa.
+- **Punto A -- "Ver Demo en Vivo" dentro de un marco de celular (`src/App.tsx`)**: el `<div
+  className="w-full h-[calc(100vh-260px)] ...">` que envolvía al iframe ancho se reemplazó por un
+  marco de celular centrado (gemelo del de las tarjetas del catálogo: fondo `slate-100`, borde
+  `slate-300`, esquinas redondeadas, muesca/isla dinámica superior) de hasta 400px de ancho y
+  `min(86vh, 820px)` de alto. El iframe de `DemoEnVivoConCarga` llena el 100% del marco (ancho y
+  alto) -- dentro, la invitación se renderiza nativamente a ancho de celular (~384px reales, sin
+  columna angosta flotando en fondo vacío), y la portada (`min-h-[92vh]`, SIN TOCAR -- nunca pasa
+  `soloPortada`) ocupa exactamente una pantalla del marco. En viewports de menos de 480px
+  (`max-[480px]:...`, confirmado que Tailwind lo compila como un único `@media not all and
+  (min-width:480px)`) el marco pierde borde/relleno/sombra/esquinas y el iframe pasa a ocupar
+  100% del ancho con `82vh` de alto. Los controles (nombre/fecha, paquete, estilo de cajón) siguen
+  FUERA y ENCIMA del marco, sin cambios -- ya estaban estructuralmente separados del contenedor
+  del iframe. `templates.ts` NO se tocó para este caso: la invitación completa, con sus
+  proporciones reales, nunca pasa `soloPortada`.
+- **Verificado en vivo** (build + `npx serve` local, Chrome): las 14 tarjetas del catálogo
+  (incluyendo Dorado Clásico, Mármol & Oro, Floral Acuarela, Boho Chic, Celestial, Neón, Coquette
+  Pink, Coquette Luxe, Aurora Boreal, Vino Elegante) muestran la portada completa, sin bandas
+  blancas, sin scroll ni corte inferior -- el texto/fecha final de cada portada es visible dentro
+  del marco. "Ver Demo en Vivo" de Mármol & Oro confirmado por DOM (`getBoundingClientRect`) y
+  visualmente: marco de celular centrado con notch, iframe interior renderizando la invitación a
+  ~384px de ancho real (sin laterales vacíos), controles visibles arriba. CSS del `@media
+  (max-width:480px)` confirmado compilado en `dist/assets/index-*.css` con las 7 reglas
+  esperadas. `npx tsc --noEmit`/`npm run build` limpios (los mismos 6 errores preexistentes de
+  `ImportMeta.env`, cero nuevos).
+
 ## Temas completos: itinerario por tema, 2 tipografías y 2 nombres/descripciones (2026-11-25, v1)
 
 El usuario revisó los 14 temas completos (textos/tipografía/colores/nombres/descripciones) contra

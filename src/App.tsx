@@ -1103,16 +1103,13 @@ const LazyIframe = memo(({ t, index, datos, evento = "xv" }: { t: any; index: nu
     // mismo recurso. Poll corto en vez de un listener de evento porque el documento del iframe
     // se reemplaza por completo al asignar `srcDoc` (un listener atado antes de ese reemplazo
     // nunca dispararía). 12s de respaldo por si algo raro impide que termine de parsear.
+    // (La medición del alto real vive en el efecto de abajo -- aquí solo se libera el turno de
+    // la cola de compilación de Tailwind, que no debe esperar a que fuentes/imágenes terminen.)
     let cancelado = false;
     const intervalo = setInterval(() => {
       const doc = iframeRef.current?.contentDocument;
       if (doc && doc.readyState !== "loading") {
         clearInterval(intervalo);
-        // Alto real de la portada (ya compacta, sin min-h-[92vh] en modo soloPortada -- ver
-        // templates.ts) -- con esto se calcula la escala exacta para que quepa entera, sin
-        // scroll interno ni recortes, sea cual sea la altura real de cada tema.
-        const alto = doc.body?.scrollHeight;
-        if (alto && alto > 0) setAltoPortada(alto);
         if (!cancelado) soltarTurnoUnaVez();
       }
     }, 150);
@@ -1124,6 +1121,42 @@ const LazyIframe = memo(({ t, index, datos, evento = "xv" }: { t: any; index: nu
       cancelado = true;
       clearInterval(intervalo);
       clearTimeout(respaldo);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shouldRender]);
+
+  // Medición del alto real de la portada (v5, 2026-11-26 -- punto C.1 del prompt). Antes se
+  // medía una sola vez, justo cuando el documento dejaba de estar "loading" -- demasiado
+  // pronto: Tailwind, las fuentes (@font-face) y la foto de portada todavía no habían acomodado
+  // el documento, así que la escala se calculaba con un alto más chico del real y la portada se
+  // veía cortada por abajo con scroll interno. Ahora se espera el evento "load" del iframe +
+  // document.fonts.ready, y se vuelve a medir a los 300ms y a los 900ms (fuentes/imagen pueden
+  // seguir acomodando el layout un instante después) -- se conserva la medición MAYOR de todas
+  // (el contenido solo puede crecer al terminar de cargar, nunca achicarse).
+  useEffect(() => {
+    if (!shouldRender) return;
+    let cancelado = false;
+    let mejorAlto = 0;
+    const medir = () => {
+      const doc = iframeRef.current?.contentDocument;
+      const alto = doc?.body?.scrollHeight;
+      if (alto && alto > mejorAlto) {
+        mejorAlto = alto;
+        if (!cancelado) setAltoPortada(mejorAlto);
+      }
+    };
+    const alCargar = () => {
+      medir();
+      const fonts = (iframeRef.current?.contentDocument as any)?.fonts;
+      Promise.resolve(fonts?.ready).catch(() => {}).then(() => { if (!cancelado) medir(); });
+      setTimeout(() => { if (!cancelado) medir(); }, 300);
+      setTimeout(() => { if (!cancelado) medir(); }, 900);
+    };
+    const iframeEl = iframeRef.current;
+    iframeEl?.addEventListener("load", alCargar);
+    return () => {
+      cancelado = true;
+      iframeEl?.removeEventListener("load", alCargar);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shouldRender]);
@@ -1159,10 +1192,12 @@ const LazyIframe = memo(({ t, index, datos, evento = "xv" }: { t: any; index: nu
         <iframe
           ref={iframeRef}
           srcDoc={srcDoc}
+          scrolling="no"
           className="absolute border-0 pointer-events-none select-none"
           style={{
             width: `${IFRAME_ANCHO_VIRTUAL}px`,
             height: `${altoPortada}px`,
+            overflow: "hidden",
             transform: `scale(${escala})`,
             transformOrigin: "top left",
             top: `${offsetY}px`,
@@ -7493,11 +7528,25 @@ export default function App() {
                     Viendo cómo se vería tu paquete: <span className="text-indigo-600">{paquetes[catalogDemoPaquete].nombre}</span> ({paquetes[catalogDemoPaquete].precio})
                     {seccionesExcluidasPorPaquete.includes("pases") && " — Pases de Entrada no incluidos en este paquete"}
                   </p>
-                  <div className="w-full h-[calc(100vh-260px)] rounded-2xl border border-slate-200 overflow-hidden shadow-xl bg-white">
-                    <DemoEnVivoConCarga
-                      srcDoc={generarHTMLFinal(datosDemoPersonalizada, temaDemoSel, { esDemoDeCatalogo: true })}
-                      title="Invitación Demo en Vivo"
-                    />
+                  {/* Demo en vivo dentro de un marco de celular (2026-11-26, v5 del prompt de
+                      portada/previa/foto) -- antes el iframe era w-full/h-full de esta área ancha
+                      de escritorio, mostrando la invitación como una columna angosta flotando en
+                      medio de fondo vacío. Ahora se ve como la verá la clienta: dentro de un
+                      marco con proporción real de celular, gemelo del de las tarjetas del
+                      catálogo (mismo borde/radios), centrado en esta área. templates.ts NO se
+                      toca para este caso -- la invitación sigue siendo la completa, sin
+                      soloPortada; solo cambia el tamaño del contenedor que la envuelve. */}
+                  <div className="w-full h-[calc(100vh-260px)] rounded-2xl border border-slate-200 overflow-hidden shadow-inner bg-slate-100 flex items-center justify-center p-3 sm:p-6">
+                    <div className="relative w-full max-w-[400px] h-[min(86vh,820px)] bg-slate-100 rounded-[38px] p-[5px] border-[3px] border-slate-300 shadow-[0_20px_45px_-10px_rgba(15,23,42,0.25),0_10px_20px_-6px_rgba(15,23,42,0.15)] max-[480px]:max-w-none max-[480px]:h-[82vh] max-[480px]:rounded-none max-[480px]:border-0 max-[480px]:p-0 max-[480px]:shadow-none">
+                      {/* Isla dinámica / muesca superior -- gemela de la del catálogo, se esconde en celulares reales (<480px) */}
+                      <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-24 h-5 bg-slate-800 rounded-full z-20 max-[480px]:hidden" />
+                      <div className="w-full h-full rounded-[32px] bg-white overflow-hidden relative max-[480px]:rounded-none">
+                        <DemoEnVivoConCarga
+                          srcDoc={generarHTMLFinal(datosDemoPersonalizada, temaDemoSel, { esDemoDeCatalogo: true })}
+                          title="Invitación Demo en Vivo"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               );
