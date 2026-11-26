@@ -2,6 +2,63 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Catálogo: vista previa legible y carga rápida (2026-11-25, v1)
+
+Pedido de Isaac tras ver una captura del catálogo (`?catalog=true`): las 14 previas se veían
+diminutas/ilegibles y el catálogo cargaba lento. Diagnóstico de Muse (verificado en código antes
+de tocar nada): cada tarjeta montaba un iframe VIVO con la invitación COMPLETA (16 secciones,
+galería de 8 fotos a tamaño completo, Tailwind CDN JIT ~3s por iframe), escalada a 0.404 dentro
+de una maqueta de celular de 154×262px -- se aplastaba toda la invitación (no solo la portada) en
+un espacio minúsculo, y las últimas tarjetas esperaban decenas de segundos en la cola.
+
+- **`generarHTMLFinal` gana una opción nueva `soloPortada`** (`templates.ts`) -- cuando está
+  activa, `isSectionActive` solo deja pasar "portada" (ninguna otra sección, sin importar paquete/
+  `seccionesExcluidas` reales de la demo) y las URLs de Cloudinary del fondo del tema
+  (`fondoEfectivo`) y la foto de portada (`urlFotoPrincipalPortada`) se aligeran con
+  `w_700,q_auto,f_auto` insertado tras `/upload/` (`aligerarUrlCloudinaria`, nueva -- si la URL no
+  es de Cloudinary se deja intacta, nunca se inventa una URL rota). **Solo la usa `LazyIframe`**
+  (la previa chica del grid, `App.tsx`) -- "Ver Demo en Vivo" (la invitación completa e
+  interactiva, con sus controles de paquete/estilo de cajón) sigue con `esDemoDeCatalogo: true` a
+  secas, sin `soloPortada`, y las invitaciones reales (`/v/<codigo>`) y el preview del editor
+  tampoco la reciben nunca.
+- **`LazyIframe` reescrita**: el temporizador de montaje (`setTimeout(150 + index*80)`, pedía
+  turno para TODAS las tarjetas aunque no estuvieran a la vista) se reemplazó por un
+  `IntersectionObserver` (`rootMargin: "400px"`) que solo pide turno cuando la tarjeta está por
+  entrar a pantalla -- el orden real de carga ahora lo decide el scroll del usuario, no el índice
+  de la tarjeta. `MAX_PREVIEWS_CATALOGO_SIMULTANEAS` subido de 1 a 2 (con la previa ahora mucho
+  más ligera, Tailwind ya no compite tanto por el hilo principal -- probado en vivo con 2 sin que
+  se repita el "renderer frozen" documentado cuando se intentó antes con la invitación completa).
+- **Maqueta del celular agrandada**: de 154×262px a 196×340px (contenedor de cabecera de
+  `h-80`/320px a `h-[400px]`), iframe real 354×630px con `scale(0.5226)` (antes 354×642 a 0.404)
+  -- con solo la portada renderizada (mucho más corta que la invitación completa), el mismo
+  tamaño de maqueta más grande ya muestra el nombre/fecha perfectamente legibles, sin aplastar
+  nada extra.
+- **"Ver Demo en Vivo" con indicador de carga**: componente nuevo `DemoEnVivoConCarga` (mismo
+  criterio de `readyState` que ya usaba la cola de previas) muestra "Cargando tu demo…" con
+  spinner mientras el iframe termina de parsear, luego se ve la invitación completa de siempre --
+  el contenido/controles (paquete, estilo de cajón, WhatsApp) no cambiaron en nada.
+- **Descripciones únicas**: 4 temas caían en el genérico "Un diseño lujoso y resplandeciente." sin
+  tener la suya propia -- coquette-pink/coquette-luxe (el par que reportó el usuario, idénticas
+  entre sí) y, encontrados en la misma auditoría del if/else de descripciones (no reportados
+  explícitamente, pero el pedido decía "verificar que ningún otro tema quede con el texto genérico
+  repetido"), aurora-boreal y vino-elegante. Los 14 temas ya tienen descripción propia.
+- **Verificado en vivo** (`npm run build` + `npx serve dist/`, Claude in Chrome): en modo XV y en
+  modo boda (`?catalog=true&evento=boda`) las previas cargan en cascada conforme se hace scroll
+  (confirmado con `IntersectionObserver` real, no solo leído en código), muestran el nombre/fecha
+  legibles en la maqueta grande, y se confirmó por JS (`iframe.contentDocument`) que cada previa
+  trae `secciones: ["portada"]` exacto (nada de galería/confirmación/etc.) y que la imagen de
+  portada SÍ trae `w_700,q_auto,f_auto` en la URL. El preview real del editor (`esVistaPreviaEditor`,
+  invitación real "Emma Elizabeth", sin ningún parámetro de catálogo) se confirmó con las 14
+  secciones completas y las imágenes SIN ninguna transformación agregada -- idéntico a como se veía
+  antes de este cambio. "Ver Demo en Vivo" confirmado con las 14 secciones completas (el paquete
+  Estándar de la demo excluye "pases" correctamente, comportamiento preexistente sin tocar). Las 4
+  descripciones nuevas confirmadas visualmente, ya no repiten el texto genérico entre sí.
+- `npm run lint`/`npm run build` limpios (mismos 6 errores preexistentes de `ImportMeta.env`/
+  `unknown`, cero nuevos).
+- Sin tocar: embed del catálogo de `invitacionmx-catalogo` (línea ~7168, `embedTema`, usado por su
+  `ThemePreview`, fuera de alcance explícito del pedido), el demo de "estilo de cajas" (~línea
+  7300), ni ninguna invitación real/link compartido.
+
 ## Cierre: la frase de despedida no se lee en temas de fondo oscuro (2026-11-24, v1)
 
 Prompt del dueño (reporte real de la invitación de Luna Isabella, tema Celestial): en la sección

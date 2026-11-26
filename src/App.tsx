@@ -996,7 +996,11 @@ const getDatosVisualizacionCatalog = (t: any, currentDatos?: any, evento: TipoEv
 // la propia prueba empezaron a fallar por "renderer frozen or unresponsive" aunque la página
 // seguía respondiendo a JS. Con 1 a la vez nunca hay dos compilaciones de Tailwind compitiendo
 // por el hilo principal al mismo tiempo.
-const MAX_PREVIEWS_CATALOGO_SIMULTANEAS = 1;
+// Subido a 2 (2026-11-25): con la previa ahora en modo "solo portada" (ver soloPortada en
+// templates.ts) el DOM que Tailwind tiene que compilar es una fracción del de antes (sin
+// galería/secciones extra) -- vuelto a probar en vivo con 2 a la vez y ya no se repite el
+// "renderer frozen", confirmado en la verificación de esta misma tarea.
+const MAX_PREVIEWS_CATALOGO_SIMULTANEAS = 2;
 let previewsCatalogoActivas = 0;
 const colaPreviewsCatalogo: Array<() => void> = [];
 
@@ -1021,6 +1025,7 @@ const LazyIframe = memo(({ t, index, datos, evento = "xv" }: { t: any; index: nu
   const [shouldRender, setShouldRender] = useState(false);
   const turnoActivo = useRef(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const contenedorRef = useRef<HTMLDivElement>(null);
 
   const soltarTurnoUnaVez = () => {
     if (turnoActivo.current) {
@@ -1029,18 +1034,27 @@ const LazyIframe = memo(({ t, index, datos, evento = "xv" }: { t: any; index: nu
     }
   };
 
+  // Antes era un temporizador de montaje (todas las tarjetas pedían su turno aunque estuvieran
+  // lejos del scroll, estén o no a la vista). Ahora un IntersectionObserver pide el turno solo
+  // cuando la tarjeta está por entrar a pantalla (rootMargin ~400px, para que ya esté lista
+  // cuando el usuario llegue) -- `index` ya no decide el orden, el scroll real del usuario sí.
   useEffect(() => {
     let cancelado = false;
-    const timer = setTimeout(() => {
+    const el = contenedorRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some(e => e.isIntersecting)) return;
+      observer.disconnect();
       pedirTurnoPreviewCatalogo().then(() => {
         if (cancelado) { liberarTurnoPreviewCatalogo(); return; }
         turnoActivo.current = true;
         setShouldRender(true);
       });
-    }, 150 + index * 80); // Carga escalonada ligera y fluida
+    }, { rootMargin: "400px" });
+    observer.observe(el);
     return () => {
       cancelado = true;
-      clearTimeout(timer);
+      observer.disconnect();
       soltarTurnoUnaVez();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1076,35 +1090,82 @@ const LazyIframe = memo(({ t, index, datos, evento = "xv" }: { t: any; index: nu
 
   const srcDoc = useMemo(() => {
     if (!shouldRender) return "";
-    return generarHTMLFinal({ ...getDatosVisualizacionCatalog(t, datos, evento), seccionesExcluidas: [...(getDatosVisualizacionCatalog(t, datos, evento).seccionesExcluidas || []), "apertura"] }, t, { esDemoDeCatalogo: true });
+    // soloPortada (2026-11-25): la previa del catálogo ya no carga la invitación completa --
+    // solo la portada (lo que la clienta de verdad compara entre temas), con imágenes ligeras
+    // (ver aligerarUrlCloudinaria en templates.ts) -- el demo completo sigue siendo
+    // "Ver Demo en Vivo", sin tocar.
+    return generarHTMLFinal({ ...getDatosVisualizacionCatalog(t, datos, evento), seccionesExcluidas: [...(getDatosVisualizacionCatalog(t, datos, evento).seccionesExcluidas || []), "apertura"] }, t, { esDemoDeCatalogo: true, soloPortada: true });
   }, [shouldRender, t, datos, evento]);
 
-  if (!shouldRender) {
-    return (
-      <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-100 text-slate-800 select-none pointer-events-none">
-        <div className="animate-pulse flex flex-col items-center gap-1.5">
-          <div className="w-5 h-5 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin" />
-          <span className="text-[8px] text-indigo-700/80 font-bold uppercase tracking-widest">Cargando...</span>
+  return (
+    <div ref={contenedorRef} className="absolute inset-0">
+      {!shouldRender ? (
+        <div className="w-full h-full flex flex-col items-center justify-center bg-slate-100 text-slate-800 select-none pointer-events-none">
+          <div className="animate-pulse flex flex-col items-center gap-1.5">
+            <div className="w-5 h-5 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin" />
+            <span className="text-[8px] text-indigo-700/80 font-bold uppercase tracking-widest">Cargando...</span>
+          </div>
         </div>
-      </div>
-    );
-  }
+      ) : (
+        <iframe
+          ref={iframeRef}
+          srcDoc={srcDoc}
+          className="absolute border-0 pointer-events-none select-none"
+          style={{
+            width: "354px",
+            height: "630px",
+            transform: "scale(0.5226)",
+            transformOrigin: "top left",
+            top: "0",
+            left: "0",
+          }}
+          title={`Demo ${t.nombre}`}
+        />
+      )}
+    </div>
+  );
+});
+
+// "Ver Demo en Vivo" (invitación completa de un solo tema, con sus controles de paquete/estilo
+// de cajón) -- a diferencia de LazyIframe, esta SÍ es la invitación completa, nunca soloPortada;
+// solo le agrega un indicador de carga mientras el documento del iframe termina de parsearse
+// (mismo criterio de readyState que ya usa la cola de previas del catálogo), para que no se vea
+// en blanco durante el tiempo que tarda Tailwind CDN en compilar. 2026-11-25.
+const DemoEnVivoConCarga = memo(({ srcDoc, title }: { srcDoc: string; title: string }) => {
+  const [cargando, setCargando] = useState(true);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  useEffect(() => {
+    setCargando(true);
+    let cancelado = false;
+    const intervalo = setInterval(() => {
+      const doc = iframeRef.current?.contentDocument;
+      if (doc && doc.readyState !== "loading") {
+        clearInterval(intervalo);
+        if (!cancelado) setCargando(false);
+      }
+    }, 150);
+    const respaldo = setTimeout(() => {
+      clearInterval(intervalo);
+      if (!cancelado) setCargando(false);
+    }, 12000);
+    return () => {
+      cancelado = true;
+      clearInterval(intervalo);
+      clearTimeout(respaldo);
+    };
+  }, [srcDoc]);
 
   return (
-    <iframe
-      ref={iframeRef}
-      srcDoc={srcDoc}
-      className="absolute border-0 pointer-events-none select-none"
-      style={{
-        width: "354px",
-        height: "642px",
-        transform: "scale(0.404)",
-        transformOrigin: "top left",
-        top: "0",
-        left: "0",
-      }}
-      title={`Demo ${t.nombre}`}
-    />
+    <div className="relative w-full h-full">
+      {cargando && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/90 backdrop-blur-sm gap-3">
+          <div className="w-10 h-10 rounded-full border-4 border-indigo-600 border-t-transparent animate-spin" />
+          <span className="text-sm font-bold text-indigo-700">Cargando tu demo…</span>
+        </div>
+      )}
+      <iframe ref={iframeRef} srcDoc={srcDoc} className="w-full h-full border-0" title={title} />
+    </div>
   );
 });
 
@@ -7384,9 +7445,8 @@ export default function App() {
                     {seccionesExcluidasPorPaquete.includes("pases") && " — Pases de Entrada no incluidos en este paquete"}
                   </p>
                   <div className="w-full h-[calc(100vh-260px)] rounded-2xl border border-slate-200 overflow-hidden shadow-xl bg-white">
-                    <iframe
+                    <DemoEnVivoConCarga
                       srcDoc={generarHTMLFinal(datosDemoPersonalizada, temaDemoSel, { esDemoDeCatalogo: true })}
-                      className="w-full h-full border-0"
                       title="Invitación Demo en Vivo"
                     />
                   </div>
@@ -7420,6 +7480,10 @@ export default function App() {
                   if (t.id === "princesa-elegante") descripcion = "Digno de la realeza. Distinguido, clásico y de alta alcurnia, con tiaras heráldicas y estética principesca 👑";
                   if (t.id === "marmol-oro") descripcion = "Sofisticado, contemporáneo y ultra premium. Vetas de mármol pulido realzado con costuras de oro pulido 💎";
                   if (t.id === "neon") descripcion = "Ciberpunk, vibrante y electrizante. Un fondo oscuro de noche urbana iluminado con espectaculares destellos de luz de neón rosa, cian y amarillo-bizarro ⚡";
+                  if (t.id === "coquette-pink") descripcion = "Romántico y coqueto. Listones y moños en rosa empolvado con destellos suaves, para una quinceañera dulce y femenina 🎀";
+                  if (t.id === "coquette-luxe") descripcion = "Elegancia y oro. Rosa empolvado con dorado lujoso y brillo de alta gama, para una entrada de princesa moderna 💎";
+                  if (t.id === "aurora-boreal") descripcion = "Onírico y polar. Un cielo nocturno profundo surcado por velos de luz verde y violeta, como una aurora boreal real 🌌";
+                  if (t.id === "vino-elegante") descripcion = "Sofisticado y de gala. Tonos vino/borgoña profundos con acentos champán y dorado, para una celebración de salón 🍷";
 
                   return (
                     <div 
@@ -7427,7 +7491,7 @@ export default function App() {
                       className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md transition duration-300 flex flex-col h-full"
                     >
                       {/* Cabecera visual del tema + Mini Vista Previa Interactiva en Vivo en forma de Celular */}
-                      <div className="relative h-80 overflow-hidden border-b border-slate-150 group flex items-center justify-center select-none" style={{ backgroundColor: lightBgColor }}>
+                      <div className="relative h-[400px] overflow-hidden border-b border-slate-150 group flex items-center justify-center select-none" style={{ backgroundColor: lightBgColor }}>
                         
                         {/* Fondo de estudio decorativo claro adaptado al color de fondo y primario del tema */}
                         <div 
@@ -7458,7 +7522,7 @@ export default function App() {
                         />
 
                         {/* Maqueta del Celular Realista */}
-                        <div className="relative z-10 w-[154px] h-[262px] bg-slate-100 rounded-[28px] p-[3.5px] border-[2px] border-slate-300 shadow-[0_12px_30px_-5px_rgba(15,23,42,0.15),0_8px_16px_-6px_rgba(15,23,42,0.1)] flex flex-col transition-all duration-300 group-hover:scale-105 group-hover:border-indigo-300 group-hover:shadow-[0_18px_38px_-8px_rgba(99,102,241,0.22),0_8px_18px_rgba(15,23,42,0.12)]">
+                        <div className="relative z-10 w-[196px] h-[340px] bg-slate-100 rounded-[32px] p-[3.5px] border-[2px] border-slate-300 shadow-[0_12px_30px_-5px_rgba(15,23,42,0.15),0_8px_16px_-6px_rgba(15,23,42,0.1)] flex flex-col transition-all duration-300 group-hover:scale-105 group-hover:border-indigo-300 group-hover:shadow-[0_18px_38px_-8px_rgba(99,102,241,0.22),0_8px_18px_rgba(15,23,42,0.12)]">
                           
                           {/* Botones físicos laterales simulados */}
                           <div className="absolute top-12 -left-[2.5px] w-[2.5px] h-6 bg-slate-300 rounded-l transition-colors duration-300 group-hover:bg-indigo-300" />

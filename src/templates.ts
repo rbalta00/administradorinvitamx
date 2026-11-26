@@ -384,7 +384,7 @@ export function resolverFondoEfectivo(datos: InvitacionDatos, tema: TemaConfig):
   return datos.bgImages?.[tema.id];
 }
 
-export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opciones?: { esDemoDeCatalogo?: boolean; esVistaPreviaEditor?: boolean; paraExportarPDF?: boolean }): string {
+export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opciones?: { esDemoDeCatalogo?: boolean; esVistaPreviaEditor?: boolean; paraExportarPDF?: boolean; soloPortada?: boolean }): string {
   const esDemoDeCatalogo = opciones?.esDemoDeCatalogo === true;
   const paraExportarPDF = opciones?.paraExportarPDF === true;
   // El monitor de invitación del propio editor (App.tsx: actualizarVistaPrevia) renderiza este
@@ -392,6 +392,24 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
   // con esDemoDeCatalogo abajo (mismo candado, misma razón: sin esto, cada recarga del preview
   // se auto-scrolleaba a "pases" 1.2s después, arrastrando al admin lejos de donde editaba).
   const esVistaPreviaEditor = opciones?.esVistaPreviaEditor === true;
+  // Vista previa diminuta del catálogo (2026-11-25, LazyIframe en App.tsx): solo la portada,
+  // nunca el demo completo "Ver Demo en Vivo" (ese sigue con esDemoDeCatalogo normal, sin esta
+  // bandera) -- las 14 tarjetas del grid cargaban antes la invitación COMPLETA (galería de 8
+  // fotos, Tailwind CDN entero) solo para mostrarla aplastada en un celular de 154px, lo que
+  // hacía el catálogo lento e ilegible. Con soloPortada, isSectionActive más abajo excluye todo
+  // menos "portada" sin importar el paquete/seccionesExcluidas reales de la demo.
+  const soloPortada = opciones?.soloPortada === true;
+  // Cloudinary ya acepta encadenar una transformación como primer segmento después de "/upload/"
+  // (ej. ".../upload/w_700,q_auto,f_auto/v123.../archivo.jpg") -- si la URL no es de Cloudinary
+  // (u otra variante sin "/upload/"), se deja intacta, nunca se inventa una URL rota. Solo se usa
+  // en modo soloPortada; las invitaciones reales y "Ver Demo en Vivo" siguen a tamaño completo.
+  const aligerarUrlCloudinaria = (url: string | undefined): string | undefined => {
+    if (!soloPortada || !url) return url;
+    const marcador = "/upload/";
+    const idx = url.indexOf(marcador);
+    if (idx === -1) return url;
+    return `${url.slice(0, idx + marcador.length)}w_700,q_auto,f_auto/${url.slice(idx + marcador.length)}`;
+  };
   // Textos visibles por el invitado según el tipo de evento (2026-11-19) -- ver TEXTOS_POR_EVENTO
   // arriba. Resuelto una sola vez aquí y usado en todos los lugares de este archivo que antes
   // tenían el texto de XV años fijo.
@@ -401,7 +419,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
   // "listo" de galería elegido para el EVENTO actual manda sobre el fondo subido a mano por
   // TEMA; si no hay ninguno de los dos, no hay fondo personalizado y se usa el degradado del
   // tema como siempre.
-  const fondoEfectivo = resolverFondoEfectivo(datos, tema);
+  const fondoEfectivo = aligerarUrlCloudinaria(resolverFondoEfectivo(datos, tema));
 
   // Aseguramos que existan fotos válidas, si no, tomamos las ficticias del tema
   const fotosValidas = (datos.fotos || []).filter(f => f && typeof f === "string" && f.trim() !== "");
@@ -583,7 +601,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
     String(str ?? '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 
   // Definimos de forma segura la visibilidad inicial de las secciones en base al paquete
-  const isSectionActive = (secName: string) => seccionesActivas.includes(secName);
+  const isSectionActive = (secName: string) => soloPortada ? secName === "portada" : seccionesActivas.includes(secName);
 
   // Textura de papel sutil (2026-11-20, ver TEMAS_CON_TEXTURA_PAPEL/texturaPapelSobre arriba):
   // decidida por el tema EFECTIVO (ya resuelto el override de "personalizado" más arriba),
@@ -1255,7 +1273,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
   // una foto real (es la foto misma la que se usa de fondo); sin foto, o con "Mostrar foto de
   // portada" apagado, cae a "circular" también -- nunca se queda a medias.
   const hayFotoPrincipalPortada = (datos.fotoPortada && datos.fotoPortada.trim() !== "") || fotosFiltradas.length > 0;
-  const urlFotoPrincipalPortada = (datos.fotoPortada && datos.fotoPortada.trim() !== "") ? datos.fotoPortada.trim() : (fotosFiltradas[0] || "");
+  const urlFotoPrincipalPortada = aligerarUrlCloudinaria((datos.fotoPortada && datos.fotoPortada.trim() !== "") ? datos.fotoPortada.trim() : (fotosFiltradas[0] || "")) || "";
   // Debe coincidir exactamente con estiloPortadaPorDefectoDelTema en App.tsx (misma lista de
   // temas, mismo orden de prioridad).
   const estiloPortadaPorDefectoDelTemaActivo: "circular" | "arco" | "fondo" | "marco" =
