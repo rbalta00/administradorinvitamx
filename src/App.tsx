@@ -993,6 +993,27 @@ const getDatosVisualizacionCatalog = (t: any, currentDatos?: any, evento: TipoEv
   };
 };
 
+// Fix "demo en vivo desajustado en celular" (2026-11-26): esta página (?catalog=true) se
+// embebe en un <iframe> de ALTURA FIJA dentro de la landing (invitacionmx-landing,
+// Themes.tsx -- 4100px, medida para que el GRID de 14 tarjetas quepa sin scroll interno). "Ver
+// Demo en Vivo" cambiaba un estado local DENTRO de ese mismo documento/iframe -- el marco de
+// celular de la demo usa alturas en `vh` (línea ~7540, incluye un breakpoint móvil SIN tope,
+// `max-[480px]:h-[82vh]`) que se calculan contra el alto del iframe (4100px), no contra la
+// pantalla real del celular -- en móvil eso da un marco de ~3362px de alto, rompiendo el
+// layout. Fuera de la landing (uso directo en invitaciones.invitamx.app, sin iframe) el `vh`
+// sí coincide con la pantalla real y nunca se ha visto el problema. Por eso solo cuando esta
+// página está embebida se cambia a abrir la demo en una PESTAÑA NUEVA (ventana/viewport real,
+// sin el iframe de por medio) en vez de solo cambiar el estado local.
+const estaEmbebidoEnIframe = (() => {
+  try {
+    return typeof window !== "undefined" && window.self !== window.top;
+  } catch {
+    // Acceso bloqueado por el navegador (iframe de otro origen) -- confirma que SÍ hay un
+    // iframe de por medio, aunque no se pueda leer `window.top` directamente.
+    return true;
+  }
+})();
+
 // Componente para cargar los iframes del catálogo de forma diferida (staggered), evitando bloquear el hilo principal (INP Issue)
 // Cola de concurrencia para las 14 vistas previas del catálogo (?catalog=true): cada una
 // incluye <script src="https://cdn.tailwindcss.com"> en su <head> (ver generarHTMLFinal en
@@ -3598,7 +3619,7 @@ function BloqueFondosListos({
 
 export default function App() {
   // Cargar estado inicial desde la URL si existe o desde localStorage, o el editor precargado
-  const getInitialState = (): { initialDatos: InvitacionDatos; initialTemaId: string; isView: boolean; isCatalog: boolean; initialCatalogTemaId: string | null; initialCatalogEvento: TipoEvento; isEmbed: boolean } => {
+  const getInitialState = (): { initialDatos: InvitacionDatos; initialTemaId: string; isView: boolean; isCatalog: boolean; initialCatalogTemaId: string | null; initialCatalogEstiloCajasId: "normal" | "sin_cajon" | "solo_borde" | null; initialCatalogEvento: TipoEvento; isEmbed: boolean } => {
     try {
       const params = new URLSearchParams(window.location.search);
       // Link corto /v/<codigoCorto> (2026-11-19): se trata como un modo vista más -- reusa
@@ -3612,6 +3633,16 @@ export default function App() {
       const isCatalog = params.get("catalog") === "true" || params.get("catalogo") === "true";
       const isEmbed = params.get("embed") === "true";
       const initialCatalogTemaId = params.get("tema") || null;
+      // Deep-link al demo comparativo de "Estilos de Presentación" (2026-11-26, fix de "demo
+      // desajustado en celular"): ?catalog=true&estiloCajas=sin_cajon -- igual que `tema`,
+      // sirve para abrir ESE demo directo sin pasar por el grid primero. Se usa para que "Ver
+      // Demo en Vivo" pueda abrir una pestaña nueva (ventana/viewport real) en vez de cambiar
+      // el estado local dentro del mismo documento embebido en el iframe de la landing.
+      const estiloCajasParam = params.get("estiloCajas");
+      const initialCatalogEstiloCajasId: "normal" | "sin_cajon" | "solo_borde" | null =
+        estiloCajasParam === "normal" || estiloCajasParam === "sin_cajon" || estiloCajasParam === "solo_borde"
+          ? estiloCajasParam
+          : null;
       // Modo catálogo por evento (2026-11-25, prompt "/bodas"): ?catalog=true&evento=boda --
       // sin este parámetro, o con cualquier valor que no sea un TipoEvento real, el catálogo
       // se comporta exactamente como siempre (demos de XV). No afecta ningún otro modo (vista
@@ -3647,6 +3678,7 @@ export default function App() {
             isView,
             isCatalog,
             initialCatalogTemaId,
+            initialCatalogEstiloCajasId,
             initialCatalogEvento,
             isEmbed
           };
@@ -3671,6 +3703,7 @@ export default function App() {
               isView,
               isCatalog,
               initialCatalogTemaId,
+              initialCatalogEstiloCajasId,
               initialCatalogEvento,
               isEmbed
             };
@@ -3691,6 +3724,7 @@ export default function App() {
         isView,
         isCatalog,
         initialCatalogTemaId,
+        initialCatalogEstiloCajasId,
         initialCatalogEvento,
         isEmbed
       };
@@ -3711,13 +3745,14 @@ export default function App() {
         isView: false,
         isCatalog: false,
         initialCatalogTemaId: null,
+        initialCatalogEstiloCajasId: null,
         initialCatalogEvento: "xv",
         isEmbed: false
       };
     }
   };
 
-  const { initialDatos, initialTemaId, isView: isViewMode, isCatalog: isCatalogInitial, initialCatalogTemaId, initialCatalogEvento, isEmbed: isEmbedMode } = getInitialState();
+  const { initialDatos, initialTemaId, isView: isViewMode, isCatalog: isCatalogInitial, initialCatalogTemaId, initialCatalogEstiloCajasId, initialCatalogEvento, isEmbed: isEmbedMode } = getInitialState();
 
   const queryParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
 
@@ -3935,7 +3970,7 @@ export default function App() {
   const [selectedCatalogTemaId, setSelectedCatalogTemaId] = useState<string | null>(initialCatalogTemaId);
   // Demo comparativa de "Estilos de Contenedores de Sección" (Con cajón/Sin cajón/Solo borde):
   // usa siempre el mismo tema de referencia para que la única diferencia visible sea el cajón.
-  const [selectedEstiloCajasDemo, setSelectedEstiloCajasDemo] = useState<"normal" | "sin_cajon" | "solo_borde" | null>(null);
+  const [selectedEstiloCajasDemo, setSelectedEstiloCajasDemo] = useState<"normal" | "sin_cajon" | "solo_borde" | null>(initialCatalogEstiloCajasId);
   const TEMA_DEMO_ESTILO_CAJAS = "dorado-clasico";
   // Estilo de cajón elegido dentro de la demo de un tema específico del catálogo (independiente
   // de la sección comparativa "Estilos de Presentación") -- se resetea a "normal" cada vez que
@@ -6351,6 +6386,23 @@ export default function App() {
     return `${appUrl}?catalog=true`;
   };
 
+  // Deep-link directo a un demo del catálogo (tema o estilo de cajón), usado por "Ver Demo en
+  // Vivo" cuando esta página está embebida en un iframe (ver `estaEmbebidoEnIframe` arriba) --
+  // conserva cualquier `?evento=boda` que la propia página ya traiga (la landing de /bodas lo
+  // agrega al embeber el catálogo).
+  const urlDemoCatalogo = (extra: Record<string, string>) => {
+    try {
+      const u = new URL(window.location.href);
+      u.searchParams.set("catalog", "true");
+      u.searchParams.delete("tema");
+      u.searchParams.delete("estiloCajas");
+      Object.entries(extra).forEach(([k, v]) => u.searchParams.set(k, v));
+      return u.toString();
+    } catch {
+      return `${window.location.origin}${window.location.pathname}?catalog=true&${new URLSearchParams(extra).toString()}`;
+    }
+  };
+
   // Generar URL de compartir con todos los datos y el invitado seleccionado. Este deploy es
   // público sin protección SSO, así que apuntar al propio origen es seguro: los invitados
   // reales abren su invitación sin toparse con ningún login de Vercel.
@@ -7726,12 +7778,26 @@ export default function App() {
 
                         {/* Botones de acción */}
                         <div className="pt-2 flex flex-col gap-2">
-                          <button
-                            onClick={() => { setSelectedCatalogTemaId(t.id); setCatalogDemoEstiloCajas("normal"); setCatalogDemoNombre(""); setCatalogDemoFecha(""); setCatalogDemoPaquete("premium"); }}
-                            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all duration-200 active:scale-95 cursor-pointer text-center shadow-md flex items-center justify-center gap-1.5"
-                          >
-                            Ver Demo en Vivo 👁️✨
-                          </button>
+                          {estaEmbebidoEnIframe ? (
+                            // Embebido en la landing (iframe de altura fija) -- abre el demo en
+                            // una pestaña nueva, con ventana/viewport real, en vez de cambiar el
+                            // estado local (ver nota de `estaEmbebidoEnIframe` más arriba).
+                            <a
+                              href={urlDemoCatalogo({ tema: t.id })}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all duration-200 active:scale-95 cursor-pointer text-center shadow-md flex items-center justify-center gap-1.5"
+                            >
+                              Ver Demo en Vivo 👁️✨
+                            </a>
+                          ) : (
+                            <button
+                              onClick={() => { setSelectedCatalogTemaId(t.id); setCatalogDemoEstiloCajas("normal"); setCatalogDemoNombre(""); setCatalogDemoFecha(""); setCatalogDemoPaquete("premium"); }}
+                              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all duration-200 active:scale-95 cursor-pointer text-center shadow-md flex items-center justify-center gap-1.5"
+                            >
+                              Ver Demo en Vivo 👁️✨
+                            </button>
+                          )}
                           <a
                             href="https://wa.me/522217445410?text=Hola%2C%20vengo%20de%20InvitaMX%2C%20me%20interesa%20una%20invitaci%C3%B3n%20digital%20personalizada"
                             target="_blank"
@@ -7764,12 +7830,23 @@ export default function App() {
                         <span className="block text-sm font-extrabold text-slate-800">{e.nombre}</span>
                         <span className="block text-[11px] text-slate-500 mt-0.5">{e.desc}</span>
                       </div>
-                      <button
-                        onClick={() => setSelectedEstiloCajasDemo(e.id)}
-                        className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all duration-200 active:scale-95 cursor-pointer text-center shadow-md flex items-center justify-center gap-1.5"
-                      >
-                        Ver Demo en Vivo 👁️✨
-                      </button>
+                      {estaEmbebidoEnIframe ? (
+                        <a
+                          href={urlDemoCatalogo({ estiloCajas: e.id })}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all duration-200 active:scale-95 cursor-pointer text-center shadow-md flex items-center justify-center gap-1.5"
+                        >
+                          Ver Demo en Vivo 👁️✨
+                        </a>
+                      ) : (
+                        <button
+                          onClick={() => setSelectedEstiloCajasDemo(e.id)}
+                          className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all duration-200 active:scale-95 cursor-pointer text-center shadow-md flex items-center justify-center gap-1.5"
+                        >
+                          Ver Demo en Vivo 👁️✨
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
