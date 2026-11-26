@@ -902,7 +902,11 @@ const getDatosCatalogTema = (baseDatos: any, t: any, evento: TipoEvento = "xv"):
   // tipografía), solo cambian las fotos para no mostrar a una quinceañera en una demo de boda.
   const fotosEventoCatalogo = esXv ? [] : fotosListasPorEvento(evento).map(f => f.url);
   const fotosTema = fotosEventoCatalogo.length ? fotosEventoCatalogo : getFotosPorTema(t.id);
-  const fotoPortadaAleatoria = fotosTema[Math.floor(Math.random() * fotosTema.length)];
+  // Antes era aleatoria (Math.random()) -- en cada carga podía tocar una foto de ambiente/detalle
+  // en vez de la festejada (ej. un salón vacío), mala para vender. Fija a la primera del pool
+  // (el retrato principal, ver fotosListas.ts/data.ts) -- misma foto siempre, en la previa y en
+  // el demo, en cada carga y cada visita.
+  const fotoPortadaFija = fotosTema[0];
 
   return {
     ...base,
@@ -919,7 +923,7 @@ const getDatosCatalogTema = (baseDatos: any, t: any, evento: TipoEvento = "xv"):
     // quinceañera (no sabe nada de tipoEvento) -- por eso aquí se llena `fotos` a mano con el
     // pool del evento, para que ese fallback nunca se dispare en modo boda.
     fotos: esXv ? [] : fotosTema,
-    fotoPortada: fotoPortadaAleatoria,
+    fotoPortada: fotoPortadaFija,
     colorSugerido: getColorSugeridoPorTema(t.id, t.colors)
   };
 };
@@ -1021,8 +1025,24 @@ function liberarTurnoPreviewCatalogo() {
   }
 }
 
+// Maqueta del celular de la previa (2026-11-25, v4 -- corrige la v2/v3 de este mismo día, que
+// habían dejado el MARCO alargado para que cupiera la portada completa). El marco conserva la
+// proporción real de un celular (~9:19.5, igual que el del hero); es la PORTADA la que se
+// escala para caber entera dentro, centrada -- nunca al revés. Estas constantes deben coincidir
+// con las clases w-[...]/h-[...]/p-[...]/border-[...] del marco en el JSX de la tarjeta de abajo.
+const MAQUETA_ANCHO = 210;
+const MAQUETA_ALTO = 456;
+const MAQUETA_CHROME = 11; // padding 3.5px*2 + borde 2px*2
+const MAQUETA_INTERIOR_ANCHO = MAQUETA_ANCHO - MAQUETA_CHROME;
+const MAQUETA_INTERIOR_ALTO = MAQUETA_ALTO - MAQUETA_CHROME;
+const IFRAME_ANCHO_VIRTUAL = 354;
+// Estimado conservador antes de medir el alto real de cada demo (ver abajo) -- nunca se queda
+// así, es solo el primer render mientras el iframe termina de cargar.
+const ALTO_PORTADA_ESTIMADO = 700;
+
 const LazyIframe = memo(({ t, index, datos, evento = "xv" }: { t: any; index: number; datos: any; evento?: TipoEvento }) => {
   const [shouldRender, setShouldRender] = useState(false);
+  const [altoPortada, setAltoPortada] = useState(ALTO_PORTADA_ESTIMADO);
   const turnoActivo = useRef(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const contenedorRef = useRef<HTMLDivElement>(null);
@@ -1073,6 +1093,11 @@ const LazyIframe = memo(({ t, index, datos, evento = "xv" }: { t: any; index: nu
       const doc = iframeRef.current?.contentDocument;
       if (doc && doc.readyState !== "loading") {
         clearInterval(intervalo);
+        // Alto real de la portada (ya compacta, sin min-h-[92vh] en modo soloPortada -- ver
+        // templates.ts) -- con esto se calcula la escala exacta para que quepa entera, sin
+        // scroll interno ni recortes, sea cual sea la altura real de cada tema.
+        const alto = doc.body?.scrollHeight;
+        if (alto && alto > 0) setAltoPortada(alto);
         if (!cancelado) soltarTurnoUnaVez();
       }
     }, 150);
@@ -1097,6 +1122,15 @@ const LazyIframe = memo(({ t, index, datos, evento = "xv" }: { t: any; index: nu
     return generarHTMLFinal({ ...getDatosVisualizacionCatalog(t, datos, evento), seccionesExcluidas: [...(getDatosVisualizacionCatalog(t, datos, evento).seccionesExcluidas || []), "apertura"] }, t, { esDemoDeCatalogo: true, soloPortada: true });
   }, [shouldRender, t, datos, evento]);
 
+  // Escala por el lado que más apriete (ancho o alto) -- nunca estira el marco, es la portada
+  // la que se adapta. Con el alto REAL ya medido (altoPortada), esto converge exacto sin
+  // recortar ni dejar scroll interno, para cualquier tema sin importar su altura real.
+  const escala = Math.min(MAQUETA_INTERIOR_ANCHO / IFRAME_ANCHO_VIRTUAL, MAQUETA_INTERIOR_ALTO / altoPortada);
+  const anchoEscalado = IFRAME_ANCHO_VIRTUAL * escala;
+  const altoEscalado = altoPortada * escala;
+  const offsetX = Math.max(0, (MAQUETA_INTERIOR_ANCHO - anchoEscalado) / 2);
+  const offsetY = Math.max(0, (MAQUETA_INTERIOR_ALTO - altoEscalado) / 2);
+
   return (
     <div ref={contenedorRef} className="absolute inset-0">
       {!shouldRender ? (
@@ -1112,19 +1146,12 @@ const LazyIframe = memo(({ t, index, datos, evento = "xv" }: { t: any; index: nu
           srcDoc={srcDoc}
           className="absolute border-0 pointer-events-none select-none"
           style={{
-            // Alto subido de 630 a 1050 (2026-11-25, v2): con la portada ya compacta (sin
-            // justify-between estirándola a la altura de la ventana), su contenido real -- hasta
-            // la tarjeta de fecha -- mide hasta ~992px en el tema más alto (Mármol & Oro,
-            // medido en vivo con body.scrollHeight de los 14 temas) -- con 630 esa cola se
-            // cortaba y aparecía un scroll interno dentro de la maqueta. La escala se deja igual
-            // (0.5226, calculada por el ANCHO para llenar la pantalla del celular) y es la
-            // maqueta (ver w-[196px] h-[560px] más abajo) la que crece para que quepa entera.
-            width: "354px",
-            height: "1050px",
-            transform: "scale(0.5226)",
+            width: `${IFRAME_ANCHO_VIRTUAL}px`,
+            height: `${altoPortada}px`,
+            transform: `scale(${escala})`,
             transformOrigin: "top left",
-            top: "0",
-            left: "0",
+            top: `${offsetY}px`,
+            left: `${offsetX}px`,
           }}
           title={`Demo ${t.nombre}`}
         />
@@ -7498,7 +7525,7 @@ export default function App() {
                       className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md transition duration-300 flex flex-col h-full"
                     >
                       {/* Cabecera visual del tema + Mini Vista Previa Interactiva en Vivo en forma de Celular */}
-                      <div className="relative h-[620px] overflow-hidden border-b border-slate-150 group flex items-center justify-center select-none" style={{ backgroundColor: lightBgColor }}>
+                      <div className="relative h-[500px] overflow-hidden border-b border-slate-150 group flex items-center justify-center select-none" style={{ backgroundColor: lightBgColor }}>
                         
                         {/* Fondo de estudio decorativo claro adaptado al color de fondo y primario del tema */}
                         <div 
@@ -7529,7 +7556,7 @@ export default function App() {
                         />
 
                         {/* Maqueta del Celular Realista */}
-                        <div className="relative z-10 w-[196px] h-[560px] bg-slate-100 rounded-[32px] p-[3.5px] border-[2px] border-slate-300 shadow-[0_12px_30px_-5px_rgba(15,23,42,0.15),0_8px_16px_-6px_rgba(15,23,42,0.1)] flex flex-col transition-all duration-300 group-hover:scale-105 group-hover:border-indigo-300 group-hover:shadow-[0_18px_38px_-8px_rgba(99,102,241,0.22),0_8px_18px_rgba(15,23,42,0.12)]">
+                        <div className="relative z-10 w-[210px] h-[456px] bg-slate-100 rounded-[28px] p-[3.5px] border-[2px] border-slate-300 shadow-[0_12px_30px_-5px_rgba(15,23,42,0.15),0_8px_16px_-6px_rgba(15,23,42,0.1)] flex flex-col transition-all duration-300 group-hover:scale-105 group-hover:border-indigo-300 group-hover:shadow-[0_18px_38px_-8px_rgba(99,102,241,0.22),0_8px_18px_rgba(15,23,42,0.12)]">
                           
                           {/* Botones físicos laterales simulados */}
                           <div className="absolute top-12 -left-[2.5px] w-[2.5px] h-6 bg-slate-300 rounded-l transition-colors duration-300 group-hover:bg-indigo-300" />

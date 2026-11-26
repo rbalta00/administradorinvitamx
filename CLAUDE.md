@@ -2,6 +2,49 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Previa: maqueta de celular real, portada completa y foto fija (2026-11-25, v4 del catálogo)
+
+Seguimiento directo de la entrada de abajo (v2, commit `65f630b`, mismo día). El usuario probó esa
+versión y encontró dos cosas reales, confirmadas en código antes de tocar nada: (1) el v2 agrandó
+la maqueta a 196×560 (alargada, ~2.8:1) para que la portada completa cupiera -- resolvió el
+recorte, pero la maqueta ya no se parece a un celular; (2) la foto de portada de la previa/demo
+del catálogo se elegía al azar (`Math.random()`) del pool de fotos del tema -- a veces salía la
+festejada, a veces un salón vacío o un detalle suelto, malo para vender.
+
+- **La maqueta vuelve a proporción real de celular (9:19.5, ~210×456px) y es la PORTADA la que se
+  escala para caber entera** -- nunca al revés. `LazyIframe` (`App.tsx`) ahora mide
+  `body.scrollHeight` real de cada demo (una vez, tras cargar) y calcula
+  `escala = min(anchoInterior/354, altoInterior/altoReal)`, centrando el iframe escalado dentro
+  del marco (`offsetX`/`offsetY`) -- el lado que más aprieta decide la escala; el otro lado queda
+  con un margen parejo a los costados o arriba/abajo (nunca recorta, nunca estira el marco).
+- **`min-h-[92vh]` se quita SOLO en modo `soloPortada`** (`templates.ts`, `claseMinAlturaPortada`):
+  sin esto, los temas "fondo" (celestial/neon/aurora-boreal/vino-elegante/glam-rose, cuyo
+  contenido compacto es corto) se forzaban a estirarse hasta el 92% de un iframe artificialmente
+  alto (necesario para que quepan los temas con foto, hasta 992px) -- reintroduciendo huecos
+  grandes específicamente en esos 5 temas dentro de la previa. Sin el piso, la altura real de cada
+  uno es siempre la de su propio contenido, sin importar qué tan alto se declare el iframe. Las
+  invitaciones reales y "Ver Demo en Vivo" conservan `min-h-[92vh]` intacto (confirmado por JS:
+  `portada.className` en el editor real sigue trayendo `min-h-[92vh]`).
+- **Foto de portada fija, no aleatoria**: `getDatosCatalogTema` (`App.tsx`) usaba
+  `fotosTema[Math.floor(Math.random() * fotosTema.length)]`; ahora es siempre `fotosTema[0]` (el
+  retrato principal del pool, confirmado por convención ya documentada en este mismo archivo --
+  "la primera es la de cuerpo completo en jardín"). Misma foto en cada carga, en la previa y en el
+  demo completo.
+- **Verificado en vivo** (`npm run build` + `npx serve dist/`, Claude in Chrome): las 14 previas
+  muestran la MISMA foto de Luna Isabella (recargado el catálogo completo, confirmado visualmente
+  card por card -- nunca un salón vacío); el marco de cada tarjeta se ve proporcionado como un
+  celular real, no alargado; Mármol & Oro (el tema más alto, 992px medido) cabe completo -- título,
+  nombre, foto, fecha -- sin scroll interno, con letterboxing lateral (el que más aprieta ahí es el
+  alto); los temas "fondo" (Místico Celestial, Glam Rose Oro) se ven compactos, sin huecos, con su
+  foto de fondo llenando la mayor parte de la pantalla como están diseñados. Una invitación real
+  (fuera del catálogo) confirmada con `min-h-[92vh]` intacto en su `data-section="portada"`.
+- `npm run lint`/`npm run build` limpios (mismos 6 errores preexistentes, cero nuevos).
+- **Pendiente de la misma conversación, no parte de este commit**: un prompt nuevo del usuario
+  sobre itinerarios por tema (hoy las 14 demos comparten el itinerario de Princesa Elegante,
+  "Alfombra Azul...", que no combina con los otros 13) + 2 tipografías cursivas a corregir
+  (Celestial, Mármol) + 2 nombres/descripciones a pulir (Neón, Mármol) -- se implementa en la
+  entrada siguiente de este mismo archivo (o revisar `git log` si ya se hizo).
+
 ## Portada sin huecos, foto sin cortes y previa completa (2026-11-25, v2 del catálogo)
 
 Seguimiento directo de la entrada de abajo (v1, commit `b7632b5`, mismo día). Al abrir un demo en

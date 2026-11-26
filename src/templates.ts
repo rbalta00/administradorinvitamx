@@ -1355,6 +1355,15 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
   })();
 
   // Sección de contenido: portada
+  // En soloPortada (previa del catálogo, ver LazyIframe en App.tsx) se quita el "min-h-[92vh]"
+  // por completo -- ahí la altura real del contenido se mide (body.scrollHeight) para calcular
+  // la escala de la maqueta, y un piso atado a la altura del iframe metería a los temas "fondo"
+  // (celestial/neon/aurora-boreal/vino-elegante/glam-rose, cuyo contenido compacto es más corto
+  // que cualquier iframe razonablemente alto) en el mismo problema de huecos que se corrigió
+  // arriba con justify-center -- sin el piso, su altura real es siempre la del contenido mismo,
+  // sin depender de qué tan alto se haya declarado el iframe. Las invitaciones reales y el demo
+  // en vivo conservan el piso de 92vh (pensado para la pantalla real del celular del invitado).
+  const claseMinAlturaPortada = soloPortada ? "" : "min-h-[92vh] ";
   const portadaSeccionHTML = !isSectionActive("portada") ? "" :
     estiloPortadaEfectivo === "fondo" ? (() => {
       // "fondo": la foto ocupa toda la sección, con el velo del tema encima (mismo mecanismo/
@@ -1365,7 +1374,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       const colorVelo = esOscuro ? `rgba(8, 6, 16, ${opacidadVelo})` : `rgba(20, 16, 10, ${opacidadVelo * 0.6})`;
       const sombraTexto = "text-shadow: 0 2px 10px rgba(0,0,0,0.45);";
       return `
-    <section data-section="portada" class="relative min-h-[92vh] flex flex-col justify-center p-6 text-center overflow-hidden border-b border-borderTheme/10" style="background-image: url('${urlFotoPrincipalPortada}'); background-size: cover; background-position: center 20%;">
+    <section data-section="portada" class="relative ${claseMinAlturaPortada}flex flex-col justify-center p-6 text-center overflow-hidden border-b border-borderTheme/10" style="background-image: url('${urlFotoPrincipalPortada}'); background-size: cover; background-position: center 20%;">
       <div class="absolute inset-0" style="background: ${colorVelo};"></div>
 
       <div class="mt-10 z-10 animate-fade-in">
@@ -1397,7 +1406,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
     </section>
     `;
     })() : `
-    <section data-section="portada" class="relative min-h-[92vh] flex flex-col justify-center p-6 text-center overflow-hidden border-b border-borderTheme/10" style="background: ${tema.bgGradient};">
+    <section data-section="portada" class="relative ${claseMinAlturaPortada}flex flex-col justify-center p-6 text-center overflow-hidden border-b border-borderTheme/10" style="background: ${tema.bgGradient};">
       <!-- Decorativos de fondo premium -->
       <div class="absolute -top-20 -left-20 w-60 h-60 rounded-full bg-primary/15 blur-3xl animate-pulse-slow"></div>
       <div class="absolute -bottom-20 -right-20 w-60 h-60 rounded-full bg-accent/10 blur-3xl animate-pulse-slow" style="animation-delay: 1s;"></div>
