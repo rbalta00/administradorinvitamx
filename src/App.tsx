@@ -38,7 +38,7 @@ import {
 import jsQR from "jsqr";
 import { createClient } from "@supabase/supabase-js";
 import { InvitacionDatos, TemaConfig } from "./types";
-import { temas, paquetes, datosDefault, getFotosPorTema, getOrdenSeccionesEfectivo, PALETAS_COLOR_PERSONALIZADO } from "./data";
+import { temas, paquetes, datosDefault, getFotosPorTema, getOrdenSeccionesEfectivo, PALETAS_COLOR_PERSONALIZADO, ITINERARIO_POR_TEMA } from "./data";
 import { generarHTMLFinal, TipoEvento, TEXTOS_POR_EVENTO, resolverTemaEfectivo, construirUrlGoogleFonts } from "./templates";
 import { fondosListosPorEvento } from "./fondosListos";
 import { fotosListasPorEvento, FotoLista } from "./fotosListas";
@@ -887,6 +887,14 @@ const ITINERARIO_DEMO_CATALOGO_POR_EVENTO: Partial<Record<TipoEvento, { hora: st
   boda: ITINERARIO_BODA_POR_PAQUETE.deluxe
 };
 
+// Código de vestimenta propio de la demo de catálogo, SOLO para los 2 temas donde el default
+// compartido (datosDefault.deluxe.dressCode, "Etiqueta Rigurosa / Black Tie...") desentona de
+// verdad -- Neón y Boho Chic. Los otros 12 temas conservan ese default, que sí les combina.
+const VESTIMENTA_DEMO_CATALOGO_POR_TEMA: Partial<Record<string, string>> = {
+  neon: "Fiesta Neón — Casual Elegante con un Toque Neón",
+  "boho-chic": "Boho Chic — Vestido Fluido, Tonos Tierra y Flores"
+};
+
 // Genera un objeto de datos personalizado para el catálogo que garantiza que se muestren las características exactas del tema
 // `evento` (2026-11-25): cuando el catálogo se pide en modo boda (?catalog=true&evento=boda,
 // ver `?evento=` en getInitialState) cada demo se renderiza con tipoEvento:"boda" -- los
@@ -912,7 +920,14 @@ const getDatosCatalogTema = (baseDatos: any, t: any, evento: TipoEvento = "xv"):
     ...base,
     tema: t.id,
     tipoEvento: evento,
-    ...(esXv ? {} : {
+    ...(esXv ? {
+      // Itinerario propio por tema (2026-11-25, ver ITINERARIO_POR_TEMA en data.ts) -- antes
+      // las 14 demos XV compartían el mismo itinerario (el de Princesa Elegante, "Alfombra
+      // Azul..."), sin combinar con los otros 13 temas. Sin entrada para este tema (hoy solo
+      // princesa-elegante, cuyo itinerario de siempre YA es ese), cae al de base sin cambios.
+      itinerario: ITINERARIO_POR_TEMA[t.id] || base.itinerario,
+      ...(VESTIMENTA_DEMO_CATALOGO_POR_TEMA[t.id] ? { dressCode: VESTIMENTA_DEMO_CATALOGO_POR_TEMA[t.id] } : {})
+    } : {
       nombre: NOMBRE_DEMO_CATALOGO_POR_EVENTO[evento] || base.nombre,
       mensajeBienvenida: MENSAJE_BIENVENIDA_POR_EVENTO[evento] || base.mensajeBienvenida,
       itinerario: ITINERARIO_DEMO_CATALOGO_POR_EVENTO[evento] || base.itinerario
@@ -7512,8 +7527,8 @@ export default function App() {
                   if (t.id === "glam-rose") descripcion = "Moderno, ultra glamuroso y chic. Tonos oro rosa metálicos y polvos de escarcha para celebraciones alegres 💖";
                   if (t.id === "boho-chic") descripcion = "Rústico, cálido y bohemio. Tonos terracotas, pastos secos y flores de pampa con libre expresión artística 🌾";
                   if (t.id === "princesa-elegante") descripcion = "Digno de la realeza. Distinguido, clásico y de alta alcurnia, con tiaras heráldicas y estética principesca 👑";
-                  if (t.id === "marmol-oro") descripcion = "Sofisticado, contemporáneo y ultra premium. Vetas de mármol pulido realzado con costuras de oro pulido 💎";
-                  if (t.id === "neon") descripcion = "Ciberpunk, vibrante y electrizante. Un fondo oscuro de noche urbana iluminado con espectaculares destellos de luz de neón rosa, cian y amarillo-bizarro ⚡";
+                  if (t.id === "marmol-oro") descripcion = "Sofisticado, contemporáneo y ultra premium. Vetas de mármol pulido realzado con vetas de oro pulido 💎";
+                  if (t.id === "neon") descripcion = "Ciberpunk, vibrante y electrizante. Un fondo oscuro de noche urbana iluminado con espectaculares destellos de luz de neón rosa, cian y amarillo lima ⚡";
                   if (t.id === "coquette-pink") descripcion = "Romántico y coqueto. Listones y moños en rosa empolvado con destellos suaves, para una quinceañera dulce y femenina 🎀";
                   if (t.id === "coquette-luxe") descripcion = "Elegancia y oro. Rosa empolvado con dorado lujoso y brillo de alta gama, para una entrada de princesa moderna 💎";
                   if (t.id === "aurora-boreal") descripcion = "Onírico y polar. Un cielo nocturno profundo surcado por velos de luz verde y violeta, como una aurora boreal real 🌌";

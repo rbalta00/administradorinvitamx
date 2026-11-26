@@ -2,6 +2,62 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Temas completos: itinerario por tema, 2 tipografías y 2 nombres/descripciones (2026-11-25, v1)
+
+El usuario revisó los 14 temas completos (textos/tipografía/colores/nombres/descripciones) contra
+el código real -- confirmado que colores y la mayoría de tipografías ya combinan bien, pero las 14
+demos del catálogo compartían UN solo itinerario (el de `datosDefault.deluxe`, "Alfombra Azul de
+Bienvenida"/"Banquete Imperial de Gala") que en realidad es el de Princesa Elegante -- una demo
+Coquette rosa o Boho hablaba de alfombras azules y banquetes imperiales, sin combinar con su tema.
+
+- **`ITINERARIO_POR_TEMA`** (nuevo, exportado en `data.ts`, junto al arreglo `temas`): un
+  itinerario propio por cada uno de los 14 temas (mismas horas 18:00/20:30/21:00/22:00/23:00/23:30
+  para todos, solo cambian los nombres de los momentos) + `personalizado`. **`princesa-elegante`
+  NO tiene entrada a propósito** -- su itinerario de siempre YA es el compartido de
+  `datosDefault.deluxe` (es, literalmente, de dónde salió ese default), así que cae solo al
+  fallback existente sin duplicarlo. Conectado en `getDatosCatalogTema` (`App.tsx`), SOLO para
+  `evento === "xv"` -- los itinerarios por evento (boda, cumpleaños...) que ya existían no se
+  tocaron.
+- **Código de vestimenta propio, solo 2 temas**: `VESTIMENTA_DEMO_CATALOGO_POR_TEMA` (`App.tsx`,
+  junto a `NOMBRE_DEMO_CATALOGO_POR_EVENTO`) -- Neón ("Fiesta Neón — Casual Elegante con un Toque
+  Neón") y Boho Chic ("Boho Chic — Vestido Fluido, Tonos Tierra y Flores"); los otros 12 temas
+  conservan el `dressCode` default de `datosDefault.deluxe` ("Etiqueta Rigurosa / Black Tie..."),
+  que sí les combina.
+- **2 tipografías cursivas** (`data.ts`, campo `fontCursive`): Celestial `Monsieur La Doulaise` →
+  `Great Vibes` (la fina casi no se leía sobre su fondo oscuro); Mármol & Oro `Sacramento` →
+  `Pinyon Script` (no combinaba con su lujo art déco, de tipografía de encabezado `Syne`). Neón
+  conserva `Sacramento` a propósito (imita el tubo de neón). Ambas fuentes ya estaban registradas
+  en `FONT_URL_SEGMENTS` (`templates.ts`) -- sin carga nueva de Google Fonts.
+- **Bug real encontrado y corregido durante la propia verificación, no reportado por el usuario**:
+  cambiar `fontCursive` en el campo del tema NO bastaba -- tanto Celestial como Mármol & Oro tienen
+  un `customStyle` (bloque de CSS crudo, por tema) con una regla `.cursive-text { font-family:
+  '...' }` que trae la fuente vieja **hardcodeada**, pisando el campo `fontCursive` por
+  especificidad/orden de cascada. Confirmado en vivo ("Ver Demo en Vivo", `getComputedStyle` real
+  sobre el `<h1>` del nombre): con solo el campo cambiado, el nombre seguía rindiendo en la fuente
+  vieja -- corregido actualizando también esas 2 reglas `.cursive-text` dentro de `customStyle`.
+- **2 nombres pulidos** (`data.ts`, campo `nombre`, los `id` NO cambian): Neón
+  "Ciber Cyber Neon ⚡ (Glow)" → "Cyber Neón ⚡" (decía lo mismo dos veces); Mármol & Oro
+  "Mármol & Oro Geométrico 📐" → "Mármol & Oro ✨" (el emoji de escuadra abarataba el tema y
+  "Geométrico" ya no describe su fondo de mármol blanco suave); Coquette Listones Rose
+  "XV Coquette Listones Rose 🎀 (Glam & Sparkle)" → "XV Coquette Listones Rose 🎀" (quita el
+  paréntesis repetitivo).
+- **2 descripciones del catálogo** (`App.tsx`, bloque `descripcion` de las tarjetas): Neón
+  "amarillo-bizarro" → "amarillo lima" (falso amigo); Mármol & Oro "costuras de oro pulido" →
+  "vetas de oro pulido".
+- **Verificado en vivo** (`npm run build` + `npx serve dist/`, Claude in Chrome, clics reales en
+  "Ver Demo en Vivo" + lectura del DOM del iframe resultante vía JS, no solo revisión de código):
+  Mármol & Oro y Celestial confirmados en `Pinyon Script`/`Great Vibes` real
+  (`getComputedStyle(...).fontFamily`) con sus itinerarios correctos; Neón y Boho Chic con su
+  itinerario Y su código de vestimenta propios; Princesa Elegante confirmada SIN cambios ("Alfombra
+  Azul de Bienvenida..." intacta); Coquette Luxe con su itinerario rosa/oro propio; los 3 nombres
+  nuevos ("Mármol & Oro ✨"/"Cyber Neón ⚡"/"XV Coquette Listones Rose 🎀") confirmados en las
+  tarjetas del catálogo.
+- `npm run lint`/`npm run build` limpios (mismos 6 errores preexistentes, cero nuevos). No se tocó
+  ningún color, fondo, otra tipografía, otra descripción, `datosDefault`, los itinerarios por
+  evento ya existentes (boda/cumpleaños), ni ninguna invitación real/muestra (el campo `itinerario`
+  que cada clienta escribe en su propia invitación nunca pasa por `getDatosCatalogTema`, que es
+  exclusivo de la demo del catálogo).
+
 ## Previa: maqueta de celular real, portada completa y foto fija (2026-11-25, v4 del catálogo)
 
 Seguimiento directo de la entrada de abajo (v2, commit `65f630b`, mismo día). El usuario probó esa

@@ -266,7 +266,7 @@ export const temas: TemaConfig[] = [
     nombre: "Místico Celestial 🌙 (Noche)",
     fontHeading: "Cinzel",
     fontBody: "Inter",
-    fontCursive: "Monsieur La Doulaise",
+    fontCursive: "Great Vibes",
     colors: {
       primary: "#87CEEB",
       secondary: "#1C3B57",
@@ -294,7 +294,7 @@ export const temas: TemaConfig[] = [
         text-shadow: 0 1px 8px rgba(255, 215, 0, 0.3);
       }
       .cursive-text {
-        font-family: 'Monsieur La Doulaise', cursive;
+        font-family: 'Great Vibes', cursive;
         color: #87CEEB;
         font-size: 2.5rem;
       }
@@ -481,10 +481,10 @@ export const temas: TemaConfig[] = [
   },
   {
     id: "marmol-oro",
-    nombre: "Mármol & Oro Geométrico 📐",
+    nombre: "Mármol & Oro ✨",
     fontHeading: "Syne",
     fontBody: "Inter",
-    fontCursive: "Sacramento",
+    fontCursive: "Pinyon Script",
     colors: {
       primary: "#C59B27",
       secondary: "#E5E5E5",
@@ -515,7 +515,7 @@ export const temas: TemaConfig[] = [
         letter-spacing: 0.1em;
       }
       .cursive-text {
-        font-family: 'Sacramento', cursive;
+        font-family: 'Pinyon Script', cursive;
         color: #C59B27;
         font-size: 2.5rem;
       }
@@ -529,7 +529,7 @@ export const temas: TemaConfig[] = [
   },
   {
     id: "neon",
-    nombre: "Ciber Cyber Neon ⚡ (Glow)",
+    nombre: "Cyber Neón ⚡",
     fontHeading: "Orbitron",
     fontBody: "Inter",
     fontCursive: "Sacramento",
@@ -576,7 +576,7 @@ export const temas: TemaConfig[] = [
   },
   {
     id: "coquette-pink",
-    nombre: "XV Coquette Listones Rose 🎀 (Glam & Sparkle)",
+    nombre: "XV Coquette Listones Rose 🎀",
     fontHeading: "Playfair Display",
     fontBody: "Inter",
     fontCursive: "Parisienne",
@@ -1157,6 +1157,130 @@ export const temas: TemaConfig[] = [
     oculto: true
   }
 ];
+
+// Itinerario propio por tema para las demos del catálogo (XV) -- 2026-11-25. Antes las 14 demos
+// compartían un solo itinerario (el de datosDefault.deluxe, "Alfombra Azul de Bienvenida"...) que
+// en realidad es el de Princesa Elegante -- una demo rosa Coquette o una Boho terminaba hablando
+// de alfombras azules y banquetes imperiales, que no combina con su propio tema. Mismas horas
+// para los 14 (18:00/20:30/21:00/22:00/23:00/23:30), solo cambian los nombres de los momentos.
+// "princesa-elegante" NO tiene entrada aquí a propósito: su itinerario de siempre YA es este
+// (es, literalmente, de dónde salió el default compartido) -- se queda con el fallback a
+// base.itinerario en vez de duplicarlo. Solo para la demo del catálogo; las invitaciones reales
+// y las muestras siguen con el itinerario que cada clienta escriba, sin tocar.
+export const ITINERARIO_POR_TEMA: Partial<Record<string, { hora: string; evento: string }[]>> = {
+  "dorado-clasico": [
+    { hora: "18:00", evento: "Misa de Acción de Gracias" },
+    { hora: "20:30", evento: "Alfombra Dorada de Bienvenida" },
+    { hora: "21:00", evento: "Vals de las Velas & Coronación" },
+    { hora: "22:00", evento: "Banquete Imperial de Gala" },
+    { hora: "23:00", evento: "Espectáculo de Fuegos Artificiales Fríos" },
+    { hora: "23:30", evento: "Mariachi en Vivo & Gran Baile" }
+  ],
+  mariposas: [
+    { hora: "18:00", evento: "Misa de Acción de Gracias" },
+    { hora: "20:30", evento: "Bienvenida entre Mariposas" },
+    { hora: "21:00", evento: "Vals del Vuelo" },
+    { hora: "22:00", evento: "Banquete del Jardín Encantado" },
+    { hora: "23:00", evento: "Brindis & Apertura de la Pista" },
+    { hora: "23:30", evento: "Gran Baile" }
+  ],
+  "floral-acuarela": [
+    { hora: "18:00", evento: "Misa de Acción de Gracias" },
+    { hora: "20:30", evento: "Recepción entre Flores" },
+    { hora: "21:00", evento: "Vals de las Flores" },
+    { hora: "22:00", evento: "Banquete Primaveral" },
+    { hora: "23:00", evento: "Brindis & Apertura de la Pista" },
+    { hora: "23:30", evento: "Gran Baile" }
+  ],
+  celestial: [
+    { hora: "18:00", evento: "Misa de Acción de Gracias" },
+    { hora: "20:30", evento: "Bienvenida bajo las Estrellas" },
+    { hora: "21:00", evento: "Vals de la Luna" },
+    { hora: "22:00", evento: "Banquete Celestial" },
+    { hora: "23:00", evento: "Espectáculo de Luces & Brindis" },
+    { hora: "23:30", evento: "Gran Baile Estelar" }
+  ],
+  botanico: [
+    { hora: "18:00", evento: "Misa de Acción de Gracias" },
+    { hora: "20:30", evento: "Recepción en el Jardín" },
+    { hora: "21:00", evento: "Vals Natural" },
+    { hora: "22:00", evento: "Banquete del Jardín" },
+    { hora: "23:00", evento: "Brindis & Apertura de la Pista" },
+    { hora: "23:30", evento: "Gran Baile" }
+  ],
+  "glam-rose": [
+    { hora: "18:00", evento: "Misa de Acción de Gracias" },
+    { hora: "20:30", evento: "Alfombra Rosa de Bienvenida" },
+    { hora: "21:00", evento: "Vals Brillante" },
+    { hora: "22:00", evento: "Banquete Glam" },
+    { hora: "23:00", evento: "Brindis con Destellos" },
+    { hora: "23:30", evento: "Fiesta & Gran Baile" }
+  ],
+  "boho-chic": [
+    { hora: "18:00", evento: "Misa de Acción de Gracias" },
+    { hora: "20:30", evento: "Bienvenida Boho al Atardecer" },
+    { hora: "21:00", evento: "Vals bajo las Luces Cálidas" },
+    { hora: "22:00", evento: "Banquete Rústico" },
+    { hora: "23:00", evento: "Brindis & Apertura de la Pista" },
+    { hora: "23:30", evento: "Música en Vivo & Gran Baile" }
+  ],
+  "marmol-oro": [
+    { hora: "18:00", evento: "Misa de Acción de Gracias" },
+    { hora: "20:30", evento: "Recepción de Gala" },
+    { hora: "21:00", evento: "Vals de Honor" },
+    { hora: "22:00", evento: "Banquete de Gala" },
+    { hora: "23:00", evento: "Brindis & Apertura de la Pista" },
+    { hora: "23:30", evento: "Gran Baile" }
+  ],
+  neon: [
+    { hora: "18:00", evento: "Misa de Acción de Gracias" },
+    { hora: "20:30", evento: "Entrada Neón & Bienvenida Glow" },
+    { hora: "21:00", evento: "Vals con Luces LED" },
+    { hora: "22:00", evento: "Banquete & Zona Lounge" },
+    { hora: "23:00", evento: "Show de Luces Neón" },
+    { hora: "23:30", evento: "DJ Live Set & Fiesta Neón" }
+  ],
+  "coquette-pink": [
+    { hora: "18:00", evento: "Misa de Acción de Gracias" },
+    { hora: "20:30", evento: "Bienvenida entre Moños" },
+    { hora: "21:00", evento: "Vals Coquette" },
+    { hora: "22:00", evento: "Banquete Rosa" },
+    { hora: "23:00", evento: "Brindis & Apertura de la Pista" },
+    { hora: "23:30", evento: "Gran Baile" }
+  ],
+  "coquette-luxe": [
+    { hora: "18:00", evento: "Misa de Acción de Gracias" },
+    { hora: "20:30", evento: "Alfombra Rosa & Oro" },
+    { hora: "21:00", evento: "Vals de Princesa Moderna" },
+    { hora: "22:00", evento: "Banquete de Gala" },
+    { hora: "23:00", evento: "Brindis con Destellos Dorados" },
+    { hora: "23:30", evento: "Gran Baile" }
+  ],
+  "aurora-boreal": [
+    { hora: "18:00", evento: "Misa de Acción de Gracias" },
+    { hora: "20:30", evento: "Bienvenida bajo la Aurora" },
+    { hora: "21:00", evento: "Vals de las Luces del Norte" },
+    { hora: "22:00", evento: "Banquete Estelar" },
+    { hora: "23:00", evento: "Espectáculo de Luces" },
+    { hora: "23:30", evento: "Gran Baile" }
+  ],
+  "vino-elegante": [
+    { hora: "18:00", evento: "Misa de Acción de Gracias" },
+    { hora: "20:30", evento: "Recepción & Brindis de Bienvenida" },
+    { hora: "21:00", evento: "Vals de Honor" },
+    { hora: "22:00", evento: "Banquete de Gala" },
+    { hora: "23:00", evento: "Brindis de los Padrinos" },
+    { hora: "23:30", evento: "Gran Baile" }
+  ],
+  personalizado: [
+    { hora: "18:00", evento: "Misa de Acción de Gracias" },
+    { hora: "20:30", evento: "Recepción de Bienvenida" },
+    { hora: "21:00", evento: "Vals de la Quinceañera" },
+    { hora: "22:00", evento: "Banquete de Gala" },
+    { hora: "23:00", evento: "Brindis & Apertura de la Pista" },
+    { hora: "23:30", evento: "Gran Baile" }
+  ]
+};
 
 // Set único de fotos de muestra (una misma quinceañera ficticia, vestido rosa/dorado),
 // reemplaza 2026-11-20 el set viejo de stock con marca de agua de "dreamstime" visible (8 de 12
