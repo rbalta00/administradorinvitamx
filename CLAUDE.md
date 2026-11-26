@@ -2,6 +2,51 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Fix: "Ver Demo en Vivo" desajustado en celular, SOLO cuando se ve desde la landing (2026-11-26, commit `765a6c0`)
+
+Reporte del usuario: "revise el demo en vivo de la landing y en celular sale mal desajustado".
+Causa real, confirmada en código y en vivo: la landing (`invitacionmx-landing`, `Themes.tsx`)
+embebe este catálogo (`?catalog=true`) en un `<iframe>` de **altura fija** (4100px, medida para
+que el GRID de 14 tarjetas quepa sin scroll interno — ver nota de esa altura en el propio
+`Themes.tsx`). Hasta este fix, "Ver Demo en Vivo" cambiaba un estado local DENTRO de ese mismo
+documento embebido (`selectedCatalogTemaId`/`selectedEstiloCajasDemo`) -- el marco de celular de
+esa vista usa alturas en `vh` (ver la entrada de abajo, "v5 del catálogo", línea ~7540), incluido
+un breakpoint móvil SIN tope (`max-[480px]:h-[82vh]`, a diferencia de desktop que sí tiene un
+`min(86vh,820px)`). Dentro de un iframe, `vh` se calcula contra el alto DEL IFRAME, no contra la
+pantalla real del dispositivo -- con el iframe fijo en 4100px, ese breakpoint móvil daba un marco
+de celular de **~3362px de alto** (82% de 4100), rompiendo por completo el layout. Fuera de la
+landing (visitando `invitaciones.invitamx.app/?catalog=true` directo, sin iframe) el `vh` sí
+coincide con la pantalla real -- por eso el problema nunca se había visto ahí, solo embebido.
+- **Fix, sin tocar el marco de celular en sí** (ni `templates.ts`, ni las medidas `vh`/`min(86vh,
+  820px)`/`max-[480px]:h-[82vh]` de la entrada de abajo): nuevo `estaEmbebidoEnIframe` (constante
+  module-level, `window.self !== window.top`, con `catch` que asume `true` si el acceso a
+  `window.top` está bloqueado por ser de otro origen -- confirma que de cualquier forma SÍ hay un
+  iframe de por medio). Cuando es `true`, los 2 botones "Ver Demo en Vivo" (tarjeta de tema +
+  "Estilos de Presentación") se vuelven un `<a target="_blank">` que abre el deep-link real en una
+  PESTAÑA NUEVA (`urlDemoCatalogo()`, nuevo helper -- reusa el mismo mecanismo de deep-link que ya
+  existía para `?tema=<id>`, y se agregó uno gemelo `?estiloCajas=<id>` que no existía todavía,
+  mismo patrón de validación que `?evento=`) -- ahí el `vh` se calcula contra la ventana real del
+  celular, sin ningún iframe de por medio. Cuando `estaEmbebidoEnIframe` es `false` (uso directo,
+  sin landing), los botones siguen siendo el `<button onClick>` de siempre -- cero cambio de
+  comportamiento para quien visita el catálogo directo.
+- **Verificado en vivo** (Chrome, build local -- `dist/` servido en un puerto efímero, embebido en
+  una página de prueba standalone con el MISMO iframe de 4100px que usa `Themes.tsx` de verdad):
+  con la ventana en 390×844 (celular real), el clic en "Ver Demo en Vivo" de una tarjeta abrió una
+  pestaña nueva con `?catalog=true&tema=dorado-clasico`, y ESA pestaña (390px de ancho, viewport
+  real, sin iframe) mostró el marco de celular correctamente proporcionado -- confirmado
+  visualmente, con el paquete por default en "Estándar" (la etiqueta visible de la llave interna
+  `premium`), igual que el comportamiento de siempre. Visitando el catálogo SIN ningún iframe
+  (`window.self === window.top` confirmado con JS real) el mismo clic se siguió comportando como
+  antes: cambia el estado local en la MISMA pestaña, sin abrir ninguna nueva.
+- `npm run build`/`npx tsc --noEmit` limpios (los mismos 6 errores preexistentes de
+  `ImportMeta.env`, cero nuevos).
+- **Nota de proceso**: al momento de este fix, `src/App.tsx` ya tenía 2 cambios sin commitear de
+  otra tarea en curso ("Franja de confianza/urgencia honesta" + "Precio desde" en las tarjetas del
+  catálogo) -- se dejaron intactos, sin tocar ni commitear, en el working tree; el commit de este
+  fix se armó aplicando un patch selectivo solo con los hunks de este cambio (`git apply --cached`
+  sobre un patch recortado), para no mezclar ni perder ese trabajo en curso de otra sesión.
+- Commit `765a6c0` en `main`, pusheado -- Vercel debería redesplegar solo.
+
 ## Vista previa y demo en vivo con forma de celular real (2026-11-26, v5 del catálogo)
 
 - Seguimiento directo de la v4 (2026-11-25, commit `4066a3d`): esa versión ya corrigió la proporción
