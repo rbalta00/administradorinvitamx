@@ -2,6 +2,52 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Portada sin huecos, foto sin cortes y previa completa (2026-11-25, v2 del catálogo)
+
+Seguimiento directo de la entrada de abajo (v1, commit `b7632b5`, mismo día). Al abrir un demo en
+pantalla grande (desktop/landing) la portada se veía "desconfigurada" -- pantallas enteras de
+fondo vacío entre el título y el nombre/foto, y otra antes de la fecha. Diagnóstico de Muse,
+confirmado en código: la sección de portada (`src/templates.ts`) es `min-h-[92vh] flex flex-col
+justify-between` -- en un celular (donde el contenido casi llena 92vh) se ve bien, pero en un
+iframe más alto (escritorio) `justify-between` reparte sus 3 bloques a lo largo de TODA esa
+altura, dejando huecos enormes entre ellos. El contenido estaba completo, era un problema de
+espaciado, no de datos.
+
+- **Portada compacta a cualquier altura**: en las 2 variantes de portada (`fondo` y marco/arco/
+  circular), `justify-between` → `justify-center` (el GRUPO de 3 bloques se centra como una sola
+  unidad dentro de `min-h-[92vh]`, en vez de estirarse) y se quitó `my-auto` del bloque de
+  nombre/foto (era lo que lo empujaba a usar TODO el espacio libre disponible, la causa real de
+  los huecos). En celular, donde casi no sobra espacio, se ve igual que antes; en escritorio, los
+  3 bloques quedan agrupados y legibles sin importar cuánto más alta sea la ventana. Verificado en
+  vivo en el "Monitor de Invitación" (editor) en modo Escritorio con la invitación real "Emma
+  Elizabeth": título → nombre → foto → fecha, todo junto, sin ningún hueco, y la sección de
+  "cuenta regresiva" arranca justo después sin aire de más.
+- **Foto de portada sin cortar cabezas**: los 3 `<img>` de `fotoPrincipalPortadaHTML` (arco/marco/
+  circular) y el `background-position` de la variante `fondo` pasan de `center`/`object-cover` a
+  `object-[center_20%]`/`background-position: center 20%` -- sesgo hacia arriba para no comerse
+  la cabeza cuando el rostro está cerca del borde superior. Verificado con la foto real de Emma
+  Elizabeth (arco, Vuelo de Mariposas) y con varias fotos del catálogo (Dorado Clásico, Mármol &
+  Oro): cabeza completa visible en todas.
+- **Previa del catálogo con la portada completa**: medido en vivo `body.scrollHeight` de los 14
+  temas en modo `soloPortada` (con la portada ya compacta) -- el más alto (Mármol & Oro) llega a
+  992px. El iframe de `LazyIframe` (`App.tsx`) sube su alto virtual de 630 a 1050px (margen sobre
+  el máximo medido); la escala se deja igual (0.5226, calculada por el ANCHO para llenar la
+  pantalla) y es la maqueta la que crece para que quepa entera: de 196×340px a 196×560px
+  (contenedor de cabecera de `h-[400px]` a `h-[620px]`). Verificado en vivo: los 14 temas muestran
+  la portada completa -- hasta la tarjeta de fecha -- sin ningún scroll interno visible.
+- **Nombre de espécimen unificado**: "Título Principal" de las tarjetas pasó de "Sofía Valeria" a
+  "Luna Isabella" (igual que el resto de la demo).
+- **Legibilidad sobre fondos con imagen/flores**: la variante "fondo" ya tenía sombra de texto
+  fuerte (sin cambios). A la variante marco/arco/circular (la que usan Floral Acuarela y Vuelo de
+  Mariposas, los temas señalados) se le agregó `text-shadow` suave (`${tema.colors.dark}` con
+  alpha hex bajo, `33`/`40`) al título del evento y al nombre, sin tocar colores ni tipografías.
+  Verificado visualmente en Floral Acuarela: "MIS XV AÑOS" y "Luna Isabella" se leen bien sobre el
+  fondo floral.
+- **Build limpio** (mismos 6 errores preexistentes de `ImportMeta.env`/`unknown`, cero nuevos).
+  Sin tocar ninguna sección fuera de la portada, ningún dato de las demos, ni los modos por evento
+  del catálogo (xv/boda/cumpleaños, re-verificados en modo boda: el ajuste es genérico, no
+  depende del tipo de evento).
+
 ## Catálogo: vista previa legible y carga rápida (2026-11-25, v1)
 
 Pedido de Isaac tras ver una captura del catálogo (`?catalog=true`): las 14 previas se veían

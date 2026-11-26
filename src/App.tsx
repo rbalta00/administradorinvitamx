@@ -1112,8 +1112,15 @@ const LazyIframe = memo(({ t, index, datos, evento = "xv" }: { t: any; index: nu
           srcDoc={srcDoc}
           className="absolute border-0 pointer-events-none select-none"
           style={{
+            // Alto subido de 630 a 1050 (2026-11-25, v2): con la portada ya compacta (sin
+            // justify-between estirándola a la altura de la ventana), su contenido real -- hasta
+            // la tarjeta de fecha -- mide hasta ~992px en el tema más alto (Mármol & Oro,
+            // medido en vivo con body.scrollHeight de los 14 temas) -- con 630 esa cola se
+            // cortaba y aparecía un scroll interno dentro de la maqueta. La escala se deja igual
+            // (0.5226, calculada por el ANCHO para llenar la pantalla del celular) y es la
+            // maqueta (ver w-[196px] h-[560px] más abajo) la que crece para que quepa entera.
             width: "354px",
-            height: "630px",
+            height: "1050px",
             transform: "scale(0.5226)",
             transformOrigin: "top left",
             top: "0",
@@ -7491,7 +7498,7 @@ export default function App() {
                       className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md transition duration-300 flex flex-col h-full"
                     >
                       {/* Cabecera visual del tema + Mini Vista Previa Interactiva en Vivo en forma de Celular */}
-                      <div className="relative h-[400px] overflow-hidden border-b border-slate-150 group flex items-center justify-center select-none" style={{ backgroundColor: lightBgColor }}>
+                      <div className="relative h-[620px] overflow-hidden border-b border-slate-150 group flex items-center justify-center select-none" style={{ backgroundColor: lightBgColor }}>
                         
                         {/* Fondo de estudio decorativo claro adaptado al color de fondo y primario del tema */}
                         <div 
@@ -7522,7 +7529,7 @@ export default function App() {
                         />
 
                         {/* Maqueta del Celular Realista */}
-                        <div className="relative z-10 w-[196px] h-[340px] bg-slate-100 rounded-[32px] p-[3.5px] border-[2px] border-slate-300 shadow-[0_12px_30px_-5px_rgba(15,23,42,0.15),0_8px_16px_-6px_rgba(15,23,42,0.1)] flex flex-col transition-all duration-300 group-hover:scale-105 group-hover:border-indigo-300 group-hover:shadow-[0_18px_38px_-8px_rgba(99,102,241,0.22),0_8px_18px_rgba(15,23,42,0.12)]">
+                        <div className="relative z-10 w-[196px] h-[560px] bg-slate-100 rounded-[32px] p-[3.5px] border-[2px] border-slate-300 shadow-[0_12px_30px_-5px_rgba(15,23,42,0.15),0_8px_16px_-6px_rgba(15,23,42,0.1)] flex flex-col transition-all duration-300 group-hover:scale-105 group-hover:border-indigo-300 group-hover:shadow-[0_18px_38px_-8px_rgba(99,102,241,0.22),0_8px_18px_rgba(15,23,42,0.12)]">
                           
                           {/* Botones físicos laterales simulados */}
                           <div className="absolute top-12 -left-[2.5px] w-[2.5px] h-6 bg-slate-300 rounded-l transition-colors duration-300 group-hover:bg-indigo-300" />
@@ -7593,7 +7600,7 @@ export default function App() {
                                 className="text-sm text-slate-800 font-semibold"
                                 style={{ fontFamily: t.fontHeading }}
                               >
-                                Sofía Valeria
+                                Luna Isabella
                               </span>
                             </div>
                             {t.fontCursive && (

@@ -1309,7 +1309,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
     if (estiloPortadaEfectivo === "arco") {
       return hayFotoPrincipalPortada ? `
           <div class="relative w-64 h-72 mx-auto mb-6 overflow-hidden animate-float" style="border-radius: 50% 50% 14px 14px / 55% 55% 14px 14px; box-shadow: 0 0 0 4px white, 0 0 0 8px ${tema.colors.accent}, 0 18px 35px rgba(0,0,0,0.2);">
-            <img src="${urlFotoPrincipalPortada}" alt="${datos.nombre}" class="w-full h-full object-cover">
+            <img src="${urlFotoPrincipalPortada}" alt="${datos.nombre}" class="w-full h-full object-cover object-[center_20%]">
             <div class="absolute inset-0 bg-gradient-to-t from-black/15 via-transparent to-transparent"></div>
           </div>` : `
           <div class="mx-auto mb-6 flex items-center justify-center shadow-2xl animate-float" style="width:224px;height:252px;border-radius: 50% 50% 14px 14px / 55% 55% 14px 14px; background: linear-gradient(145deg, ${tema.colors.light}, ${tema.colors.secondary}); box-shadow: 0 0 0 4px white, 0 0 0 8px ${tema.colors.accent};">
@@ -1327,7 +1327,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
             <span class="absolute -bottom-2.5 -left-2.5 text-lg" style="color:${tema.colors.accent};">${tema.decorativeEmoji}</span>
             <span class="absolute -bottom-2.5 -right-2.5 text-lg" style="color:${tema.colors.accent};">${tema.decorativeEmoji}</span>
             <div class="w-full h-full overflow-hidden" style="border:1px solid ${tema.colors.border};">
-              <img src="${urlFotoPrincipalPortada}" alt="${datos.nombre}" class="w-full h-full object-cover">
+              <img src="${urlFotoPrincipalPortada}" alt="${datos.nombre}" class="w-full h-full object-cover object-[center_20%]">
             </div>
           </div>` : `
           <div class="relative mx-auto mb-6 flex items-center justify-center animate-float" style="width:224px;height:272px;padding:10px;border:2px solid ${tema.colors.accent};background:white;box-shadow:0 15px 35px rgba(0,0,0,0.18);">
@@ -1343,7 +1343,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
     // circular -- diseño original, intacto
     return hayFotoPrincipalPortada ? `
           <div class="relative w-64 h-64 mx-auto rounded-full overflow-hidden border-4 border-white shadow-2xl mb-6 ring-4 ring-primary/20 animate-float">
-            <img src="${urlFotoPrincipalPortada}" alt="${datos.nombre}" class="w-full h-full object-cover">
+            <img src="${urlFotoPrincipalPortada}" alt="${datos.nombre}" class="w-full h-full object-cover object-[center_20%]">
             <div class="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent"></div>
           </div>` : `
           <div class="w-56 h-56 mx-auto rounded-full bg-gradient-to-br from-[${tema.colors.light}] to-[${tema.colors.secondary}] border-4 border-white flex items-center justify-center mb-6 shadow-2xl animate-float ring-4 ring-primary/10">
@@ -1365,7 +1365,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       const colorVelo = esOscuro ? `rgba(8, 6, 16, ${opacidadVelo})` : `rgba(20, 16, 10, ${opacidadVelo * 0.6})`;
       const sombraTexto = "text-shadow: 0 2px 10px rgba(0,0,0,0.45);";
       return `
-    <section data-section="portada" class="relative min-h-[92vh] flex flex-col justify-between p-6 text-center overflow-hidden border-b border-borderTheme/10" style="background-image: url('${urlFotoPrincipalPortada}'); background-size: cover; background-position: center;">
+    <section data-section="portada" class="relative min-h-[92vh] flex flex-col justify-center p-6 text-center overflow-hidden border-b border-borderTheme/10" style="background-image: url('${urlFotoPrincipalPortada}'); background-size: cover; background-position: center 20%;">
       <div class="absolute inset-0" style="background: ${colorVelo};"></div>
 
       <div class="mt-10 z-10 animate-fade-in">
@@ -1377,7 +1377,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
         </div>
       </div>
 
-      <div class="my-auto z-10 py-6 animate-fade-in" style="animation-delay: 0.2s;">
+      <div class="z-10 py-6 animate-fade-in" style="animation-delay: 0.2s;">
         <p class="text-sm font-serif italic mb-3 tracking-wide" style="color:white; ${sombraTexto}">${textosEvento.bienvenidaPortada}</p>
         <h1 class="cursive-text text-6xl md:text-7xl mb-5" style="color:white; text-shadow: 0 4px 18px rgba(0,0,0,0.55);">${datos.nombre}</h1>
         <div class="flex items-center justify-center gap-3 mb-2">
@@ -1397,7 +1397,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
     </section>
     `;
     })() : `
-    <section data-section="portada" class="relative min-h-[92vh] flex flex-col justify-between p-6 text-center overflow-hidden border-b border-borderTheme/10" style="background: ${tema.bgGradient};">
+    <section data-section="portada" class="relative min-h-[92vh] flex flex-col justify-center p-6 text-center overflow-hidden border-b border-borderTheme/10" style="background: ${tema.bgGradient};">
       <!-- Decorativos de fondo premium -->
       <div class="absolute -top-20 -left-20 w-60 h-60 rounded-full bg-primary/15 blur-3xl animate-pulse-slow"></div>
       <div class="absolute -bottom-20 -right-20 w-60 h-60 rounded-full bg-accent/10 blur-3xl animate-pulse-slow" style="animation-delay: 1s;"></div>
@@ -1405,7 +1405,7 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
 
       <!-- Orla Decorativa Superior Premium -->
       <div class="mt-10 z-10 animate-fade-in">
-        <p class="text-xs uppercase tracking-[0.3em] font-serif text-gray-500 mb-2">${textosEvento.orlaPortada}</p>
+        <p class="text-xs uppercase tracking-[0.3em] font-serif text-gray-500 mb-2" style="text-shadow: 0 1px 4px ${tema.colors.dark}33;">${textosEvento.orlaPortada}</p>
         <div class="flex justify-center items-center gap-3 mb-1">
           <div class="w-12 h-[1px] bg-gradient-to-r from-transparent to-primary/60"></div>
           <span class="text-accent/80">${tema.decorativeEmoji}</span>
@@ -1414,9 +1414,9 @@ export function generarHTMLFinal(datos: InvitacionDatos, tema: TemaConfig, opcio
       </div>
 
       <!-- Nombre central de la festejada/el evento, con animación -->
-      <div class="my-auto z-10 py-6 animate-fade-in" style="animation-delay: 0.2s;">
+      <div class="z-10 py-6 animate-fade-in" style="animation-delay: 0.2s;">
         <p class="text-sm font-serif text-gray-500 italic mb-3 tracking-wide">${textosEvento.bienvenidaPortada}</p>
-        <h1 class="cursive-text text-6xl md:text-7xl mb-5 drop-shadow-lg">${datos.nombre}</h1>
+        <h1 class="cursive-text text-6xl md:text-7xl mb-5 drop-shadow-lg" style="text-shadow: 0 2px 8px ${tema.colors.dark}40;">${datos.nombre}</h1>
         <div class="flex items-center justify-center gap-3 mb-8">
           <span class="w-12 h-[1px] bg-gradient-to-r from-transparent to-borderTheme/60"></span>
           <span class="text-accent text-[11px] tracking-widest uppercase font-semibold px-4 py-2 bg-white/30 backdrop-blur rounded-full border border-white/50">${textosEvento.pastillaPortada}</span>
