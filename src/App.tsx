@@ -883,7 +883,8 @@ const NOMBRE_DEMO_CATALOGO_POR_EVENTO: Partial<Record<TipoEvento, string>> = {
   bautizo: "Santiago",
   "primera-comunion": "Fernanda",
   graduacion: "Andrea",
-  "baby-shower": "Mateo"
+  "baby-shower": "Mateo",
+  aniversario: "Laura & Jorge"
 };
 
 // Itinerario de ejemplo para la demo de catálogo por evento -- reusa ITINERARIO_BODA_POR_PAQUETE
@@ -918,6 +919,13 @@ const ITINERARIO_DEMO_CATALOGO_POR_EVENTO: Partial<Record<TipoEvento, { hora: st
     { hora: "16:30", evento: "Comida" },
     { hora: "17:30", evento: "Apertura de Regalos" },
     { hora: "18:30", evento: "Pastel y Despedida" }
+  ],
+  aniversario: [
+    { hora: "18:00", evento: "Misa de Acción de Gracias" },
+    { hora: "19:30", evento: "Recepción de Bienvenida" },
+    { hora: "20:00", evento: "Cena" },
+    { hora: "21:30", evento: "Brindis" },
+    { hora: "22:30", evento: "Baile y Fiesta" }
   ]
 };
 

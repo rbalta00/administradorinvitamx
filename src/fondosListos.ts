@@ -194,6 +194,37 @@ export const FONDOS_LISTOS: FondoListo[] = [
     nombre: "Baby Shower · Bosque",
     evento: "baby-shower",
     url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790169/vinmbvfa2miyj7bbrbyk.webp"
+  },
+  // Set de Aniversario (2026-11-27) -- 6 fondos, mismo criterio que los sets de arriba.
+  {
+    nombre: "Aniversario · Dorado y rosas",
+    evento: "aniversario",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790869/gesz0uxmrclefw92ahdb.webp"
+  },
+  {
+    nombre: "Aniversario · Plata",
+    evento: "aniversario",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790870/dbvdmlcvbcuuvnchyynp.webp"
+  },
+  {
+    nombre: "Aniversario · Blanco y dorado",
+    evento: "aniversario",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790867/kc3swpmvdtrfkhdtat69.webp"
+  },
+  {
+    nombre: "Aniversario · Vino y rosas",
+    evento: "aniversario",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790873/qwgc2vvnobbmq1icblh9.webp"
+  },
+  {
+    nombre: "Aniversario · Velas",
+    evento: "aniversario",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790872/xw6xwbgeewr2ul6k9ged.webp"
+  },
+  {
+    nombre: "Aniversario · Botánico",
+    evento: "aniversario",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790868/yseutyaxyjggcbksl2st.webp"
   }
 ];
 

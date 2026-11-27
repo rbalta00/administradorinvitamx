@@ -398,6 +398,48 @@ export const FOTOS_LISTAS: FotoLista[] = [
     nombre: "Baby Shower · Dulces",
     evento: "baby-shower",
     url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790176/apbjbd1lw47qylr7ofd8.jpg"
+  },
+  // Set de Aniversario (2026-11-27) -- 8 fotos ficticias de muestra (solo relleno para vestir la muestra gratis).
+  {
+    nombre: "Aniversario · Portada",
+    evento: "aniversario",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790882/yevxnlzl9ef0s0cb6obf.jpg",
+    esPortada: true
+  },
+  {
+    nombre: "Aniversario · Baile",
+    evento: "aniversario",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790875/n3zmznprtbcbbrbjnyw0.jpg"
+  },
+  {
+    nombre: "Aniversario · Anillos",
+    evento: "aniversario",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790874/v3m9ttwabcyls3w5ozpk.jpg"
+  },
+  {
+    nombre: "Aniversario · Familia",
+    evento: "aniversario",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790879/vgog6fcohpk8fqd9eh1g.jpg"
+  },
+  {
+    nombre: "Aniversario · Cena",
+    evento: "aniversario",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790878/nv2qgnhb6xkqumza2bhd.jpg"
+  },
+  {
+    nombre: "Aniversario · Caminando",
+    evento: "aniversario",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790877/qeglbb0hifriesbhbodn.jpg"
+  },
+  {
+    nombre: "Aniversario · Pastel",
+    evento: "aniversario",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790880/axfig22gsr1fh7izt4eq.jpg"
+  },
+  {
+    nombre: "Aniversario · Risa",
+    evento: "aniversario",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790884/qouskncezralvayroh5k.jpg"
   }
 ];
 
