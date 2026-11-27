@@ -8181,7 +8181,21 @@ export default function App() {
             title="Abre la página de ventas (invitamx.app) aquí mismo, en una pestaña nueva"
             className="px-3.5 py-2 bg-white hover:bg-rose-50 text-rose-700 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
           >
-            <span>🌐 Abrir landing</span>
+            <span>🌐 Abrir landing XV</span>
+          </button>
+          <button
+            onClick={() => window.open("https://invitamx.app/bodas", "_blank")}
+            title="Abre la página de bodas (invitamx.app/bodas) en una pestaña nueva"
+            className="px-3.5 py-2 bg-white hover:bg-rose-50 text-rose-700 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+          >
+            <span>💒 Abrir bodas</span>
+          </button>
+          <button
+            onClick={() => window.open("https://invitamx.app/cumpleanos", "_blank")}
+            title="Abre la página de cumpleaños (invitamx.app/cumpleanos) en una pestaña nueva"
+            className="px-3.5 py-2 bg-white hover:bg-rose-50 text-rose-700 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+          >
+            <span>🎂 Abrir cumpleaños</span>
           </button>
 
           <button
