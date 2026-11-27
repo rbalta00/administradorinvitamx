@@ -356,6 +356,48 @@ export const FOTOS_LISTAS: FotoLista[] = [
     nombre: "Graduación · Vals",
     evento: "graduacion",
     url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795789328/nepugfpsq8y4jhiqm1g6.jpg"
+  },
+  // Set de Baby Shower (2026-11-27) -- 8 fotos ficticias de muestra (solo relleno para vestir la muestra gratis).
+  {
+    nombre: "Baby Shower · Portada",
+    evento: "baby-shower",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790180/pdciecc2uladmys5ql2n.jpg",
+    esPortada: true
+  },
+  {
+    nombre: "Baby Shower · Regalo",
+    evento: "baby-shower",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790181/yslhlj70yrargq0njtdm.jpg"
+  },
+  {
+    nombre: "Baby Shower · Pastel",
+    evento: "baby-shower",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790178/rycnd5be5d2gcxgjikhx.jpg"
+  },
+  {
+    nombre: "Baby Shower · Regalos",
+    evento: "baby-shower",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790183/qxornrai4edi34x4h4zz.jpg"
+  },
+  {
+    nombre: "Baby Shower · Ropita",
+    evento: "baby-shower",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790184/imoqch8spuwbzz5wpg52.jpg"
+  },
+  {
+    nombre: "Baby Shower · Papás",
+    evento: "baby-shower",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790177/fbo8zoimfg8hfvtawqyh.jpg"
+  },
+  {
+    nombre: "Baby Shower · Amigas",
+    evento: "baby-shower",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790174/tkzsbpoe830db6bm8ay6.jpg"
+  },
+  {
+    nombre: "Baby Shower · Dulces",
+    evento: "baby-shower",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790176/apbjbd1lw47qylr7ofd8.jpg"
   }
 ];
 

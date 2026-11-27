@@ -163,6 +163,37 @@ export const FONDOS_LISTOS: FondoListo[] = [
     nombre: "Graduación · Terracota",
     evento: "graduacion",
     url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795789315/fqyalwnertpplew57bgc.webp"
+  },
+  // Set de Baby Shower (2026-11-27) -- 6 fondos, mismo criterio que los sets de arriba.
+  {
+    nombre: "Baby Shower · Menta",
+    evento: "baby-shower",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790171/pcejdlzyidmgpxkxlyrc.webp"
+  },
+  {
+    nombre: "Baby Shower · Rosa globos",
+    evento: "baby-shower",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790172/tupbnz3mzymbm4rmzoy7.webp"
+  },
+  {
+    nombre: "Baby Shower · Azul luna",
+    evento: "baby-shower",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790168/ywvjmny7gv9z7tqchlhd.webp"
+  },
+  {
+    nombre: "Baby Shower · Lavanda",
+    evento: "baby-shower",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790170/sqmmjutlurwehip0mgvi.webp"
+  },
+  {
+    nombre: "Baby Shower · Amarillo",
+    evento: "baby-shower",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790166/yogoabhbypj1bgitqsgp.webp"
+  },
+  {
+    nombre: "Baby Shower · Bosque",
+    evento: "baby-shower",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790169/vinmbvfa2miyj7bbrbyk.webp"
   }
 ];
 
