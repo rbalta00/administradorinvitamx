@@ -133,6 +133,36 @@ export const FONDOS_LISTOS: FondoListo[] = [
     nombre: "Primera Comunión · Encaje y perlas",
     evento: "primera-comunion",
     url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795788107/wbyztgyv8xzzcca1r1dk.webp"
+  },
+  {
+    nombre: "Graduación · Azul marino y dorado",
+    evento: "graduacion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795789310/qdseqigx0ofo7yxnb2je.webp"
+  },
+  {
+    nombre: "Graduación · Negro y dorado",
+    evento: "graduacion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795789312/u0v3knvapamahoje5p6y.webp"
+  },
+  {
+    nombre: "Graduación · Blanco y dorado",
+    evento: "graduacion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795789312/dgfrhrkhxz13gvh6tfug.webp"
+  },
+  {
+    nombre: "Graduación · Vino",
+    evento: "graduacion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795789316/zyaop4ltfu9osu5thv27.webp"
+  },
+  {
+    nombre: "Graduación · Gris perla",
+    evento: "graduacion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795789314/kt8oecm1qpcnvgpbux8u.webp"
+  },
+  {
+    nombre: "Graduación · Terracota",
+    evento: "graduacion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795789315/fqyalwnertpplew57bgc.webp"
   }
 ];
 

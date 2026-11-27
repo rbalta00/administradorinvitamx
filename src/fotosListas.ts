@@ -313,6 +313,49 @@ export const FOTOS_LISTAS: FotoLista[] = [
     nombre: "Primera Comunión · Rosario",
     evento: "primera-comunion",
     url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795788119/katlb7jmeqgytofcjf6x.jpg"
+  },
+  // Set de Graduación (2026-11-27) -- 8 fotos ficticias de muestra, mismo criterio que los sets
+  // de arriba (solo relleno para vestir la muestra gratis).
+  {
+    nombre: "Graduación · Portada",
+    evento: "graduacion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795789324/anvofi28um1svkz1ccqr.jpg",
+    esPortada: true
+  },
+  {
+    nombre: "Graduación · Escenario",
+    evento: "graduacion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795789322/aa4cek3z76ykqd09hnnq.jpg"
+  },
+  {
+    nombre: "Graduación · Familia",
+    evento: "graduacion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795789323/n0pcepl78qecmcvyrk3z.jpg"
+  },
+  {
+    nombre: "Graduación · Amigas",
+    evento: "graduacion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795789318/m3uzcjr5zhyw0uubuqrh.jpg"
+  },
+  {
+    nombre: "Graduación · Columnas",
+    evento: "graduacion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795789319/mnfhbda7u99hbxtq2mij.jpg"
+  },
+  {
+    nombre: "Graduación · Diploma",
+    evento: "graduacion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795789321/z8hte682j5tmlpqobwiz.jpg"
+  },
+  {
+    nombre: "Graduación · Postres",
+    evento: "graduacion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795789326/yzmn7yzhspqf4uauwxpb.jpg"
+  },
+  {
+    nombre: "Graduación · Vals",
+    evento: "graduacion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795789328/nepugfpsq8y4jhiqm1g6.jpg"
   }
 ];
 

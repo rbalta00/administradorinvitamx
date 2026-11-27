@@ -881,7 +881,8 @@ const getColorSugeridoPorTema = (temaId: string, tColors: any): string[] => {
 const NOMBRE_DEMO_CATALOGO_POR_EVENTO: Partial<Record<TipoEvento, string>> = {
   boda: "Valeria & Diego",
   bautizo: "Santiago",
-  "primera-comunion": "Fernanda"
+  "primera-comunion": "Fernanda",
+  graduacion: "Andrea"
 };
 
 // Itinerario de ejemplo para la demo de catálogo por evento -- reusa ITINERARIO_BODA_POR_PAQUETE
@@ -902,6 +903,13 @@ const ITINERARIO_DEMO_CATALOGO_POR_EVENTO: Partial<Record<TipoEvento, { hora: st
     { hora: "14:00", evento: "Comida" },
     { hora: "16:00", evento: "Brindis y Pastel" },
     { hora: "18:00", evento: "Despedida y Agradecimiento" }
+  ],
+  graduacion: [
+    { hora: "17:00", evento: "Ceremonia de Graduación" },
+    { hora: "19:00", evento: "Recepción de Bienvenida" },
+    { hora: "20:00", evento: "Cena de Gala" },
+    { hora: "21:30", evento: "Brindis y Reconocimientos" },
+    { hora: "23:00", evento: "Fiesta y Baile" }
   ]
 };
 
