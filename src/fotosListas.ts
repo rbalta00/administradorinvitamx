@@ -229,6 +229,47 @@ export const FOTOS_LISTAS: FotoLista[] = [
     evento: "cumpleanos",
     grupo: "niño",
     url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795526165/zq2qkiahjazpk4xa80ms.webp"
+  },
+  {
+    nombre: "Bautizo · Portada",
+    evento: "bautizo",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795786776/xjypftdvlvi4r4eqlahd.jpg",
+    esPortada: true
+  },
+  {
+    nombre: "Bautizo · Pila bautismal",
+    evento: "bautizo",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795786775/gezrvdbg4d9ae10upkcl.jpg"
+  },
+  {
+    nombre: "Bautizo · Padrinos",
+    evento: "bautizo",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795786774/ivldrdgz6zghyqs5x1wl.jpg"
+  },
+  {
+    nombre: "Bautizo · Detalle del ropón",
+    evento: "bautizo",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795786771/sjjfe8cfishrzpbhazsh.jpg"
+  },
+  {
+    nombre: "Bautizo · Sonrisa",
+    evento: "bautizo",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795786780/ozgeyu0hli6ld6l6vob3.jpg"
+  },
+  {
+    nombre: "Bautizo · Salida de la iglesia",
+    evento: "bautizo",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795786779/vzap4rsrjawmundhnweh.jpg"
+  },
+  {
+    nombre: "Bautizo · Recepción",
+    evento: "bautizo",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795786778/mel4lowj1yxghsbn3uad.jpg"
+  },
+  {
+    nombre: "Bautizo · Dormido",
+    evento: "bautizo",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795786773/aeg3opzsuht91gblklyj.jpg"
   }
 ];
 

@@ -73,6 +73,36 @@ export const FONDOS_LISTOS: FondoListo[] = [
     nombre: "Cumpleaños · Dorado fiesta",
     evento: "cumpleanos",
     url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795526426/ecloloi5zyjjehqvaprq.webp"
+  },
+  {
+    nombre: "Bautizo · Blanco y dorado",
+    evento: "bautizo",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795786767/rtsns9tekgeiv22r5pyo.webp"
+  },
+  {
+    nombre: "Bautizo · Azul pastel",
+    evento: "bautizo",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795786766/qat0ren5cpga4kqvwzr9.webp"
+  },
+  {
+    nombre: "Bautizo · Rosa pastel",
+    evento: "bautizo",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795786770/tgmahzhf5uurgtvxtnue.webp"
+  },
+  {
+    nombre: "Bautizo · Botánico blanco",
+    evento: "bautizo",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795786768/lepb51avunj69cnqm6tj.webp"
+  },
+  {
+    nombre: "Bautizo · Angelical",
+    evento: "bautizo",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795786765/qadb4izmp38kobq7hola.webp"
+  },
+  {
+    nombre: "Bautizo · Iglesia y luz",
+    evento: "bautizo",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795786769/nfdwaltevxsl8gosu5i2.webp"
   }
 ];
 
