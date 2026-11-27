@@ -880,7 +880,8 @@ const getColorSugeridoPorTema = (temaId: string, tColors: any): string[] => {
 // Isabella") se queda igual -- la demo de catálogo nunca dejó de ser XV por default.
 const NOMBRE_DEMO_CATALOGO_POR_EVENTO: Partial<Record<TipoEvento, string>> = {
   boda: "Valeria & Diego",
-  bautizo: "Santiago"
+  bautizo: "Santiago",
+  "primera-comunion": "Fernanda"
 };
 
 // Itinerario de ejemplo para la demo de catálogo por evento -- reusa ITINERARIO_BODA_POR_PAQUETE
@@ -894,6 +895,13 @@ const ITINERARIO_DEMO_CATALOGO_POR_EVENTO: Partial<Record<TipoEvento, { hora: st
     { hora: "15:00", evento: "Comida" },
     { hora: "17:00", evento: "Brindis y Pastel" },
     { hora: "19:00", evento: "Despedida y Agradecimiento" }
+  ],
+  "primera-comunion": [
+    { hora: "11:00", evento: "Misa de Primera Comunión" },
+    { hora: "13:00", evento: "Recepción de Bienvenida" },
+    { hora: "14:00", evento: "Comida" },
+    { hora: "16:00", evento: "Brindis y Pastel" },
+    { hora: "18:00", evento: "Despedida y Agradecimiento" }
   ]
 };
 

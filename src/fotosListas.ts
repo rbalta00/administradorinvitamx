@@ -270,6 +270,49 @@ export const FOTOS_LISTAS: FotoLista[] = [
     nombre: "Bautizo · Dormido",
     evento: "bautizo",
     url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795786773/aeg3opzsuht91gblklyj.jpg"
+  },
+  // Set de Primera Comunión (2026-11-27) -- 8 fotos ficticias de muestra, mismo criterio que los
+  // sets de boda/XV/cumpleaños/bautizo de arriba (solo relleno para vestir la muestra gratis).
+  {
+    nombre: "Primera Comunión · Portada",
+    evento: "primera-comunion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795788116/yftewkurgclkkd6nx02e.jpg",
+    esPortada: true
+  },
+  {
+    nombre: "Primera Comunión · Oración",
+    evento: "primera-comunion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795788113/nmkyamegskwxpsmvpwt4.jpg"
+  },
+  {
+    nombre: "Primera Comunión · Familia",
+    evento: "primera-comunion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795788112/cfvfkpyulycum9tqt8hj.jpg"
+  },
+  {
+    nombre: "Primera Comunión · Detalle",
+    evento: "primera-comunion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795788111/kan0ieowhpdlbzmxpjfj.jpg"
+  },
+  {
+    nombre: "Primera Comunión · Sonrisa",
+    evento: "primera-comunion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795788120/fmukrkxe9gxt36gsn332.jpg"
+  },
+  {
+    nombre: "Primera Comunión · Recepción",
+    evento: "primera-comunion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795788117/skgu8qsdrstt1vdapwiv.jpg"
+  },
+  {
+    nombre: "Primera Comunión · Padrinos",
+    evento: "primera-comunion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795788115/jr3svxgngrjep3v3kjjp.jpg"
+  },
+  {
+    nombre: "Primera Comunión · Rosario",
+    evento: "primera-comunion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795788119/katlb7jmeqgytofcjf6x.jpg"
   }
 ];
 

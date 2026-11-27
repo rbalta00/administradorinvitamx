@@ -103,6 +103,36 @@ export const FONDOS_LISTOS: FondoListo[] = [
     nombre: "Bautizo · Iglesia y luz",
     evento: "bautizo",
     url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795786769/nfdwaltevxsl8gosu5i2.webp"
+  },
+  {
+    nombre: "Primera Comunión · Blanco y dorado",
+    evento: "primera-comunion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795788103/hdlu0wkem00kgmgdfnuo.webp"
+  },
+  {
+    nombre: "Primera Comunión · Celeste",
+    evento: "primera-comunion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795788106/zyi8wjgopmx3vkuvuq58.webp"
+  },
+  {
+    nombre: "Primera Comunión · Rosa pastel",
+    evento: "primera-comunion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795788109/cjwui0dwjjdzxsbsjuo7.webp"
+  },
+  {
+    nombre: "Primera Comunión · Botánico blanco",
+    evento: "primera-comunion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795788104/mqdl7ns3xsiakecrjxpy.webp"
+  },
+  {
+    nombre: "Primera Comunión · Luz dorada",
+    evento: "primera-comunion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795788108/qzxrqkbk4p7e2s6vvqfo.webp"
+  },
+  {
+    nombre: "Primera Comunión · Encaje y perlas",
+    evento: "primera-comunion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795788107/wbyztgyv8xzzcca1r1dk.webp"
   }
 ];
 
