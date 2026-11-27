@@ -879,14 +879,22 @@ const getColorSugeridoPorTema = (temaId: string, tColors: any): string[] => {
 // entrada para un evento, el nombre real del tier (datosDefault.deluxe.nombre, "Luna
 // Isabella") se queda igual -- la demo de catálogo nunca dejó de ser XV por default.
 const NOMBRE_DEMO_CATALOGO_POR_EVENTO: Partial<Record<TipoEvento, string>> = {
-  boda: "Valeria & Diego"
+  boda: "Valeria & Diego",
+  bautizo: "Santiago"
 };
 
 // Itinerario de ejemplo para la demo de catálogo por evento -- reusa ITINERARIO_BODA_POR_PAQUETE
 // (ya existe para capturar invitaciones nuevas de boda) con el tier deluxe, el mismo que usa
 // toda demo de catálogo. Sin entrada para un evento, se deja el itinerario XV del default.
 const ITINERARIO_DEMO_CATALOGO_POR_EVENTO: Partial<Record<TipoEvento, { hora: string; evento: string }[]>> = {
-  boda: ITINERARIO_BODA_POR_PAQUETE.deluxe
+  boda: ITINERARIO_BODA_POR_PAQUETE.deluxe,
+  bautizo: [
+    { hora: "12:00", evento: "Misa de Bautizo" },
+    { hora: "14:00", evento: "Recepción de Bienvenida" },
+    { hora: "15:00", evento: "Comida" },
+    { hora: "17:00", evento: "Brindis y Pastel" },
+    { hora: "19:00", evento: "Despedida y Agradecimiento" }
+  ]
 };
 
 // Código de vestimenta propio de la demo de catálogo, SOLO para los 2 temas donde el default
