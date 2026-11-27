@@ -2,7 +2,33 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Fix: "Ver Demo en Vivo" desajustado en celular, SOLO cuando se ve desde la landing (2026-11-26, commit `765a6c0`)
+## Fix v2: "Ver Demo en Vivo" embebido ya no abre pestaña nueva, se redimensiona por postMessage (2026-11-27, commit `f5c5e4a` + `a3a551d` en invitacionmx-landing)
+
+Seguimiento directo de la entrada de abajo (v1, mismo bug). El usuario pidió "arréglalo que
+sea más fácil" sobre la solución anterior -- abrir una pestaña nueva evitaba el bug de `vh`
+pero era un paso extra incómodo para el visitante (clic, esperar que cargue otra pestaña, etc.).
+**Fix de raíz, sin pestaña nueva**: el catálogo (`App.tsx`) ahora avisa al documento PADRE por
+`window.parent.postMessage({ type: "invitamx-catalog-demo", expanded }, "*")` cada vez que entra
+o sale de la vista de un tema/estilo (`selectedCatalogTemaId`/`selectedEstiloCajasDemo`), solo
+cuando `estaEmbebidoEnIframe` es true (fuera de la landing no tiene ningún efecto). La landing
+(`invitacionmx-landing/app/components/Themes.tsx`) escucha ese mensaje (validando que venga del
+`contentWindow` del propio iframe, no de cualquier otro origen) y agranda el iframe al alto real
+de `window.innerHeight` del visitante mientras la demo está abierta -- así el `vh` del marco de
+celular calcula bien contra la pantalla real, sin necesitar abrir nada aparte. Al volver al
+grid, el iframe regresa a su altura fija de siempre (4100px). Se quitó el helper `urlDemoCatalogo`
+(deep-link) y la bifurcación embebido/no-embebido de los 2 botones "Ver Demo en Vivo" -- ya no
+hacen falta, ambos casos (embebido y no) usan el mismo `<button onClick>` simple de siempre.
+**Verificado en vivo** (misma técnica de prueba de la entrada de abajo -- servidor local del
+`dist` + página de prueba que replica el iframe de 4100px de la landing real, ventana a
+390×844): clic en "Ver Demo en Vivo" agranda el iframe de 4100px a 659px (el alto real de la
+ventana de prueba) y el marco de celular renderiza bien proporcionado SIN abrir ninguna pestaña
+nueva (confirmado con `tabs_context_mcp`, sigue siendo 1 sola pestaña); "← Volver al Catálogo"
+regresa el iframe a 4100px. Control sin iframe (acceso directo a `?catalog=true`): mismo
+comportamiento de siempre, sin regresión. `npx tsc --noEmit`/`npm run build` limpios en ambos
+repos (administradorinvitamx: mismos 6 errores preexistentes de siempre; invitacionmx-landing:
+build sin errores).
+
+## Fix v1: "Ver Demo en Vivo" desajustado en celular, SOLO cuando se ve desde la landing (2026-11-26, commit `765a6c0`) -- reemplazado por el fix v2 de arriba
 
 Reporte del usuario: "revise el demo en vivo de la landing y en celular sale mal desajustado".
 Causa real, confirmada en código y en vivo: la landing (`invitacionmx-landing`, `Themes.tsx`)
