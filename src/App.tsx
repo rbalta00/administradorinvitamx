@@ -993,17 +993,17 @@ const getDatosVisualizacionCatalog = (t: any, currentDatos?: any, evento: TipoEv
   };
 };
 
-// Fix "demo en vivo desajustado en celular" (2026-11-26): esta página (?catalog=true) se
-// embebe en un <iframe> de ALTURA FIJA dentro de la landing (invitacionmx-landing,
-// Themes.tsx -- 4100px, medida para que el GRID de 14 tarjetas quepa sin scroll interno). "Ver
-// Demo en Vivo" cambiaba un estado local DENTRO de ese mismo documento/iframe -- el marco de
-// celular de la demo usa alturas en `vh` (línea ~7540, incluye un breakpoint móvil SIN tope,
-// `max-[480px]:h-[82vh]`) que se calculan contra el alto del iframe (4100px), no contra la
-// pantalla real del celular -- en móvil eso da un marco de ~3362px de alto, rompiendo el
-// layout. Fuera de la landing (uso directo en invitaciones.invitamx.app, sin iframe) el `vh`
-// sí coincide con la pantalla real y nunca se ha visto el problema. Por eso solo cuando esta
-// página está embebida se cambia a abrir la demo en una PESTAÑA NUEVA (ventana/viewport real,
-// sin el iframe de por medio) en vez de solo cambiar el estado local.
+// Fix "demo en vivo desajustado en celular" (2026-11-26, v2 -- ver CLAUDE.md): esta página
+// (?catalog=true) se embebe en un <iframe> de ALTURA FIJA dentro de la landing
+// (invitacionmx-landing, Themes.tsx -- 4100px, medida para que el GRID de 14 tarjetas quepa sin
+// scroll interno). El marco de celular de la demo usa alturas en `vh` (línea ~7590, incluye un
+// breakpoint móvil SIN tope, `max-[480px]:h-[82vh]`) que se calculan contra el alto del iframe
+// (4100px), no contra la pantalla real del celular -- en móvil eso da un marco de ~3362px de
+// alto, rompiendo el layout. La v1 de este fix abría la demo en una pestaña nueva (un paso
+// extra, incómodo); esta v2 avisa al PADRE (la landing) por `postMessage` cada vez que se entra
+// o se sale de la vista de un tema/estilo, para que la landing agrande el iframe al alto REAL
+// de la pantalla del visitante mientras se ve la demo (y lo regrese a 4100px al volver al
+// grid) -- así el `vh` de adentro calcula bien, sin pestaña nueva ni tocar la demo en sí.
 const estaEmbebidoEnIframe = (() => {
   try {
     return typeof window !== "undefined" && window.self !== window.top;
@@ -3971,6 +3971,20 @@ export default function App() {
   // Demo comparativa de "Estilos de Contenedores de Sección" (Con cajón/Sin cajón/Solo borde):
   // usa siempre el mismo tema de referencia para que la única diferencia visible sea el cajón.
   const [selectedEstiloCajasDemo, setSelectedEstiloCajasDemo] = useState<"normal" | "sin_cajon" | "solo_borde" | null>(initialCatalogEstiloCajasId);
+  // Avisa a la landing (si esta página está embebida en su iframe, ver `estaEmbebidoEnIframe`
+  // arriba) cada vez que se entra/sale de la vista de un tema o estilo, para que agrande/achique
+  // el iframe al alto real del visitante -- así el `vh` del marco de celular de la demo calcula
+  // bien. Fuera de la landing (`estaEmbebidoEnIframe` false) esto no tiene ningún efecto visible.
+  useEffect(() => {
+    if (!estaEmbebidoEnIframe) return;
+    const expandido = !!(selectedCatalogTemaId || selectedEstiloCajasDemo);
+    try {
+      window.parent.postMessage({ type: "invitamx-catalog-demo", expanded: expandido }, "*");
+    } catch {
+      // Ignorar -- si el padre bloqueó el acceso, simplemente el iframe se queda con su altura
+      // de siempre (mismo comportamiento que antes de este fix, no empeora nada).
+    }
+  }, [selectedCatalogTemaId, selectedEstiloCajasDemo]);
   const TEMA_DEMO_ESTILO_CAJAS = "dorado-clasico";
   // Estilo de cajón elegido dentro de la demo de un tema específico del catálogo (independiente
   // de la sección comparativa "Estilos de Presentación") -- se resetea a "normal" cada vez que
@@ -6386,22 +6400,6 @@ export default function App() {
     return `${appUrl}?catalog=true`;
   };
 
-  // Deep-link directo a un demo del catálogo (tema o estilo de cajón), usado por "Ver Demo en
-  // Vivo" cuando esta página está embebida en un iframe (ver `estaEmbebidoEnIframe` arriba) --
-  // conserva cualquier `?evento=boda` que la propia página ya traiga (la landing de /bodas lo
-  // agrega al embeber el catálogo).
-  const urlDemoCatalogo = (extra: Record<string, string>) => {
-    try {
-      const u = new URL(window.location.href);
-      u.searchParams.set("catalog", "true");
-      u.searchParams.delete("tema");
-      u.searchParams.delete("estiloCajas");
-      Object.entries(extra).forEach(([k, v]) => u.searchParams.set(k, v));
-      return u.toString();
-    } catch {
-      return `${window.location.origin}${window.location.pathname}?catalog=true&${new URLSearchParams(extra).toString()}`;
-    }
-  };
 
   // Generar URL de compartir con todos los datos y el invitado seleccionado. Este deploy es
   // público sin protección SSO, así que apuntar al propio origen es seguro: los invitados
@@ -7778,26 +7776,12 @@ export default function App() {
 
                         {/* Botones de acción */}
                         <div className="pt-2 flex flex-col gap-2">
-                          {estaEmbebidoEnIframe ? (
-                            // Embebido en la landing (iframe de altura fija) -- abre el demo en
-                            // una pestaña nueva, con ventana/viewport real, en vez de cambiar el
-                            // estado local (ver nota de `estaEmbebidoEnIframe` más arriba).
-                            <a
-                              href={urlDemoCatalogo({ tema: t.id })}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all duration-200 active:scale-95 cursor-pointer text-center shadow-md flex items-center justify-center gap-1.5"
-                            >
-                              Ver Demo en Vivo 👁️✨
-                            </a>
-                          ) : (
-                            <button
-                              onClick={() => { setSelectedCatalogTemaId(t.id); setCatalogDemoEstiloCajas("normal"); setCatalogDemoNombre(""); setCatalogDemoFecha(""); setCatalogDemoPaquete("premium"); }}
-                              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all duration-200 active:scale-95 cursor-pointer text-center shadow-md flex items-center justify-center gap-1.5"
-                            >
-                              Ver Demo en Vivo 👁️✨
-                            </button>
-                          )}
+                          <button
+                            onClick={() => { setSelectedCatalogTemaId(t.id); setCatalogDemoEstiloCajas("normal"); setCatalogDemoNombre(""); setCatalogDemoFecha(""); setCatalogDemoPaquete("premium"); }}
+                            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all duration-200 active:scale-95 cursor-pointer text-center shadow-md flex items-center justify-center gap-1.5"
+                          >
+                            Ver Demo en Vivo 👁️✨
+                          </button>
                           <a
                             href="https://wa.me/522217445410?text=Hola%2C%20vengo%20de%20InvitaMX%2C%20me%20interesa%20una%20invitaci%C3%B3n%20digital%20personalizada"
                             target="_blank"
@@ -7830,23 +7814,12 @@ export default function App() {
                         <span className="block text-sm font-extrabold text-slate-800">{e.nombre}</span>
                         <span className="block text-[11px] text-slate-500 mt-0.5">{e.desc}</span>
                       </div>
-                      {estaEmbebidoEnIframe ? (
-                        <a
-                          href={urlDemoCatalogo({ estiloCajas: e.id })}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all duration-200 active:scale-95 cursor-pointer text-center shadow-md flex items-center justify-center gap-1.5"
-                        >
-                          Ver Demo en Vivo 👁️✨
-                        </a>
-                      ) : (
-                        <button
-                          onClick={() => setSelectedEstiloCajasDemo(e.id)}
-                          className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all duration-200 active:scale-95 cursor-pointer text-center shadow-md flex items-center justify-center gap-1.5"
-                        >
-                          Ver Demo en Vivo 👁️✨
-                        </button>
-                      )}
+                      <button
+                        onClick={() => setSelectedEstiloCajasDemo(e.id)}
+                        className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all duration-200 active:scale-95 cursor-pointer text-center shadow-md flex items-center justify-center gap-1.5"
+                      >
+                        Ver Demo en Vivo 👁️✨
+                      </button>
                     </div>
                   ))}
                 </div>
