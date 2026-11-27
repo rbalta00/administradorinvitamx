@@ -40,8 +40,10 @@ import { createClient } from "@supabase/supabase-js";
 import { InvitacionDatos, TemaConfig } from "./types";
 import { temas, paquetes, datosDefault, getFotosPorTema, getOrdenSeccionesEfectivo, PALETAS_COLOR_PERSONALIZADO, ITINERARIO_POR_TEMA } from "./data";
 import { generarHTMLFinal, TipoEvento, TEXTOS_POR_EVENTO, resolverTemaEfectivo, construirUrlGoogleFonts } from "./templates";
-import { fondosListosPorEvento } from "./fondosListos";
-import { fotosListasPorEvento, FotoLista } from "./fotosListas";
+import { FondoListo } from "./fondosListos";
+import { FotoLista, FOTOS_LISTAS } from "./fotosListas";
+import { sanearFotosListas, sanearFondosListos, fotosListasEfectivas, fondosListosEfectivos } from "./creativos";
+import EditorCreativos from "./EditorCreativos";
 
 // Inicializar cliente de Supabase a partir de variables de entorno (Vite las inyecta en build time)
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -902,13 +904,14 @@ const VESTIMENTA_DEMO_CATALOGO_POR_TEMA: Partial<Record<string, string>> = {
 // textosEventoDe() en templates.ts con solo fijar ese campo; aquí solo hace falta pisar lo que
 // SÍ sigue siendo "de fábrica XV" en el dato mismo: el nombre, el mensaje de bienvenida, el
 // itinerario, y las fotos (las fotos por tema son de una quinceañera, nunca sirven para boda).
-const getDatosCatalogTema = (baseDatos: any, t: any, evento: TipoEvento = "xv"): any => {
+const getDatosCatalogTema = (baseDatos: any, t: any, evento: TipoEvento = "xv", fotosListas: FotoLista[] = FOTOS_LISTAS): any => {
   const base = baseDatos || datosDefault.premium;
   const esXv = evento === "xv" || !TEXTOS_POR_EVENTO[evento];
   // Pool de fotos: para XV, las fotos reales del TEMA (como siempre); para otro evento, las
-  // fotos de muestra de ESE evento (fotosListas.ts) -- el tema sigue siendo el mismo (colores/
-  // tipografía), solo cambian las fotos para no mostrar a una quinceañera en una demo de boda.
-  const fotosEventoCatalogo = esXv ? [] : fotosListasPorEvento(evento).map(f => f.url);
+  // fotos de muestra de ESE evento (fotosListas.ts, o la lista administrada desde el panel) -- el
+  // tema sigue siendo el mismo (colores/tipografía), solo cambian las fotos para no mostrar a una
+  // quinceañera en una demo de boda.
+  const fotosEventoCatalogo = esXv ? [] : fotosListas.filter(f => f.evento === evento).map(f => f.url);
   const fotosTema = fotosEventoCatalogo.length ? fotosEventoCatalogo : getFotosPorTema(t.id);
   // Antes era aleatoria (Math.random()) -- en cada carga podía tocar una foto de ambiente/detalle
   // en vez de la festejada (ej. un salón vacío), mala para vender. Fija a la primera del pool
@@ -948,7 +951,7 @@ const getDatosCatalogTema = (baseDatos: any, t: any, evento: TipoEvento = "xv"):
 // por el admin para ese tema (localStorage, siempre pensado/guardado en contexto XV) se
 // ignora a propósito, para que la demo de boda nunca se contamine con un nombre/foto de XV
 // que el admin haya guardado ahí en otra sesión.
-const getDatosVisualizacionCatalog = (t: any, currentDatos?: any, evento: TipoEvento = "xv"): any => {
+const getDatosVisualizacionCatalog = (t: any, currentDatos?: any, evento: TipoEvento = "xv", fotosListas: FotoLista[] = FOTOS_LISTAS): any => {
   if (evento === "xv") {
     try {
       const saved = localStorage.getItem(`xv_diseño_guardado_tema_${t.id}`);
@@ -973,7 +976,7 @@ const getDatosVisualizacionCatalog = (t: any, currentDatos?: any, evento: TipoEv
   // Usamos el tier Deluxe como base para las demos del catálogo (en vez de Premium) para que
   // se vean TODAS las secciones posibles, incluida "Pases de Entrada" (exclusiva de Deluxe) —
   // así un cliente puede ver esa función antes de decidir qué paquete comprar.
-  const baseData = getDatosCatalogTema(datosDefault.deluxe, t, evento);
+  const baseData = getDatosCatalogTema(datosDefault.deluxe, t, evento, fotosListas);
 
   // Asegurar que los bgImages del usuario se incluyan siempre en el catálogo
   const allBgImages = {
@@ -1076,7 +1079,7 @@ const IFRAME_ANCHO_VIRTUAL = 354;
 // así, es solo el primer render mientras el iframe termina de cargar.
 const ALTO_PORTADA_ESTIMADO = 700;
 
-const LazyIframe = memo(({ t, index, datos, evento = "xv" }: { t: any; index: number; datos: any; evento?: TipoEvento }) => {
+const LazyIframe = memo(({ t, index, datos, evento = "xv", fotosListas = FOTOS_LISTAS }: { t: any; index: number; datos: any; evento?: TipoEvento; fotosListas?: FotoLista[] }) => {
   const [shouldRender, setShouldRender] = useState(false);
   const [altoPortada, setAltoPortada] = useState(ALTO_PORTADA_ESTIMADO);
   const turnoActivo = useRef(false);
@@ -1188,8 +1191,8 @@ const LazyIframe = memo(({ t, index, datos, evento = "xv" }: { t: any; index: nu
     // solo la portada (lo que la clienta de verdad compara entre temas), con imágenes ligeras
     // (ver aligerarUrlCloudinaria en templates.ts) -- el demo completo sigue siendo
     // "Ver Demo en Vivo", sin tocar.
-    return generarHTMLFinal({ ...getDatosVisualizacionCatalog(t, datos, evento), seccionesExcluidas: [...(getDatosVisualizacionCatalog(t, datos, evento).seccionesExcluidas || []), "apertura"] }, t, { esDemoDeCatalogo: true, soloPortada: true });
-  }, [shouldRender, t, datos, evento]);
+    return generarHTMLFinal({ ...getDatosVisualizacionCatalog(t, datos, evento, fotosListas), seccionesExcluidas: [...(getDatosVisualizacionCatalog(t, datos, evento, fotosListas).seccionesExcluidas || []), "apertura"] }, t, { esDemoDeCatalogo: true, soloPortada: true });
+  }, [shouldRender, t, datos, evento, fotosListas]);
 
   // Escala por el lado que más apriete (ancho o alto) -- nunca estira el marco, es la portada
   // la que se adapta. Con el alto REAL ya medido (altoPortada), esto converge exacto sin
@@ -3538,19 +3541,21 @@ function RecoveryPage() {
 // otro de inmediato, no son dos copias independientes.
 function BloqueFondosListos({
   datos,
+  fondos,
   onAplicar,
   onQuitar,
   mostrarVacio = true,
   ayudaExtra
 }: {
   datos: InvitacionDatos;
+  fondos: FondoListo[];
   onAplicar: (url: string) => void;
   onQuitar: () => void;
   mostrarVacio?: boolean;
   ayudaExtra?: string;
 }) {
   const tipoActual: TipoEvento = (datos.tipoEvento && TEXTOS_POR_EVENTO[datos.tipoEvento]) ? datos.tipoEvento : "xv";
-  const fondosDelEvento = fondosListosPorEvento(tipoActual);
+  const fondosDelEvento = fondos.filter(f => f.evento === tipoActual);
   const fondoGaleriaActual = datos.fondosGaleriaPorEvento?.[tipoActual];
 
   if (fondosDelEvento.length === 0 && !mostrarVacio) {
@@ -3794,6 +3799,13 @@ export default function App() {
   // select), para no agregar un segundo viaje de red solo por esto.
   const [linksPago, setLinksPago] = useState<LinksPagoAdmin>(LINKS_PAGO_VACIO);
   const [mostrarModalLinksPago, setMostrarModalLinksPago] = useState(false);
+
+  // Creativos administrables (brief "Creativos sin tocar código", Fase 1): listas guardadas en
+  // Supabase (columnas `fotos_listas`/`fondos_listos`). `null` = no hay nada guardado todavía o
+  // la lectura falló → la lectura efectiva cae al respaldo de fotosListas.ts / fondosListos.ts.
+  const [creativosGuardados, setCreativosGuardados] = useState<{ fotos: FotoLista[] | null; fondos: FondoListo[] | null }>({ fotos: null, fondos: null });
+  const fotosListasActivas: FotoLista[] = fotosListasEfectivas(creativosGuardados.fotos);
+  const fondosListosActivos: FondoListo[] = fondosListosEfectivos(creativosGuardados.fondos);
   const [guardandoLinksPago, setGuardandoLinksPago] = useState(false);
 
   // Cargar fondos personalizados desde Supabase al iniciar. Esta carga es asíncrona (red),
@@ -3810,7 +3822,7 @@ export default function App() {
         const supabase = window.supabaseClient;
         const { data, error } = await supabase
           .from('invitaciones')
-          .select('fondos_personalizados, links_pago')
+          .select('fondos_personalizados, links_pago, fotos_listas, fondos_listos')
           .eq('id', FONDOS_ROW_ID)
           .maybeSingle();
 
@@ -3840,6 +3852,15 @@ export default function App() {
 
         if (data && data.links_pago) {
           setLinksPago(prev => ({ ...prev, ...data.links_pago }));
+        }
+
+        // Creativos (fotos/fondos listos): si la columna no trae nada válido, se queda en null
+        // y la lectura efectiva usa el respaldo del código -- sin aviso, es el caso normal.
+        if (data) {
+          setCreativosGuardados({
+            fotos: sanearFotosListas(data.fotos_listas),
+            fondos: sanearFondosListos(data.fondos_listos),
+          });
         }
       } catch (err: any) {
         console.warn('Error al cargar fondos desde Supabase:', err);
@@ -3880,6 +3901,32 @@ export default function App() {
       mostrarToast("Error al guardar los links de pago: " + err.message, "error");
     } finally {
       setGuardandoLinksPago(false);
+    }
+  };
+
+  // Guarda una de las dos listas de creativos (fotos o fondos) en la fila global, escribiendo
+  // SOLO su columna (PostgREST no toca el resto de la fila). Guardado inmediato: si Supabase
+  // falla, se revierte el estado local para que el panel nunca muestre algo que no quedó guardado.
+  const persistirCreativo = async (tipo: "fotos" | "fondos", lista: FotoLista[] | FondoListo[]) => {
+    const previo = creativosGuardados;
+    const columna = tipo === "fotos" ? "fotos_listas" : "fondos_listos";
+    setCreativosGuardados(prev => ({ ...prev, [tipo]: lista.length ? lista : null }));
+    try {
+      if (!window.supabaseClient) throw new Error("Supabase no está disponible");
+      const { error } = await window.supabaseClient
+        .from('invitaciones')
+        .upsert([{
+          id: FONDOS_ROW_ID,
+          nombre_quinceanera: 'Configuración global',
+          estado: 'fondos_personalizados',
+          [columna]: lista,
+          updated_at: new Date().toISOString(),
+        }], { onConflict: 'id' });
+      if (error) throw error;
+      mostrarToast("✅ Cambio guardado -- ya se usa en el generador y en el catálogo", "success");
+    } catch (err: any) {
+      setCreativosGuardados(previo);
+      mostrarToast("Error al guardar el creativo: " + (err?.message || "error de red"), "error");
     }
   };
 
@@ -6752,7 +6799,7 @@ export default function App() {
 
   const handleInsertarSetFotosCompleto = (grupo?: string) => {
     const tipoActual: TipoEvento = (datos.tipoEvento && TEXTOS_POR_EVENTO[datos.tipoEvento]) ? datos.tipoEvento : "xv";
-    const setDelEvento = fotosListasPorEvento(tipoActual).filter(f => !grupo || f.grupo === grupo);
+    const setDelEvento = fotosListasActivas.filter(f => f.evento === tipoActual && (!grupo || f.grupo === grupo));
     if (setDelEvento.length === 0) return;
 
     const maxFotosPermitidas = paquetes[datos.paquete].maxFotos;
@@ -7485,7 +7532,7 @@ export default function App() {
                de cajón para poder combinar este tema con cualquiera de las 3 opciones */
             (() => {
               const temaDemoSel = temas.find(t => t.id === selectedCatalogTemaId) || temas[0];
-              const datosDemoBase = getDatosVisualizacionCatalog(temaDemoSel, datos, initialCatalogEvento);
+              const datosDemoBase = getDatosVisualizacionCatalog(temaDemoSel, datos, initialCatalogEvento, fotosListasActivas);
               // Secciones a la carta que NO vienen incluidas según el paquete elegido -- misma
               // política real usada en Nuevo Cliente/paquetes.ts, para que la demo no le haga
               // creer al visitante que todo viene incluido sin importar qué compre.
@@ -7693,7 +7740,7 @@ export default function App() {
 
                             {/* Iframe minificado cargando el HTML final y ajustado exactamente al tamaño de la pantalla */}
                             <div className="w-full h-full overflow-hidden absolute inset-0 bg-white">
-                              <LazyIframe t={t} index={idx} datos={datos} evento={initialCatalogEvento} />
+                              <LazyIframe t={t} index={idx} datos={datos} evento={initialCatalogEvento} fotosListas={fotosListasActivas} />
                             </div>
                           </div>
                         </div>
@@ -9102,6 +9149,7 @@ export default function App() {
                     no se renderiza nada, ni una caja vacía ni texto. */}
                 <BloqueFondosListos
                   datos={datos}
+                  fondos={fondosListosActivos}
                   onAplicar={handleAplicarFondoGaleria}
                   onQuitar={handleQuitarFondoGaleria}
                   mostrarVacio={false}
@@ -9786,6 +9834,7 @@ export default function App() {
                     resolverFondoEfectivo en templates.ts). */}
                 <BloqueFondosListos
                   datos={datos}
+                  fondos={fondosListosActivos}
                   onAplicar={handleAplicarFondoGaleria}
                   onQuitar={handleQuitarFondoGaleria}
                 />
@@ -9964,7 +10013,7 @@ export default function App() {
                     por evento. */}
                 {(() => {
                   const tipoActual: TipoEvento = (datos.tipoEvento && TEXTOS_POR_EVENTO[datos.tipoEvento]) ? datos.tipoEvento : "xv";
-                  const setDelEvento = fotosListasPorEvento(tipoActual);
+                  const setDelEvento = fotosListasActivas.filter(f => f.evento === tipoActual);
                   const fotosActuales = datos.fotos || [];
 
                   return (
@@ -10042,6 +10091,19 @@ export default function App() {
                     </div>
                   );
                 })()}
+
+                {/* PARTE 4: CREATIVOS (brief Fase 1) -- administra desde el panel las fotos listas
+                    y los fondos listos de cada tipo de evento. Lee la lista efectiva (guardada en
+                    Supabase o respaldo del código) y guarda cada cambio con persistirCreativo. */}
+                <EditorCreativos
+                  tiposEvento={TIPOS_EVENTO}
+                  fotos={fotosListasActivas}
+                  fondos={fondosListosActivos}
+                  onGuardarFotos={(lista) => persistirCreativo("fotos", lista)}
+                  onGuardarFondos={(lista) => persistirCreativo("fondos", lista)}
+                  onSubirImagen={subirImagenPublica}
+                  onAviso={(msg, tipo) => mostrarToast(msg, tipo)}
+                />
 
               </div>
             )}
