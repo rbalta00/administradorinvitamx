@@ -248,17 +248,19 @@ const TIPOS_EVENTO: { id: TipoEvento; label: string; emoji: string }[] = [
   { id: "aniversario", label: "Aniversario", emoji: "💍" }
 ];
 
-// Etiqueta de los botones de alta "Nueva/Nuevo <evento>" del modal "Nuevo Cliente" (2026-11-28).
-const ETIQUETA_BOTON_NUEVA_POR_EVENTO: Record<TipoEvento, string> = {
-  "xv": "Nueva XV",
-  "boda": "Nueva boda",
-  "cumpleanos": "Nuevo cumpleaños",
-  "bautizo": "Nuevo bautizo",
-  "primera-comunion": "Nueva primera comunión",
-  "graduacion": "Nueva graduación",
-  "baby-shower": "Nuevo baby shower",
-  "aniversario": "Nuevo aniversario"
-};
+// Botones de alta del modal "Nuevo Cliente" (2026-11-28, Cumpleaños dividido en niña/niño por
+// decisión del dueño). `grupo` solo se usa para elegir el set de fotos del grupo correspondiente.
+const BOTONES_NUEVA_EVENTO: { clave: string; tipo: TipoEvento; grupo?: string; etiqueta: string; emoji: string }[] = [
+  { clave: "xv", tipo: "xv", etiqueta: "Nueva XV", emoji: "🎂" },
+  { clave: "boda", tipo: "boda", etiqueta: "Nueva boda", emoji: "💍" },
+  { clave: "cumpleanos-nina", tipo: "cumpleanos", grupo: "niña", etiqueta: "Nuevo cumpleaños niña", emoji: "🎉" },
+  { clave: "cumpleanos-nino", tipo: "cumpleanos", grupo: "niño", etiqueta: "Nuevo cumpleaños niño", emoji: "🎉" },
+  { clave: "bautizo", tipo: "bautizo", etiqueta: "Nuevo bautizo", emoji: "🕊️" },
+  { clave: "primera-comunion", tipo: "primera-comunion", etiqueta: "Nueva primera comunión", emoji: "⛪" },
+  { clave: "graduacion", tipo: "graduacion", etiqueta: "Nueva graduación", emoji: "🎓" },
+  { clave: "baby-shower", tipo: "baby-shower", etiqueta: "Nuevo baby shower", emoji: "👶" },
+  { clave: "aniversario", tipo: "aniversario", etiqueta: "Nuevo aniversario", emoji: "💍" }
+];
 
 // Lógica de "insertar set de fotos listas" extraída a función pura (2026-11-28) para que la usen
 // tanto el botón del álbum (handleInsertarSetFotosCompleto) como el alta "Nueva <evento>" sin
@@ -5776,7 +5778,7 @@ export default function App() {
   // la invitación nace con su tipoEvento, su set de fotos listas (sin grupo) y su primer fondo
   // listo -- reusando las mismas lógicas de insertar set y aplicar fondo, sin tocar la rutina
   // de creación (paquete, folio, guardado).
-  const handleCrearNuevoCliente = async (tipoElegido?: TipoEvento) => {
+  const handleCrearNuevoCliente = async (tipoElegido?: TipoEvento, grupoElegido?: string) => {
     if (!nuevoClienteNombre.trim()) {
       mostrarToast("Falta el nombre de la quinceañera", "error");
       return;
@@ -5814,15 +5816,19 @@ export default function App() {
         ...(tipoElegido ? { tipoEvento: tipoElegido } : {})
       };
 
-      // Precargas por evento (2026-11-28). XV no precarga nada (sus fotos van por tema). Para
-      // eventos con grupos de fotos (hoy Cumpleaños: set niña / set niño) NO se precarga el set,
-      // para no mezclar dos sets en una misma invitación -- se elige uno en el álbum.
+      // Precargas por evento (2026-11-28). XV no precarga nada (sus fotos van por tema). Los
+      // eventos con grupos de fotos (Cumpleaños: niña / niño) precargan SOLO el set de su grupo
+      // -- el botón elegido lo indica con `grupoElegido`, igual que el filtro por grupo de
+      // handleInsertarSetFotosCompleto. Sin grupo en un evento con grupos no se precarga el set,
+      // para no mezclar dos sets en una misma invitación.
       let datosFinales: InvitacionDatos = nuevosDatos;
       const extrasToast: string[] = [];
       if (tipoElegido && tipoElegido !== "xv") {
         const hayGrupos = fotosListasActivas.some(f => f.evento === tipoElegido && f.grupo);
-        if (!hayGrupos) {
-          const setDelEvento = fotosListasActivas.filter(f => f.evento === tipoElegido);
+        if (grupoElegido || !hayGrupos) {
+          const setDelEvento = fotosListasActivas.filter(f =>
+            f.evento === tipoElegido && (!grupoElegido || f.grupo === grupoElegido)
+          );
           if (setDelEvento.length > 0) {
             const resultado = insertarSetFotosEnDatos(datosFinales, setDelEvento);
             datosFinales = resultado.datos;
@@ -12225,15 +12231,15 @@ export default function App() {
                 ¿Qué evento es? <span className="font-normal text-slate-500">— crea la invitación ya con su tipo de evento, su set de fotos y su primer fondo listos</span>
               </label>
               <div className="grid grid-cols-2 gap-2">
-                {TIPOS_EVENTO.map((t) => (
+                {BOTONES_NUEVA_EVENTO.map((b) => (
                   <button
-                    key={t.id}
+                    key={b.clave}
                     type="button"
                     disabled={creandoNuevoCliente}
-                    onClick={() => handleCrearNuevoCliente(t.id)}
+                    onClick={() => handleCrearNuevoCliente(b.tipo, b.grupo)}
                     className="p-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-300 disabled:opacity-50 text-left text-xs font-bold text-slate-800 transition cursor-pointer"
                   >
-                    {t.emoji} {ETIQUETA_BOTON_NUEVA_POR_EVENTO[t.id]}
+                    {b.emoji} {b.etiqueta}
                   </button>
                 ))}
               </div>
