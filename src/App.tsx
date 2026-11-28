@@ -40,7 +40,7 @@ import { createClient } from "@supabase/supabase-js";
 import { InvitacionDatos, TemaConfig } from "./types";
 import { temas, paquetes, datosDefault, getFotosPorTema, getOrdenSeccionesEfectivo, PALETAS_COLOR_PERSONALIZADO, ITINERARIO_POR_TEMA } from "./data";
 import { generarHTMLFinal, TipoEvento, TEXTOS_POR_EVENTO, resolverTemaEfectivo, construirUrlGoogleFonts } from "./templates";
-import { FondoListo } from "./fondosListos";
+import { FondoListo, FONDOS_LISTOS } from "./fondosListos";
 import { FotoLista, FOTOS_LISTAS } from "./fotosListas";
 import { sanearFotosListas, sanearFondosListos, fotosListasEfectivas, fondosListosEfectivos } from "./creativos";
 import EditorCreativos from "./EditorCreativos";
@@ -944,9 +944,15 @@ const VESTIMENTA_DEMO_CATALOGO_POR_TEMA: Partial<Record<string, string>> = {
 // textosEventoDe() en templates.ts con solo fijar ese campo; aquí solo hace falta pisar lo que
 // SÍ sigue siendo "de fábrica XV" en el dato mismo: el nombre, el mensaje de bienvenida, el
 // itinerario, y las fotos (las fotos por tema son de una quinceañera, nunca sirven para boda).
-const getDatosCatalogTema = (baseDatos: any, t: any, evento: TipoEvento = "xv", fotosListas: FotoLista[] = FOTOS_LISTAS): any => {
+const getDatosCatalogTema = (baseDatos: any, t: any, evento: TipoEvento = "xv", fotosListas: FotoLista[] = FOTOS_LISTAS, fondosListos: FondoListo[] = FONDOS_LISTOS): any => {
   const base = baseDatos || datosDefault.premium;
   const esXv = evento === "xv" || !TEXTOS_POR_EVENTO[evento];
+  // Fondo de la demo (2026-11-28): para eventos distintos a XV, la demo usa como fondo el PRIMER
+  // fondo listo de ESE evento (de la lista efectiva del panel Creativos, o el respaldo de
+  // fondosListos.ts), en vez del fondo del tema. Se fija como fondo de galería del evento
+  // (`fondosGaleriaPorEvento`), que generarHTMLFinal ya prioriza sobre el fondo del tema. Si el
+  // evento no tiene fondos listos, la demo queda con el fondo del tema, como antes. XV no cambia.
+  const fondoListoEventoCatalogo = esXv ? undefined : fondosListos.find(f => f.evento === evento)?.url;
   // Pool de fotos: para XV, las fotos reales del TEMA (como siempre); para otro evento, las
   // fotos de muestra de ESE evento (fotosListas.ts, o la lista administrada desde el panel) -- el
   // tema sigue siendo el mismo (colores/tipografía), solo cambian las fotos para no mostrar a una
@@ -982,6 +988,7 @@ const getDatosCatalogTema = (baseDatos: any, t: any, evento: TipoEvento = "xv", 
     // pool del evento, para que ese fallback nunca se dispare en modo boda.
     fotos: esXv ? [] : fotosTema,
     fotoPortada: fotoPortadaFija,
+    ...(fondoListoEventoCatalogo ? { fondosGaleriaPorEvento: { [evento]: fondoListoEventoCatalogo } } : {}),
     colorSugerido: getColorSugeridoPorTema(t.id, t.colors)
   };
 };
@@ -991,7 +998,7 @@ const getDatosCatalogTema = (baseDatos: any, t: any, evento: TipoEvento = "xv", 
 // por el admin para ese tema (localStorage, siempre pensado/guardado en contexto XV) se
 // ignora a propósito, para que la demo de boda nunca se contamine con un nombre/foto de XV
 // que el admin haya guardado ahí en otra sesión.
-const getDatosVisualizacionCatalog = (t: any, currentDatos?: any, evento: TipoEvento = "xv", fotosListas: FotoLista[] = FOTOS_LISTAS): any => {
+const getDatosVisualizacionCatalog = (t: any, currentDatos?: any, evento: TipoEvento = "xv", fotosListas: FotoLista[] = FOTOS_LISTAS, fondosListos: FondoListo[] = FONDOS_LISTOS): any => {
   if (evento === "xv") {
     try {
       const saved = localStorage.getItem(`xv_diseño_guardado_tema_${t.id}`);
@@ -1016,7 +1023,7 @@ const getDatosVisualizacionCatalog = (t: any, currentDatos?: any, evento: TipoEv
   // Usamos el tier Deluxe como base para las demos del catálogo (en vez de Premium) para que
   // se vean TODAS las secciones posibles, incluida "Pases de Entrada" (exclusiva de Deluxe) —
   // así un cliente puede ver esa función antes de decidir qué paquete comprar.
-  const baseData = getDatosCatalogTema(datosDefault.deluxe, t, evento, fotosListas);
+  const baseData = getDatosCatalogTema(datosDefault.deluxe, t, evento, fotosListas, fondosListos);
 
   // Asegurar que los bgImages del usuario se incluyan siempre en el catálogo
   const allBgImages = {
@@ -1119,7 +1126,7 @@ const IFRAME_ANCHO_VIRTUAL = 354;
 // así, es solo el primer render mientras el iframe termina de cargar.
 const ALTO_PORTADA_ESTIMADO = 700;
 
-const LazyIframe = memo(({ t, index, datos, evento = "xv", fotosListas = FOTOS_LISTAS }: { t: any; index: number; datos: any; evento?: TipoEvento; fotosListas?: FotoLista[] }) => {
+const LazyIframe = memo(({ t, index, datos, evento = "xv", fotosListas = FOTOS_LISTAS, fondosListos = FONDOS_LISTOS }: { t: any; index: number; datos: any; evento?: TipoEvento; fotosListas?: FotoLista[]; fondosListos?: FondoListo[] }) => {
   const [shouldRender, setShouldRender] = useState(false);
   const [altoPortada, setAltoPortada] = useState(ALTO_PORTADA_ESTIMADO);
   const turnoActivo = useRef(false);
@@ -1231,8 +1238,8 @@ const LazyIframe = memo(({ t, index, datos, evento = "xv", fotosListas = FOTOS_L
     // solo la portada (lo que la clienta de verdad compara entre temas), con imágenes ligeras
     // (ver aligerarUrlCloudinaria en templates.ts) -- el demo completo sigue siendo
     // "Ver Demo en Vivo", sin tocar.
-    return generarHTMLFinal({ ...getDatosVisualizacionCatalog(t, datos, evento, fotosListas), seccionesExcluidas: [...(getDatosVisualizacionCatalog(t, datos, evento, fotosListas).seccionesExcluidas || []), "apertura"] }, t, { esDemoDeCatalogo: true, soloPortada: true });
-  }, [shouldRender, t, datos, evento, fotosListas]);
+    return generarHTMLFinal({ ...getDatosVisualizacionCatalog(t, datos, evento, fotosListas, fondosListos), seccionesExcluidas: [...(getDatosVisualizacionCatalog(t, datos, evento, fotosListas, fondosListos).seccionesExcluidas || []), "apertura"] }, t, { esDemoDeCatalogo: true, soloPortada: true });
+  }, [shouldRender, t, datos, evento, fotosListas, fondosListos]);
 
   // Escala por el lado que más apriete (ancho o alto) -- nunca estira el marco, es la portada
   // la que se adapta. Con el alto REAL ya medido (altoPortada), esto converge exacto sin
@@ -7572,7 +7579,7 @@ export default function App() {
                de cajón para poder combinar este tema con cualquiera de las 3 opciones */
             (() => {
               const temaDemoSel = temas.find(t => t.id === selectedCatalogTemaId) || temas[0];
-              const datosDemoBase = getDatosVisualizacionCatalog(temaDemoSel, datos, initialCatalogEvento, fotosListasActivas);
+              const datosDemoBase = getDatosVisualizacionCatalog(temaDemoSel, datos, initialCatalogEvento, fotosListasActivas, fondosListosActivos);
               // Secciones a la carta que NO vienen incluidas según el paquete elegido -- misma
               // política real usada en Nuevo Cliente/paquetes.ts, para que la demo no le haga
               // creer al visitante que todo viene incluido sin importar qué compre.
@@ -7780,7 +7787,7 @@ export default function App() {
 
                             {/* Iframe minificado cargando el HTML final y ajustado exactamente al tamaño de la pantalla */}
                             <div className="w-full h-full overflow-hidden absolute inset-0 bg-white">
-                              <LazyIframe t={t} index={idx} datos={datos} evento={initialCatalogEvento} fotosListas={fotosListasActivas} />
+                              <LazyIframe t={t} index={idx} datos={datos} evento={initialCatalogEvento} fotosListas={fotosListasActivas} fondosListos={fondosListosActivos} />
                             </div>
                           </div>
                         </div>
