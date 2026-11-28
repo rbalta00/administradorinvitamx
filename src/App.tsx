@@ -8244,6 +8244,41 @@ export default function App() {
           >
             <span>🎂 Abrir cumpleaños</span>
           </button>
+          <button
+            onClick={() => window.open("https://invitamx.app/bautizo", "_blank")}
+            title="Abre la página de bautizos (invitamx.app/bautizo) en una pestaña nueva"
+            className="px-3.5 py-2 bg-white hover:bg-rose-50 text-rose-700 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+          >
+            <span>👼 Abrir bautizo</span>
+          </button>
+          <button
+            onClick={() => window.open("https://invitamx.app/primera-comunion", "_blank")}
+            title="Abre la página de primera comunión (invitamx.app/primera-comunion) en una pestaña nueva"
+            className="px-3.5 py-2 bg-white hover:bg-rose-50 text-rose-700 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+          >
+            <span>⛪ Abrir primera comunión</span>
+          </button>
+          <button
+            onClick={() => window.open("https://invitamx.app/graduacion", "_blank")}
+            title="Abre la página de graduaciones (invitamx.app/graduacion) en una pestaña nueva"
+            className="px-3.5 py-2 bg-white hover:bg-rose-50 text-rose-700 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+          >
+            <span>🎓 Abrir graduación</span>
+          </button>
+          <button
+            onClick={() => window.open("https://invitamx.app/baby-shower", "_blank")}
+            title="Abre la página de baby shower (invitamx.app/baby-shower) en una pestaña nueva"
+            className="px-3.5 py-2 bg-white hover:bg-rose-50 text-rose-700 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+          >
+            <span>🍼 Abrir baby shower</span>
+          </button>
+          <button
+            onClick={() => window.open("https://invitamx.app/aniversario", "_blank")}
+            title="Abre la página de aniversarios (invitamx.app/aniversario) en una pestaña nueva"
+            className="px-3.5 py-2 bg-white hover:bg-rose-50 text-rose-700 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+          >
+            <span>💍 Abrir aniversario</span>
+          </button>
 
           <button
             onClick={() => {
