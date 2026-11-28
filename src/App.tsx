@@ -1041,7 +1041,17 @@ const getDatosCatalogTema = (baseDatos: any, t: any, evento: TipoEvento = "xv", 
   // fondosListos.ts), en vez del fondo del tema. Se fija como fondo de galería del evento
   // (`fondosGaleriaPorEvento`), que generarHTMLFinal ya prioriza sobre el fondo del tema. Si el
   // evento no tiene fondos listos, la demo queda con el fondo del tema, como antes. XV no cambia.
-  const fondoListoEventoCatalogo = esXv ? undefined : fondosListos.find(f => f.evento === evento)?.url;
+  // Rotación (2026-11-28): en vez de repetir el PRIMER fondo en las 14 tarjetas, cada tema toma el
+  // fondo listo del evento en la posición `índiceDelTema % cantidadDeFondos`, donde el índice es la
+  // posición del tema en la rejilla del catálogo (temas visibles, mismo orden que el .map de la
+  // rejilla). Se calcula AQUÍ, dentro de esta función compartida, para que la tarjeta (LazyIframe) y
+  // la demo abierta usen exactamente el mismo fondo. Con 12 fondos y 14 temas, los primeros 12
+  // temas llevan fondos distintos y los últimos 2 repiten los primeros 2.
+  const fondosDelEventoCatalogo = esXv ? [] : fondosListos.filter(f => f.evento === evento);
+  const indiceTemaCatalogo = Math.max(0, temas.filter(x => !x.oculto).findIndex(x => x.id === t.id));
+  const fondoListoEventoCatalogo = fondosDelEventoCatalogo.length
+    ? fondosDelEventoCatalogo[indiceTemaCatalogo % fondosDelEventoCatalogo.length].url
+    : undefined;
   // Pool de fotos: para XV, las fotos reales del TEMA (como siempre); para otro evento, las
   // fotos de muestra de ESE evento (fotosListas.ts, o la lista administrada desde el panel) -- el
   // tema sigue siendo el mismo (colores/tipografía), solo cambian las fotos para no mostrar a una
@@ -1080,6 +1090,14 @@ const getDatosCatalogTema = (baseDatos: any, t: any, evento: TipoEvento = "xv", 
     ...(fondoListoEventoCatalogo ? { fondosGaleriaPorEvento: { [evento]: fondoListoEventoCatalogo } } : {}),
     colorSugerido: getColorSugeridoPorTema(t.id, t.colors)
   };
+};
+
+// Nombre de tema para el catálogo (2026-11-28): en un evento distinto a XV, un nombre que empieza
+// con «XV » (p. ej. «XV Coquette Luxe 💎 ...») se muestra sin ese prefijo. Solo de despliegue: el
+// nombre real en data.ts, los id y el catálogo XV no cambian.
+const nombreTemaParaCatalogo = (nombre: string, evento: TipoEvento = "xv"): string => {
+  const esXv = evento === "xv" || !TEXTOS_POR_EVENTO[evento];
+  return esXv ? nombre : nombre.replace(/^XV\s+/, "");
 };
 
 // Obtiene los datos del catálogo dando prioridad a diseños guardados por el usuario para cada tema específico
@@ -1363,7 +1381,7 @@ const LazyIframe = memo(({ t, index, datos, evento = "xv", fotosListas = FOTOS_L
             top: `${offsetY}px`,
             left: `${offsetX}px`,
           }}
-          title={`Demo ${t.nombre}`}
+          title={`Demo ${nombreTemaParaCatalogo(t.nombre, evento)}`}
         />
       )}
     </div>
@@ -7605,7 +7623,7 @@ export default function App() {
                 <p className="text-xs font-extrabold text-indigo-600 flex items-center gap-1">
                   {selectedEstiloCajasDemo
                     ? ESTILOS_CAJAS_SECCIONES.find(e => e.id === selectedEstiloCajasDemo)?.nombre
-                    : temas.find(t => t.id === selectedCatalogTemaId)?.nombre || "Tema Elegido"}
+                    : nombreTemaParaCatalogo(temas.find(t => t.id === selectedCatalogTemaId)?.nombre || "Tema Elegido", initialCatalogEvento)}
                 </p>
               </div>
             </div>
@@ -7686,7 +7704,14 @@ export default function App() {
                 // "contactar para comprar".
                 const exp = Date.now() + MUESTRA_DIAS_VIGENCIA * 24 * 60 * 60 * 1000;
                 const linkPersonalizado = `${URL_PUBLICA_INVITAMX}/?v=1&d=${encodeState(datosParaLink)}&muestra=1&exp=${exp}`;
-                const msg = `¡Hola! Así se vería mi invitación de XV años (tema "${temaDemoSel.nombre}", paquete ${paquetes[catalogDemoPaquete].nombre}${catalogDemoNombre.trim() ? `, a nombre de ${catalogDemoNombre.trim()}` : ""}): ${linkPersonalizado}`;
+                // Fuera de XV (2026-11-28): el mensaje nombra ESE evento (etiqueta de TIPOS_EVENTO en minúsculas)
+                // y usa el nombre visible del tema sin «XV», igual que la tarjeta. Para XV queda como estaba.
+                const esXvMensaje = initialCatalogEvento === "xv" || !TEXTOS_POR_EVENTO[initialCatalogEvento];
+                const etiquetaEventoMensaje = esXvMensaje
+                  ? "XV años"
+                  : (TIPOS_EVENTO.find(e => e.id === initialCatalogEvento)?.label || "evento").toLowerCase();
+                const nombreTemaMensaje = nombreTemaParaCatalogo(temaDemoSel.nombre, initialCatalogEvento);
+                const msg = `¡Hola! Así se vería mi invitación de ${etiquetaEventoMensaje} (tema "${nombreTemaMensaje}", paquete ${paquetes[catalogDemoPaquete].nombre}${catalogDemoNombre.trim() ? `, a nombre de ${catalogDemoNombre.trim()}` : ""}): ${linkPersonalizado}`;
                 window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, "_blank");
               };
               return (
@@ -7890,7 +7915,7 @@ export default function App() {
 
                         <div className="absolute bottom-3 left-4 right-4 pointer-events-none z-20 flex items-center justify-between">
                           <span className="text-xs font-bold tracking-tight text-slate-800 bg-white/90 backdrop-blur-xs border border-slate-100 px-2 py-0.5 rounded-lg shadow-sm">
-                            {t.nombre}
+                            {nombreTemaParaCatalogo(t.nombre, initialCatalogEvento)}
                           </span>
                           <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider scale-90 origin-right bg-white/90 backdrop-blur-xs border border-slate-100 px-1.5 py-0.5 rounded-lg shadow-sm">
                             Demo Activo
