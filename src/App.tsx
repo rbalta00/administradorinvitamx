@@ -7704,7 +7704,14 @@ export default function App() {
                 // "contactar para comprar".
                 const exp = Date.now() + MUESTRA_DIAS_VIGENCIA * 24 * 60 * 60 * 1000;
                 const linkPersonalizado = `${URL_PUBLICA_INVITAMX}/?v=1&d=${encodeState(datosParaLink)}&muestra=1&exp=${exp}`;
-                const msg = `¡Hola! Así se vería mi invitación de XV años (tema "${temaDemoSel.nombre}", paquete ${paquetes[catalogDemoPaquete].nombre}${catalogDemoNombre.trim() ? `, a nombre de ${catalogDemoNombre.trim()}` : ""}): ${linkPersonalizado}`;
+                // Fuera de XV (2026-11-28): el mensaje nombra ESE evento (etiqueta de TIPOS_EVENTO en minúsculas)
+                // y usa el nombre visible del tema sin «XV», igual que la tarjeta. Para XV queda como estaba.
+                const esXvMensaje = initialCatalogEvento === "xv" || !TEXTOS_POR_EVENTO[initialCatalogEvento];
+                const etiquetaEventoMensaje = esXvMensaje
+                  ? "XV años"
+                  : (TIPOS_EVENTO.find(e => e.id === initialCatalogEvento)?.label || "evento").toLowerCase();
+                const nombreTemaMensaje = nombreTemaParaCatalogo(temaDemoSel.nombre, initialCatalogEvento);
+                const msg = `¡Hola! Así se vería mi invitación de ${etiquetaEventoMensaje} (tema "${nombreTemaMensaje}", paquete ${paquetes[catalogDemoPaquete].nombre}${catalogDemoNombre.trim() ? `, a nombre de ${catalogDemoNombre.trim()}` : ""}): ${linkPersonalizado}`;
                 window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, "_blank");
               };
               return (
