@@ -45,6 +45,36 @@ export const FONDOS_LISTOS: FondoListo[] = [
     url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795381739/hkbmyfsza2ryypmjts6s.webp"
   },
   {
+    nombre: "Boda · Marfil y perlas",
+    evento: "boda",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861604/ddhfbc8ebydxlgnoyc31.webp"
+  },
+  {
+    nombre: "Boda · Jardín de peonías",
+    evento: "boda",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861605/mprovj75mscilkpigh0j.webp"
+  },
+  {
+    nombre: "Boda · Esmeralda",
+    evento: "boda",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861607/all2urlhvnucj9ni4vb2.webp"
+  },
+  {
+    nombre: "Boda · Lavanda",
+    evento: "boda",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861608/p64csokxlptvhtafo8fe.webp"
+  },
+  {
+    nombre: "Boda · Oro rosado",
+    evento: "boda",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861610/pzyzweunzrxeswi5nzoq.webp"
+  },
+  {
+    nombre: "Boda · Celeste y plata",
+    evento: "boda",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861611/xcgzg3f1ys9timc1yaw4.webp"
+  },
+  {
     nombre: "Cumpleaños · Rosa pastel",
     evento: "cumpleanos",
     url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795526420/nyq6b0oeqim6ys2dzkol.webp"
@@ -73,6 +103,36 @@ export const FONDOS_LISTOS: FondoListo[] = [
     nombre: "Cumpleaños · Dorado fiesta",
     evento: "cumpleanos",
     url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795526426/ecloloi5zyjjehqvaprq.webp"
+  },
+  {
+    nombre: "Cumpleaños · Turquesa",
+    evento: "cumpleanos",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861621/uxomixgsfeq376cftnll.webp"
+  },
+  {
+    nombre: "Cumpleaños · Dinosaurios",
+    evento: "cumpleanos",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861623/bp5z0rotigxmjzwsg2uq.webp"
+  },
+  {
+    nombre: "Cumpleaños · Unicornio",
+    evento: "cumpleanos",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861624/fmrmrnvs72qv7ncczvfh.webp"
+  },
+  {
+    nombre: "Cumpleaños · Náutico",
+    evento: "cumpleanos",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861625/a00k6udakzuv7afxj7cc.webp"
+  },
+  {
+    nombre: "Cumpleaños · Dulces",
+    evento: "cumpleanos",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861627/hjt9ehukcqmjnykwgc3s.webp"
+  },
+  {
+    nombre: "Cumpleaños · Neón",
+    evento: "cumpleanos",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861628/zawcnyyo0mq84eudlhxt.webp"
   },
   {
     nombre: "Bautizo · Blanco y dorado",
@@ -105,6 +165,36 @@ export const FONDOS_LISTOS: FondoListo[] = [
     url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795786769/nfdwaltevxsl8gosu5i2.webp"
   },
   {
+    nombre: "Bautizo · Nubes",
+    evento: "bautizo",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861605/dezqg6dzncoaqrc3jffg.webp"
+  },
+  {
+    nombre: "Bautizo · Encaje dorado",
+    evento: "bautizo",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861606/eeny8lyt4bdmgs8lnhz5.webp"
+  },
+  {
+    nombre: "Bautizo · Salvia",
+    evento: "bautizo",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861608/v9p9qf4fvab3t0zy1ejz.webp"
+  },
+  {
+    nombre: "Bautizo · Lila",
+    evento: "bautizo",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861609/n41fayinwdsbvifep08u.webp"
+  },
+  {
+    nombre: "Bautizo · Durazno",
+    evento: "bautizo",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861610/mndjg3m35r8k8vdi9zjf.webp"
+  },
+  {
+    nombre: "Bautizo · Halo dorado",
+    evento: "bautizo",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861611/v2pkgsmu4uij65zeec6x.webp"
+  },
+  {
     nombre: "Primera Comunión · Blanco y dorado",
     evento: "primera-comunion",
     url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795788103/hdlu0wkem00kgmgdfnuo.webp"
@@ -135,6 +225,36 @@ export const FONDOS_LISTOS: FondoListo[] = [
     url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795788107/wbyztgyv8xzzcca1r1dk.webp"
   },
   {
+    nombre: "Comunión · Trigo dorado",
+    evento: "primera-comunion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861599/e22fu2esgugoexgmucyh.webp"
+  },
+  {
+    nombre: "Comunión · Lirios",
+    evento: "primera-comunion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861600/rzx13ierajygxhqpdopi.webp"
+  },
+  {
+    nombre: "Comunión · Azul sereno",
+    evento: "primera-comunion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861601/aun2tcxgoyiuse5cumak.webp"
+  },
+  {
+    nombre: "Comunión · Olivo",
+    evento: "primera-comunion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861603/vo15d7s6r4q14wioygqq.webp"
+  },
+  {
+    nombre: "Comunión · Perla",
+    evento: "primera-comunion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861605/fynfabbqck9p4qbbtzlw.webp"
+  },
+  {
+    nombre: "Comunión · Vitral",
+    evento: "primera-comunion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861606/xhel4vajgw3t02figznf.webp"
+  },
+  {
     nombre: "Graduación · Azul marino y dorado",
     evento: "graduacion",
     url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795789310/qdseqigx0ofo7yxnb2je.webp"
@@ -163,6 +283,36 @@ export const FONDOS_LISTOS: FondoListo[] = [
     nombre: "Graduación · Terracota",
     evento: "graduacion",
     url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795789315/fqyalwnertpplew57bgc.webp"
+  },
+  {
+    nombre: "Graduación · Esmeralda",
+    evento: "graduacion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861620/eqn1n2lgxqsxqccvcofa.webp"
+  },
+  {
+    nombre: "Graduación · Platino",
+    evento: "graduacion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861621/wgp0gieljpvun9mnsfbl.webp"
+  },
+  {
+    nombre: "Graduación · Medianoche",
+    evento: "graduacion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861623/sycu8i2ndepbwohzbvhh.webp"
+  },
+  {
+    nombre: "Graduación · Cobre",
+    evento: "graduacion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861624/qqh8fsxlrxc46mzumkv8.webp"
+  },
+  {
+    nombre: "Graduación · Monocromo",
+    evento: "graduacion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861626/j8wmxkzbjtazrdennwtb.webp"
+  },
+  {
+    nombre: "Graduación · Champán",
+    evento: "graduacion",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861627/dm7bqdvn9vzibtvpksds.webp"
   },
   // Set de Baby Shower (2026-11-27) -- 6 fondos, mismo criterio que los sets de arriba.
   {
@@ -195,6 +345,36 @@ export const FONDOS_LISTOS: FondoListo[] = [
     evento: "baby-shower",
     url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790169/vinmbvfa2miyj7bbrbyk.webp"
   },
+  {
+    nombre: "Baby Shower · Durazno",
+    evento: "baby-shower",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861609/isqfmxwzq4l48l8wfmpv.webp"
+  },
+  {
+    nombre: "Baby Shower · Ositos",
+    evento: "baby-shower",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861610/pc1lbfmkedd8hlzkmxn0.webp"
+  },
+  {
+    nombre: "Baby Shower · Arcoíris boho",
+    evento: "baby-shower",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861612/wh6wy042lyxl0rltyf25.webp"
+  },
+  {
+    nombre: "Baby Shower · Conejitos",
+    evento: "baby-shower",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861613/uygoiselh2ezfuayseio.webp"
+  },
+  {
+    nombre: "Baby Shower · Estrellas",
+    evento: "baby-shower",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861615/in4svxju2piuoiwvtth3.webp"
+  },
+  {
+    nombre: "Baby Shower · Flores silvestres",
+    evento: "baby-shower",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861616/pudc0yr1dzubkslarhcf.webp"
+  },
   // Set de Aniversario (2026-11-27) -- 6 fondos, mismo criterio que los sets de arriba.
   {
     nombre: "Aniversario · Dorado y rosas",
@@ -225,6 +405,36 @@ export const FONDOS_LISTOS: FondoListo[] = [
     nombre: "Aniversario · Botánico",
     evento: "aniversario",
     url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795790868/yseutyaxyjggcbksl2st.webp"
+  },
+  {
+    nombre: "Aniversario · Negro y dorado",
+    evento: "aniversario",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861599/bkdww6j9ujeujfspjaai.webp"
+  },
+  {
+    nombre: "Aniversario · Medianoche",
+    evento: "aniversario",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861600/y5wjfy8hmpee51x3wirm.webp"
+  },
+  {
+    nombre: "Aniversario · Champán",
+    evento: "aniversario",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861601/xgyj8i4y1h6fykwvzdwj.webp"
+  },
+  {
+    nombre: "Aniversario · Atardecer",
+    evento: "aniversario",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861603/lgyef3arnnow2ibwg43t.webp"
+  },
+  {
+    nombre: "Aniversario · Olivo",
+    evento: "aniversario",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861604/bzeisacyofltkapwhxxi.webp"
+  },
+  {
+    nombre: "Aniversario · Rubí",
+    evento: "aniversario",
+    url: "https://res.cloudinary.com/dswrrm5u1/image/upload/v1795861606/txrptrlk08so1k34m1hl.webp"
   }
 ];
 
