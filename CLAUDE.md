@@ -1,5 +1,38 @@
 # CLAUDE.md
 
+## Estado completo al 2026-11-28: 8 eventos con página, fondos ×12, catálogo por evento y alta por botón
+
+Entrada escrita por Muse (el asistente de Isaac) a petición suya, para que cualquier sesión nueva de Code arranque enterada. Todo lo de abajo está verificado en vivo o en el código de main a esta fecha.
+
+**Páginas por evento (repo invitacionmx-landing, en vivo en invitamx.app):** las 8 están vivas — `/` (XV), `/bodas`, `/cumpleanos`, `/bautizo`, `/primera-comunion`, `/graduacion`, `/baby-shower`, `/aniversario`. La home es 100 % XV, SIN switcher de eventos en el header (se quitó a propósito); los cruces entre páginas van solo en el puente discreto del pie.
+
+**Generador (este repo):**
+- Grupo «Landing y catálogo» con 8 botones «Abrir» (uno por página de la landing).
+- Alta por evento: el modal «+ Nuevo Cliente» trae 9 botones «Nueva/Nuevo …» (cumpleaños va doble: **niña** y **niño**). Al picar uno, la invitación nace con su `tipoEvento`, el set completo de fotos listas de ese evento en el álbum (en cumpleaños, solo el set del grupo elegido) y su primer fondo listo aplicado (`fondosGaleriaPorEvento`). XV nace como siempre, sin precargas. La lógica de insertar set y aplicar fondo se reusó (funciones puras `insertarSetFotosEnDatos` y la de aplicar fondo); no hay una segunda copia.
+- Fondos listos: **12 por evento no XV** (los 6 originales + 6 nuevos generados por Muse el 2026-11-28 y subidos al Cloudinary del proyecto). Fotos listas: 8 por evento; cumpleaños 16 en dos sets (niña/niño); XV va por tema.
+- Catálogo (`?catalog=true&evento=X`): la demo de cada evento no XV usa las fotos listas de ESE evento, y los fondos listos del evento se REPARTEN por rotación entre los temas (tema en la posición i → fondo i % 12; la demo abierta usa el mismo fondo que su tarjeta). Los temas «XV Coquette…» se muestran sin el «XV» fuera de XV (solo despliegue; en data.ts quedan igual), y el mensaje de WhatsApp de la demo nombra al evento correcto. XV usa fotos y fondo por tema, como siempre.
+- Creativos Fase 1: las listas efectivas se leen de la configuración global de Supabase (columnas `fotos_listas` / `fondos_listos` de la fila global) con los archivos `fotosListas.ts` / `fondosListos.ts` como respaldo. **Al 2026-11-28 las columnas siguen en NULL: mandan los .ts.** Si algún día se siembran desde el panel, la configuración manda sobre el .ts.
+
+**Reglas de negocio que no se rompen:**
+- Precios: Básico $299 / Estándar $499 / Premium $799, con anticipos **fijos** de $150 / $250 / $400. Nunca decir «50 % de anticipo».
+- Link de pago de monto abierto correcto: `https://link.mercadopago.com.mx/invitamx` (vive en la config global). El que diga «liquidación» con acento está mal, y el de «liquidacion» sin acento es de un tercero: no usarlo.
+- Muestra, revisión y pausa son tres candados distintos: muestra = el mismo link `/v/<codigo>` con `?muestra=1&exp=…` (5 días, marca de agua); revisión tras el anticipo (7 días, sin marca de agua); pausa manual que bloquea todo. La entrega final (link permanente y PDF) es **solo al liquidar**; el anticipo no se devuelve.
+- La muestra se vende **sin formulario**: se pide por WhatsApp nombre, fecha, tema y foto. El formulario `/datos/<codigo>` se manda tras el anticipo y actualiza la misma invitación.
+- El conteo de aperturas se registra en todos los planes; la clienta solo lo ve en Premium.
+- El control de puerta **no lleva PIN**: el link `/puerta/<codigo>` es la llave.
+- Un solo generador para los 8 eventos: el tipo de evento solo cambia los textos (`TEXTOS_POR_EVENTO`); no se clona el generador ni el catálogo.
+
+**Forma de trabajo (importante):**
+- Los cambios llegan por prompts versionados de Muse o por sesiones de Claude Code en la nube orquestadas por Muse; Isaac solo aprueba. Nada se da por hecho hasta verificarlo en vivo (paquete de producción o la página real).
+- **No escribir en la Supabase de producción sin autorización expresa de Isaac.** Las consultas SELECT de solo lectura se piden con permiso. (La migración de Creativos del 2026-11-27 quedó aplicada y aceptada por Isaac; no revertirla.)
+- La app de GitHub de Muse es de solo lectura: los cambios de código van por Code, no por commits directos de Muse.
+
+**Pendientes conocidos al 2026-11-28:**
+- Probar en vivo los botones «Nueva …» creando una invitación de prueba (no se probaron al implementarlos para no crear registros reales en Supabase).
+- Las columnas de Creativos siguen sin sembrar (ver arriba).
+- Falta la prueba de escaneo del control de puerta con la cámara de un celular real.
+
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Fix v2: "Ver Demo en Vivo" embebido ya no abre pestaña nueva, se redimensiona por postMessage (2026-11-27, commit `f5c5e4a` + `a3a551d` en invitacionmx-landing)
