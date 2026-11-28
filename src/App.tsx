@@ -248,6 +248,93 @@ const TIPOS_EVENTO: { id: TipoEvento; label: string; emoji: string }[] = [
   { id: "aniversario", label: "Aniversario", emoji: "💍" }
 ];
 
+// Etiqueta de los botones de alta "Nueva/Nuevo <evento>" del modal "Nuevo Cliente" (2026-11-28).
+const ETIQUETA_BOTON_NUEVA_POR_EVENTO: Record<TipoEvento, string> = {
+  "xv": "Nueva XV",
+  "boda": "Nueva boda",
+  "cumpleanos": "Nuevo cumpleaños",
+  "bautizo": "Nuevo bautizo",
+  "primera-comunion": "Nueva primera comunión",
+  "graduacion": "Nueva graduación",
+  "baby-shower": "Nuevo baby shower",
+  "aniversario": "Nuevo aniversario"
+};
+
+// Lógica de "insertar set de fotos listas" extraída a función pura (2026-11-28) para que la usen
+// tanto el botón del álbum (handleInsertarSetFotosCompleto) como el alta "Nueva <evento>" sin
+// duplicarla. Recibe el set ya filtrado y devuelve las fotos/portada resultantes y los conteos.
+const insertarSetFotosEnDatos = (datosBase: InvitacionDatos, setDelEvento: FotoLista[]) => {
+  const maxFotosPermitidas = paquetes[datosBase.paquete].maxFotos;
+  const nuevasFotos = [...(datosBase.fotos || [])];
+  const yaPresentes = new Set(nuevasFotos);
+  let insertadas = 0;
+  let descartadasPorLimite = 0;
+
+  for (const foto of setDelEvento) {
+    if (yaPresentes.has(foto.url)) continue;
+    if (nuevasFotos.length >= maxFotosPermitidas) {
+      descartadasPorLimite++;
+      continue;
+    }
+    nuevasFotos.push(foto.url);
+    yaPresentes.add(foto.url);
+    insertadas++;
+  }
+
+  const fotoDePortada = setDelEvento.find(f => f.esPortada);
+  let fotoPortada = datosBase.fotoPortada;
+  let portadaPuesta = false;
+  let portadaYaExistia = false;
+  if (fotoDePortada) {
+    if (!datosBase.fotoPortada) {
+      fotoPortada = fotoDePortada.url;
+      portadaPuesta = true;
+    } else {
+      portadaYaExistia = true;
+    }
+  }
+
+  return {
+    datos: { ...datosBase, fotos: nuevasFotos, fotoPortada },
+    insertadas,
+    descartadasPorLimite,
+    portadaPuesta,
+    portadaYaExistia,
+    maxFotosPermitidas
+  };
+};
+
+// Frases de resumen del resultado de insertarSetFotosEnDatos (mismo texto que siempre tuvo el toast).
+const clausulasResumenSetFotos = (
+  r: ReturnType<typeof insertarSetFotosEnDatos>,
+  paquete: InvitacionDatos["paquete"]
+): string[] => {
+  const clausulas: string[] = [];
+  if (r.portadaPuesta) clausulas.push("portada lista");
+  else if (r.portadaYaExistia) clausulas.push("la portada ya existía y no se cambió");
+
+  if (r.insertadas > 0) {
+    clausulas.push(
+      r.descartadasPorLimite > 0
+        ? `${r.insertadas} foto${r.insertadas === 1 ? "" : "s"} en la galería (el paquete ${paquetes[paquete].nombre} solo admite ${r.maxFotosPermitidas})`
+        : `${r.insertadas} foto${r.insertadas === 1 ? "" : "s"} en la galería`
+    );
+  } else if (r.descartadasPorLimite > 0) {
+    clausulas.push(`no se pudo agregar ninguna foto nueva a la galería -- el paquete ${paquetes[paquete].nombre} ya está en su límite de ${r.maxFotosPermitidas}`);
+  }
+  return clausulas;
+};
+
+// Fondo de galería por evento (2026-11-22) extraído a función pura (2026-11-28) para que lo usen
+// handleAplicarFondoGaleria y el alta "Nueva <evento>" con la misma forma exacta de dato.
+const aplicarFondoGaleriaEnDatos = (prev: InvitacionDatos, tipo: TipoEvento, url: string): InvitacionDatos => ({
+  ...prev,
+  fondosGaleriaPorEvento: {
+    ...(prev.fondosGaleriaPorEvento || {}),
+    [tipo]: url
+  }
+});
+
 // Resuelve el tipo de evento de una fila de "Mis Invitaciones" (campo ligero `tipoEvento`,
 // extraído server-side en list-invitaciones.ts) -- ausente o desconocido = "xv", mismo criterio
 // que templates.ts/textosEventoDe (toda invitación guardada antes de este campo es XV).
@@ -4192,13 +4279,7 @@ export default function App() {
   // guarda cuando la invitación misma se guarda, igual que cualquier otro campo de `datos`.
   const handleAplicarFondoGaleria = (url: string) => {
     const tipoActual = datos.tipoEvento || "xv";
-    setDatos(prev => ({
-      ...prev,
-      fondosGaleriaPorEvento: {
-        ...(prev.fondosGaleriaPorEvento || {}),
-        [tipoActual]: url
-      }
-    }));
+    setDatos(prev => aplicarFondoGaleriaEnDatos(prev, tipoActual, url));
   };
 
   const handleQuitarFondoGaleria = () => {
@@ -5690,7 +5771,12 @@ export default function App() {
   // seguir llenando el resto (fotos, itinerario, etc.) con calma. Así el cliente queda
   // registrado en "Mis Invitaciones" desde el minuto uno de la venta, no hasta que termines de
   // diseñar toda la invitación.
-  const handleCrearNuevoCliente = async () => {
+  // `tipoElegido` (2026-11-28): lo pasan los botones "Nueva/Nuevo <evento>" del mismo modal. Sin
+  // argumento = el botón de siempre ("Crear y empezar a editar"), igual que antes. Con evento,
+  // la invitación nace con su tipoEvento, su set de fotos listas (sin grupo) y su primer fondo
+  // listo -- reusando las mismas lógicas de insertar set y aplicar fondo, sin tocar la rutina
+  // de creación (paquete, folio, guardado).
+  const handleCrearNuevoCliente = async (tipoElegido?: TipoEvento) => {
     if (!nuevoClienteNombre.trim()) {
       mostrarToast("Falta el nombre de la quinceañera", "error");
       return;
@@ -5724,10 +5810,36 @@ export default function App() {
         linkPersonalizado: "",
         invitados: [],
         // "pases" es a la carte en Básico/Premium (apagada por default), incluida en Deluxe.
-        seccionesExcluidas: nuevoClientePaquete === "deluxe" ? [] : ["pases"]
+        seccionesExcluidas: nuevoClientePaquete === "deluxe" ? [] : ["pases"],
+        ...(tipoElegido ? { tipoEvento: tipoElegido } : {})
       };
+
+      // Precargas por evento (2026-11-28). XV no precarga nada (sus fotos van por tema). Para
+      // eventos con grupos de fotos (hoy Cumpleaños: set niña / set niño) NO se precarga el set,
+      // para no mezclar dos sets en una misma invitación -- se elige uno en el álbum.
+      let datosFinales: InvitacionDatos = nuevosDatos;
+      const extrasToast: string[] = [];
+      if (tipoElegido && tipoElegido !== "xv") {
+        const hayGrupos = fotosListasActivas.some(f => f.evento === tipoElegido && f.grupo);
+        if (!hayGrupos) {
+          const setDelEvento = fotosListasActivas.filter(f => f.evento === tipoElegido);
+          if (setDelEvento.length > 0) {
+            const resultado = insertarSetFotosEnDatos(datosFinales, setDelEvento);
+            datosFinales = resultado.datos;
+            extrasToast.push(...clausulasResumenSetFotos(resultado, nuevosDatos.paquete));
+          }
+        } else {
+          extrasToast.push("este evento tiene dos sets de fotos (ej. niña/niño) -- elige uno en Álbum");
+        }
+        const primerFondo = fondosListosActivos.find(f => f.evento === tipoElegido);
+        if (primerFondo) {
+          datosFinales = aplicarFondoGaleriaEnDatos(datosFinales, tipoElegido, primerFondo.url);
+          extrasToast.push("fondo de galería listo");
+        }
+      }
+
       const temaConfig = temas.find(t => t.id === "dorado-clasico") || temas[0];
-      const nuevaFila = await guardarEnSupabase(nuevosDatos, temaConfig, undefined, null, usuarioActual);
+      const nuevaFila = await guardarEnSupabase(datosFinales, temaConfig, undefined, null, usuarioActual);
       if (!nuevaFila?.id) {
         mostrarToast("No se pudo crear el cliente", "error");
         return;
@@ -5740,7 +5852,7 @@ export default function App() {
       // El código corto se genera dentro de guardarEnSupabase -- se trae de vuelta aquí para
       // que el editor ya lo tenga disponible desde el primer momento (mismo porqué que en
       // handleGuardarEnSupabase).
-      setDatos({ ...nuevosDatos, codigoCorto: nuevaFila.datos_completos?.codigoCorto });
+      setDatos({ ...datosFinales, codigoCorto: nuevaFila.datos_completos?.codigoCorto });
       setSelectedTemaId("dorado-clasico");
       setSupabaseRowId(nuevaFila.id);
       setIntakeBaselineAlAbrir(null); // fila nueva -- sin intake propio todavia
@@ -5748,7 +5860,8 @@ export default function App() {
       setMostrarNuevoCliente(false);
       setMostrarMisInvitaciones(false);
       setPanelPestana("ajustes");
-      mostrarToast(`Cliente "${nuevosDatos.nombre}" creado — sigue llenando su invitación ✨`, "success");
+      const sufijoExtras = extrasToast.length > 0 ? ` (${extrasToast.join("; ")})` : "";
+      mostrarToast(`Cliente "${datosFinales.nombre}" creado — sigue llenando su invitación ✨${sufijoExtras}`, "success");
       setNuevoClienteNombre("");
       setNuevoClienteTelefono("52");
       setNuevoClientePaquete("basico");
@@ -6849,56 +6962,15 @@ export default function App() {
     const setDelEvento = fotosListasActivas.filter(f => f.evento === tipoActual && (!grupo || f.grupo === grupo));
     if (setDelEvento.length === 0) return;
 
-    const maxFotosPermitidas = paquetes[datos.paquete].maxFotos;
-    const nuevasFotos = [...(datos.fotos || [])];
-    const yaPresentes = new Set(nuevasFotos);
-    let insertadas = 0;
-    let descartadasPorLimite = 0;
-
-    for (const foto of setDelEvento) {
-      if (yaPresentes.has(foto.url)) continue;
-      if (nuevasFotos.length >= maxFotosPermitidas) {
-        descartadasPorLimite++;
-        continue;
-      }
-      nuevasFotos.push(foto.url);
-      yaPresentes.add(foto.url);
-      insertadas++;
-    }
-
-    const fotoDePortada = setDelEvento.find(f => f.esPortada);
-    let nuevaPortada = datos.fotoPortada;
-    let portadaPuesta = false;
-    let portadaYaExistia = false;
-    if (fotoDePortada) {
-      if (!datos.fotoPortada) {
-        nuevaPortada = fotoDePortada.url;
-        portadaPuesta = true;
-      } else {
-        portadaYaExistia = true;
-      }
-    }
-
+    const resultado = insertarSetFotosEnDatos(datos, setDelEvento);
     setDatos(prev => ({
       ...prev,
-      fotos: nuevasFotos,
-      fotoPortada: nuevaPortada
+      fotos: resultado.datos.fotos,
+      fotoPortada: resultado.datos.fotoPortada
     }));
 
     const evento = TIPOS_EVENTO.find(t => t.id === tipoActual)?.label || "Evento";
-    const clausulas: string[] = [];
-    if (portadaPuesta) clausulas.push("portada lista");
-    else if (portadaYaExistia) clausulas.push("la portada ya existía y no se cambió");
-
-    if (insertadas > 0) {
-      clausulas.push(
-        descartadasPorLimite > 0
-          ? `${insertadas} foto${insertadas === 1 ? "" : "s"} en la galería (el paquete ${paquetes[datos.paquete].nombre} solo admite ${maxFotosPermitidas})`
-          : `${insertadas} foto${insertadas === 1 ? "" : "s"} en la galería`
-      );
-    } else if (descartadasPorLimite > 0) {
-      clausulas.push(`no se pudo agregar ninguna foto nueva a la galería -- el paquete ${paquetes[datos.paquete].nombre} ya está en su límite de ${maxFotosPermitidas}`);
-    }
+    const clausulas = clausulasResumenSetFotos(resultado, datos.paquete);
 
     if (clausulas.length === 0) {
       mostrarToast(`El set de ${evento} ya estaba insertado por completo -- nada que agregar`, "info");
@@ -12148,6 +12220,25 @@ export default function App() {
               </div>
             </div>
 
+            <div className="mt-4">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                ¿Qué evento es? <span className="font-normal text-slate-500">— crea la invitación ya con su tipo de evento, su set de fotos y su primer fondo listos</span>
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {TIPOS_EVENTO.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    disabled={creandoNuevoCliente}
+                    onClick={() => handleCrearNuevoCliente(t.id)}
+                    className="p-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-300 disabled:opacity-50 text-left text-xs font-bold text-slate-800 transition cursor-pointer"
+                  >
+                    {t.emoji} {ETIQUETA_BOTON_NUEVA_POR_EVENTO[t.id]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="mt-5 flex items-center justify-end gap-2.5">
               <button
                 type="button"
@@ -12158,7 +12249,7 @@ export default function App() {
               </button>
               <button
                 type="button"
-                onClick={handleCrearNuevoCliente}
+                onClick={() => handleCrearNuevoCliente()}
                 disabled={creandoNuevoCliente}
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white text-xs font-bold rounded-lg transition cursor-pointer"
               >

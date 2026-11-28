@@ -13,6 +13,7 @@ Una vez dentro, caes directo en el editor — no hay una pantalla de bienvenida 
 1. Clic en **"Mis Invitaciones"** (grupo "Ver todo" de la barra de botones).
 2. Clic en **"+ Nuevo Cliente"**.
 3. Captura nombre, teléfono y el paquete que compró (Básico / Estándar / Premium).
+4. Elige el tipo de evento con uno de los botones **"Nueva XV" / "Nuevo bautizo" / "Nueva boda"** (etc.). Cada botón crea la invitación ya con ese tipo de evento; además, para Boda, Bautizo, Primera comunión, Graduación, Baby shower y Aniversario, trae ya el set de fotos de ese evento en el álbum y su primer fondo de galería listo. Para Cumpleaños no precarga fotos (tiene dos sets, niña y niño: elige uno en el álbum). Las fotos y el fondo son de muestra y se reemplazan por los de la clienta. "Nueva XV" crea la invitación sin precargar nada (en XV las fotos van por tema).
 
 Esto crea el registro del cliente en Supabase **de inmediato** (antes de diseñar nada), así la venta queda registrada desde el momento en que se hace. Después puedes volver a este cliente en cualquier momento desde "Mis Invitaciones" para seguir editando, sin perder lo que ya llevas.
 
